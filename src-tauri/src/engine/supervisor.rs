@@ -163,6 +163,8 @@ impl EngineSupervisor {
     }
 
     /// Locate the engine binary: dev override first, `rinari` on PATH otherwise.
+    /// Production prefers the bundled sidecar via [`Self::start_with_sidecar`]
+    /// (resolved by the Tauri host from its resource dir).
     fn locate() -> Result<(String, Vec<String>, Option<PathBuf>), CommandError> {
         if let Ok(bin) = std::env::var(ENV_ENGINE_BIN) {
             let mut args: Vec<String> = std::env::var(ENV_ENGINE_ARGS)
@@ -245,6 +247,17 @@ impl EngineSupervisor {
         self.set_state(EngineState::Restarting, None);
         self.shutdown();
         self.start()
+    }
+
+    /// Production start: bundled sidecar resolved from the Tauri resource
+    /// dir, without env/PATH. Returns `None` when no sidecar is present so
+    /// the host can fall back to [`Self::start`].
+    pub fn start_with_sidecar(
+        &self,
+        resource_dir: &std::path::Path,
+    ) -> Option<Result<EngineStatus, CommandError>> {
+        let (program, args) = sidecar_command(resource_dir)?;
+        Some(self.start_with(&program, &args, None))
     }
 
     /// Poll one pending engine event (pump forwards the rest to the frontend).
@@ -796,6 +809,28 @@ impl Default for EngineSupervisor {
     }
 }
 
+/// Bundled sidecar entry: `<resource_dir>/engine-dist/python(.exe)`
+/// running the installed `rinari` package. Pure so unit tests cover the
+/// layout without spawning anything.
+fn sidecar_command(resource_dir: &std::path::Path) -> Option<(String, Vec<String>)> {
+    #[cfg(windows)]
+    let python = resource_dir.join("engine-dist").join("python.exe");
+    #[cfg(not(windows))]
+    let python = resource_dir.join("engine-dist").join("python");
+    if !python.is_file() {
+        return None;
+    }
+    Some((
+        python.to_string_lossy().into_owned(),
+        vec![
+            "-m".to_string(),
+            "rinari".to_string(),
+            "engine".to_string(),
+            "--stdio".to_string(),
+        ],
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -822,5 +857,31 @@ mod tests {
         let supervisor = EngineSupervisor::new();
         assert_eq!(supervisor.shutdown().state, EngineState::Stopped);
         assert_eq!(supervisor.shutdown().state, EngineState::Stopped);
+    }
+
+    #[test]
+    fn sidecar_missing_without_engine_dist() {
+        let dir = std::env::temp_dir().join("rinari-no-sidecar-probe");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("probe dir");
+        assert!(sidecar_command(&dir).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn sidecar_resolves_packaged_layout() {
+        let dir = std::env::temp_dir().join("rinari-sidecar-probe");
+        let _ = std::fs::remove_dir_all(&dir);
+        let dist = dir.join("engine-dist");
+        std::fs::create_dir_all(&dist).expect("probe dist");
+        #[cfg(windows)]
+        let python = dist.join("python.exe");
+        #[cfg(not(windows))]
+        let python = dist.join("python");
+        std::fs::write(&python, b"stub").expect("probe python");
+        let (program, args) = sidecar_command(&dir).expect("sidecar present");
+        assert_eq!(program, python.to_string_lossy());
+        assert_eq!(args, vec!["-m", "rinari", "engine", "--stdio"]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

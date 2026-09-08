@@ -23,3 +23,6 @@ src-tauri/target
 *.njsproj
 *.sln
 *.sw?
+
+# Packaged engine (build output, see scripts/package-engine.ps1)
+src-tauri/engine-dist/

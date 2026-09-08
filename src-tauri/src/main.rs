@@ -32,6 +32,15 @@ fn engine_start(
         let _ = forwarder.emit(FRONTEND_EVENT, &event);
     });
     supervisor.set_sink(sink);
+    // Production: bundled sidecar wins; dev override (RINARI_ENGINE_BIN)
+    // and PATH stay as fallback via supervisor.start().
+    if std::env::var("RINARI_ENGINE_BIN").is_err() {
+        if let Ok(resource_dir) = app.path().resource_dir() {
+            if let Some(result) = supervisor.start_with_sidecar(&resource_dir) {
+                return result;
+            }
+        }
+    }
     supervisor.start()
 }
 

@@ -35,6 +35,18 @@ Engine env (dev):
 RINARI_ENGINE_BIN=uv RINARI_ENGINE_ARGS="run rinari" RINARI_ENGINE_CWD=../Rinari-CLI
 ```
 
+## Packaged engine (Windows)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/package-engine.ps1 `
+  -CliRepo ../Rinari-CLI
+```
+
+Produce `src-tauri/engine-dist/` (gitignored): Python empaquetado + `rinari`
+instalado. El instalador lo incluye vía `bundle.resources` y el desktop lo
+usa automáticamente; `RINARI_ENGINE_BIN` sigue como override de desarrollo.
+Ver `docs/adr/0001-engine-packaging.md`.
+
 ## Tests
 
 ```bash

@@ -95,9 +95,10 @@ tasks/contexto/checkpoints; recién entonces UI de ramas.
 secretos (solo memoria del form → engine; nada en storage/logs),
 `cargo fmt --check` verde.
 
-**Queda fuera de v1 (requiere distribución real):** instaladores,
-firma de código, updater, bundle del engine firmado, smoke en máquina
-limpia, suite E2E con provider real, `tauri dev` visual.
+**Queda fuera de v1 (requiere distribución real):** firma de código,
+updater, smoke en máquina limpia, suite E2E con provider real,
+`tauri dev` visual. Empaquetado Windows del engine verificado (ADR 0001);
+faltan scripts macOS/Linux + firma del bundle.
 
 **Criterio para saldar:** pipeline de release con firma + updater +
 smoke limpio antes de cualquier distribución.

@@ -1,6 +1,6 @@
 # ADR 0001 — Empaquetado del motor Python
 
-- Estado: propuesto (spike Phase 0 pendiente de resultado)
+- Estado: aceptado (spike verificado 2026-09-08, Windows)
 - Fecha: 2026-09-08
 - Contexto: AGENTS.md §45
 
@@ -63,8 +63,19 @@ plugins sin trabajo adicional por plugin.
 
 ## Resultado del spike
 
-Probado en Windows: el host Rust lanza un proceso hijo y captura su stdout
-(`cargo test`: `engine::supervisor::tests::test_sidecar_echoes_and_releases`).
-La matriz completa con el motor real (§45) queda pendiente de Phase 1, cuando
-exista el transporte `engine --stdio` contra el que ejecutar `~/.rinari`
-compatible, plugins, MCP y Soul empaquetados.
+Verificado 2026-09-08 en Windows (opción 1, Estrategia A):
+
+- `scripts/package-engine.ps1` produce `src-tauri/engine-dist/`: Python
+  empaquetado 3.12.10 + `rinari 0.1.0` instalado vía wheel + `ENGINE_VERSION`.
+  Nota: 3.12.11/3.12.12 no publican embed-amd64 en python.org; 3.12.10 sí.
+- Humo directo: `hello` + `engine.info` OK, `soul.list` trae
+  `rinari-default` empaquetado, `~/.rinari` compatible (mismo `RINARI_HOME`
+  que el CLI; `session.create` sin provider falla idéntico al checkout dev:
+  paridad confirmada).
+- Roundtrip real vía supervisor (`engine_smoke` contra el empaquetado):
+  `Ready`, protocolo 1. Turnos con provider quedan fuera del spike.
+- Desktop: `engine_start` usa el sidecar (`resource_dir/engine-dist`) salvo
+  override `RINARI_ENGINE_BIN`; `tauri.conf` incluye `engine-dist` en
+  `bundle.resources`; resolución cubierta con 2 tests unitarios.
+- Pendiente: scripts macOS/Linux, firma del bundle, updater, smoke en
+  máquina limpia (ver `docs/debt.md` Fase 12).
