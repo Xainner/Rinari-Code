@@ -119,15 +119,31 @@ impl EngineSupervisor {
 
     pub fn status(&self) -> EngineStatus {
         match self.inner.lock() {
-            Ok(inner) => EngineStatus {
-                state: inner.state,
-                engine_version: inner
-                    .hello
-                    .as_ref()
-                    .map(|hello| hello.engine_version.clone()),
-                protocol_version: inner.hello.as_ref().map(|hello| hello.protocol_version),
-                detail: inner.detail.clone(),
-            },
+            Ok(inner) => {
+                let mut state = inner.state;
+                let mut detail = inner.detail.clone();
+                if state == EngineState::Ready
+                    && !inner
+                        .transport
+                        .as_ref()
+                        .map(|transport| transport.is_running())
+                        .unwrap_or(false)
+                {
+                    // The child exited without shutdown(): surface Degraded
+                    // instead of a stale Ready so the UI can offer restart.
+                    state = EngineState::Degraded;
+                    detail = Some("engine process exited".to_string());
+                }
+                EngineStatus {
+                    state,
+                    engine_version: inner
+                        .hello
+                        .as_ref()
+                        .map(|hello| hello.engine_version.clone()),
+                    protocol_version: inner.hello.as_ref().map(|hello| hello.protocol_version),
+                    detail,
+                }
+            }
             Err(_) => EngineStatus {
                 state: EngineState::Failed,
                 engine_version: None,
@@ -172,6 +188,21 @@ impl EngineSupervisor {
         }
         self.set_state(EngineState::Starting, None);
         let (program, args, cwd) = Self::locate()?;
+        self.start_with(&program, &args, cwd.as_deref())
+    }
+
+    /// Start with an explicit binary: bundled sidecar path in production,
+    /// or a scripted fake engine in tests. `start()` locates via env/PATH
+    /// and then calls this.
+    pub fn start_with(
+        &self,
+        program: &str,
+        args: &[String],
+        cwd: Option<&std::path::Path>,
+    ) -> Result<EngineStatus, CommandError> {
+        if self.status().state == EngineState::Ready {
+            return Ok(self.status());
+        }
         self.set_state(
             EngineState::Handshaking,
             Some(format!("spawning {program}")),

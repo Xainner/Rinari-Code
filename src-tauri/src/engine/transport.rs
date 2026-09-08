@@ -200,6 +200,18 @@ impl EngineTransport {
         self.events.lock().ok()?.try_recv().ok()
     }
 
+    /// True while the child handle is still running. False after shutdown
+    /// (handle taken) or when the process exited (crash detection).
+    pub fn is_running(&self) -> bool {
+        match self.child.lock() {
+            Ok(mut child) => match child.as_mut() {
+                Some(child) => matches!(child.try_wait(), Ok(None)),
+                None => false,
+            },
+            Err(_) => false,
+        }
+    }
+
     /// Terminate the child and join I/O threads. Idempotent and bounded:
     /// never blocks longer than the deadlines below.
     pub fn shutdown(&self) {
