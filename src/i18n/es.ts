@@ -146,6 +146,7 @@ export const es = {
   'thinking.descMedium': 'Balance entre velocidad y profundidad.',
   'thinking.descHigh': 'Mayor presupuesto para problemas complejos.',
   'chat.emptySubtitle': 'Pregunta, crea, analiza o adjunta algo.',
+  'chat.connecting': 'Conectando con Rinari…',
   'chat.saveRegenerate': 'Guardar y regenerar',
   'reasoning.thinking': 'Pensando…',
   'reasoning.title': 'Razonamiento',
@@ -479,6 +480,8 @@ export const es = {
   'engine.restarting': 'Reiniciando…',
   'engine.handshaking': 'Conectando…',
   'engine.start': 'Iniciar motor',
+  'engine.retry': 'Reintentar conexión',
+  'engine.connecting': 'Conectando con Rinari…',
   'engine.shutdown': 'Detener',
   'engine.restart': 'Reiniciar',
 

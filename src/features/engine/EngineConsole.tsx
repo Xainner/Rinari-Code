@@ -69,17 +69,19 @@ export default function EngineConsole({ session }: { session: EngineSession }) {
           <p className="text-xs text-[var(--text-subtle)]">{session.status.detail}</p>
         )}
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => void session.startEngine()}
-            className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-[var(--bg-hover)]"
-          >
-            {t('engine.start')}
-          </button>
+          {(state === 'stopped' || state === 'failed') && (
+            <button
+              type="button"
+              onClick={() => void session.startEngine()}
+              className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-[var(--bg-hover)]"
+            >
+              {t('engine.retry')}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => void session.restartEngine()}
-            className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-[var(--bg-hover)]"
+            className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--bg-hover)]"
           >
             {t('engine.restart')}
           </button>

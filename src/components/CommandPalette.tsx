@@ -28,7 +28,6 @@ interface CommandPaletteProps {
   onOpenSettings: (section?: SettingsSection) => void
   onOpenEngine: () => void
   onOpenWorkspace: () => void
-  onEngineStart: () => void
   onEngineRestart: () => void
   theme: Theme
   onThemeChange: (theme: Theme) => void
@@ -49,7 +48,6 @@ export default function CommandPalette({
   onOpenSettings,
   onOpenEngine,
   onOpenWorkspace,
-  onEngineStart,
   onEngineRestart,
   theme,
   onThemeChange,
@@ -126,14 +124,6 @@ export default function CommandPalette({
               >
                 <Plus />
                 {t('sidebar.newChat')}
-              </Command.Item>
-              <Command.Item
-                value={t('engine.start')}
-                onSelect={() => run(onEngineStart)}
-                className={itemClass}
-              >
-                <Cpu />
-                {t('engine.start')}
               </Command.Item>
               <Command.Item
                 value={t('engine.restart')}

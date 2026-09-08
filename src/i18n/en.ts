@@ -143,6 +143,7 @@ export const en: Record<I18nKey, string> = {
   'thinking.descMedium': 'Balance of speed and depth.',
   'thinking.descHigh': 'Larger budget for complex problems.',
   'chat.emptySubtitle': 'Ask, create, analyze or attach something.',
+  'chat.connecting': 'Connecting to Rinari…',
   'chat.saveRegenerate': 'Save and regenerate',
   'reasoning.thinking': 'Thinking…',
   'reasoning.title': 'Reasoning',
@@ -461,6 +462,8 @@ export const en: Record<I18nKey, string> = {
   'engine.restarting': 'Restarting…',
   'engine.handshaking': 'Connecting…',
   'engine.start': 'Start engine',
+  'engine.retry': 'Retry connection',
+  'engine.connecting': 'Connecting to Rinari…',
   'engine.shutdown': 'Stop',
   'engine.restart': 'Restart',
 

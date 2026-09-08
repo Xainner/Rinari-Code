@@ -116,7 +116,7 @@ export default function ChatView({
               {t('chat.emptyTitle')}
             </h2>
             <p className="relative mt-1.5 text-center text-sm text-[var(--text-muted)]">
-              {engineReady ? t('chat.emptySubtitle') : t('engine.start')}
+              {engineReady ? t('chat.emptySubtitle') : t('chat.connecting')}
             </p>
             <motion.div
               layout

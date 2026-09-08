@@ -1,0 +1,43 @@
+# Revisión UX del motor (2026-09-08) — PENDIENTE DE REVISIÓN DEL USUARIO
+
+Cambios aplicados para que Rinari Code no parezca depender de un "motor"
+que hay que encender a mano. Nada aquí toca el protocolo ni el engine:
+solo presentación y arranque automático.
+
+## Decisión 1 — Arranque automático
+
+- `App.tsx`: un `useEffect` llama `session.startEngine()` una vez al abrir
+  la app (guard `useRef` por `StrictMode` en dev).
+- Racional: el sidecar empaquetado siempre viaja con la app; el estado
+  "Detenido" en arranque limpio era un artefacto del flujo dev, no una
+  elección de producto.
+- A revisar: ¿reintento automático con backoff si falla, o un solo intento?
+  Hoy: un intento + toast de error + dot rojo en el footer.
+
+## Decisión 2 — Fuera el botón "Iniciar motor" del sidebar
+
+- `AppSidebar.tsx`: eliminado el botón dashed + prop `onStartEngine`.
+- En estados transitorios (`starting/handshaking/restarting`) se muestra
+  "Conectando con Rinari…"; en `stopped/failed`, la lista queda limpia y el
+  footer (dot + EngineConsole) conserva el estado real.
+- A revisar: ¿mostrar algo más explícito en `failed` dentro de la lista?
+
+## Decisión 3 — Paleta sin "Iniciar motor"
+
+- `CommandPalette.tsx`: eliminado el item + prop `onEngineStart`.
+  Queda "Reiniciar" (los comandos de diagnóstico viven en EngineConsole).
+- A revisar: ¿reintroducir como comando oculto solo cuando `failed`?
+
+## Decisión 4 — Textos
+
+- `ChatView` vacío sin engine: "Conectando con Rinari…" (`chat.connecting`).
+- `EngineConsole`: "Iniciar motor" → "Reintentar conexión" (`engine.retry`),
+  visible solo en `stopped/failed`.
+- Claves `engine.start` conservadas en i18n (sin uso) por si la revisión
+  pide revertir alguna superficie. Borrar tras la revisión.
+
+## Estado real preservado
+
+- Footer del sidebar: dot por estado + versión del engine (sin cambios).
+- `EngineConsole`: estado, detalle, reiniciar, detener, reintentar.
+- El auto-arranque nunca enmascara un fallo: `failed` sigue visible.

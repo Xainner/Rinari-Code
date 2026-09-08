@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { toast } from 'sonner'
 import { I18nProvider } from './i18n'
@@ -81,6 +81,17 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // El motor arranca solo al abrir la app: Rinari nunca parece "apagado".
+  // El footer + EngineConsole conservan el estado real y el reintento.
+  const autoStarted = useRef(false)
+  useEffect(() => {
+    if (!autoStarted.current) {
+      autoStarted.current = true
+      void session.startEngine()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Alta guiada: motor listo y sin proveedores → abrir el wizard una vez.
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardSnoozed, setWizardSnoozed] = useState(false)
@@ -126,7 +137,6 @@ function App() {
             onOpenSettings={() => goSettings()}
             onOpenEngine={goEngine}
             onOpenWorkspace={goWorkspace}
-            onStartEngine={() => void session.startEngine()}
             onResolveApproval={(id, decision) => void session.resolveApproval(id, decision)}
           />
         }
@@ -211,7 +221,6 @@ function App() {
         onOpenSettings={(section) => goSettings(section)}
         onOpenEngine={goEngine}
         onOpenWorkspace={goWorkspace}
-        onEngineStart={() => void session.startEngine()}
         onEngineRestart={() => void session.restartEngine()}
         theme={theme}
         onThemeChange={setTheme}

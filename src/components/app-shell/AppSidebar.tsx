@@ -1,4 +1,4 @@
-import { Cpu, GitBranch, MessageSquare, PanelLeftClose, Play, Plus, Search, Settings2 } from 'lucide-react'
+import { Cpu, GitBranch, MessageSquare, PanelLeftClose, Plus, Search, Settings2 } from 'lucide-react'
 import type { EngineStatus, SessionSummary } from '../../services/engine'
 import { useI18n } from '../../i18n'
 import { cn } from '../../lib/utils'
@@ -19,7 +19,6 @@ interface AppSidebarProps {
   onOpenSettings: () => void
   onOpenEngine: () => void
   onOpenWorkspace: () => void
-  onStartEngine: () => void
   onResolveApproval: (id: string, decision: string) => void
 }
 
@@ -82,7 +81,6 @@ export default function AppSidebar({
   onOpenSettings,
   onOpenEngine,
   onOpenWorkspace,
-  onStartEngine,
   onResolveApproval,
 }: AppSidebarProps) {
   const { t } = useI18n()
@@ -190,15 +188,10 @@ export default function AppSidebar({
         <p className="mb-1 px-2 text-[11px] font-semibold tracking-widest text-[var(--text-subtle)] uppercase">
           {t('sidebar.sessions')}
         </p>
-        {engineState === 'stopped' || engineState === 'failed' ? (
-          <button
-            type="button"
-            onClick={onStartEngine}
-            className="mx-2 mb-2 inline-flex items-center gap-2 rounded-xl border border-dashed border-[var(--border)] px-3 py-2 text-[13px] text-[var(--text-muted)] transition-colors hover:border-[var(--accent)]/50 hover:text-[var(--text)]"
-          >
-            <Play size={14} />
-            {t('engine.start')}
-          </button>
+        {engineState === 'starting' || engineState === 'handshaking' || engineState === 'restarting' ? (
+          <p className="mx-2 mb-2 px-3 py-2 text-[13px] text-[var(--text-subtle)]">
+            {t('engine.connecting')}
+          </p>
         ) : null}
         {sessions.length === 0 && engineState === 'ready' && (
           <p className="px-2 py-6 text-center text-sm whitespace-pre-line text-[var(--text-subtle)]">
