@@ -1,8 +1,9 @@
-// Rinari Engine supervision — Phase 0 placeholder.
-// Owns the desktop-side engine process lifecycle only:
-// locate, spawn, handshake, route, restart, snapshot-reconnect.
-// It never implements harness logic (sessions, tools, policy live in Python).
+// Rinari Engine supervision — desktop side of Engine Protocol v1.
+// Owns the engine process lifecycle only: locate, spawn, handshake,
+// route requests, forward events, restart. Harness logic lives in Python.
 
+pub mod protocol;
 pub mod supervisor;
+pub mod transport;
 
-pub use supervisor::{EngineState, EngineSupervisor};
+pub use supervisor::{CommandError, EngineStatus, EngineSupervisor, EventSink};
