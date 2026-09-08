@@ -10,8 +10,11 @@ import ProvidersView from '../providers/ProvidersView'
 import ModelsView from '../providers/ModelsView'
 import AgentsView from '../agents/AgentsView'
 import SoulsView from '../souls/SoulsView'
+import McpView from '../ecosystem/McpView'
+import PluginsView from '../ecosystem/PluginsView'
+import ToolsView from '../ecosystem/ToolsView'
 
-/** Vista de ajustes: shell + sección activa. MCP llega en Fase 9. */
+/** Vista de ajustes: shell + sección activa. Terminal llega en Fase 10. */
 export default function SettingsView({
   appVersion,
   providers,
@@ -55,8 +58,11 @@ export default function SettingsView({
         />
       )}
       {section === 'soul' && <SoulsView onChanged={onCatalogChanged} />}
+      {section === 'mcp' && <McpView onChanged={onCatalogChanged} />}
+      {section === 'plugins' && <PluginsView onChanged={onCatalogChanged} />}
+      {section === 'tools' && <ToolsView />}
       {section === 'about' && <AboutSettings version={appVersion} />}
-      {!['general', 'appearance', 'providers', 'models', 'agents', 'soul', 'about'].includes(section) && (
+      {!['general', 'appearance', 'providers', 'models', 'agents', 'soul', 'mcp', 'plugins', 'tools', 'about'].includes(section) && (
         <SoonSettings />
       )}
     </SettingsShell>

@@ -76,6 +76,8 @@ class FakeEngine:
         self.agent_configs = {}
         self.souls = {}
         self.active_soul = None
+        self.mcp_servers = {}
+        self.fake_plugin_enabled = True
 
     def session_list(self, req_id, _params):
         respond(req_id, result={"sessions": list(self.sessions.values())})
@@ -357,6 +359,112 @@ class FakeEngine:
         self.active_soul = soul_id
         detail = self._soul_detail(soul_id)
         respond(req_id, result={"soul": {k: v for k, v in detail.items() if k != "identity"}})
+
+    # -- ecosystem (Phase 9): canned MCP/plugins ---------------------------------
+
+    def mcp_list(self, req_id, _params):
+        servers = []
+        for name in sorted(self.mcp_servers):
+            saved = self.mcp_servers[name]
+            servers.append({"name": name, "transport": "stdio",
+                           "command": saved["command"], "scope": "global",
+                           "enabled": saved["enabled"],
+                           "connected": False, "updated_at": None})
+        respond(req_id, result={"servers": servers})
+
+    def mcp_create(self, req_id, params):
+        params = params or {}
+        name = params.get("name", "")
+        command = params.get("command", [])
+        if not name or not isinstance(command, list) or not command:
+            fail(req_id, "INVALID_PARAMS", "Params 'name'/'command' are required.")
+            return
+        if name in self.mcp_servers:
+            fail(req_id, "CONFLICT", f"MCP server exists: {name}.")
+            return
+        self.mcp_servers[name] = {"command": " ".join(command), "enabled": True}
+        respond(req_id, result={"server": {"name": name, "transport": "stdio",
+                "command": " ".join(command), "scope": "global", "enabled": True,
+                "connected": False, "updated_at": None}})
+
+    def mcp_remove(self, req_id, params):
+        name = (params or {}).get("name", "")
+        if name not in self.mcp_servers:
+            fail(req_id, "NOT_FOUND", f"Unknown MCP server: {name}.")
+            return
+        del self.mcp_servers[name]
+        respond(req_id, result={"removed": {"name": name}})
+
+    def mcp_enable(self, req_id, params):
+        self._mcp_set_enabled(req_id, params, True)
+
+    def mcp_disable(self, req_id, params):
+        self._mcp_set_enabled(req_id, params, False)
+
+    def _mcp_set_enabled(self, req_id, params, enabled):
+        params = params or {}
+        name = params.get("name", "")
+        if name not in self.mcp_servers:
+            fail(req_id, "NOT_FOUND", f"Unknown MCP server: {name}.")
+            return
+        self.mcp_servers[name]["enabled"] = enabled
+        saved = self.mcp_servers[name]
+        respond(req_id, result={"server": {"name": name, "transport": "stdio",
+                "command": saved["command"], "scope": "global",
+                "enabled": saved["enabled"], "connected": False, "updated_at": None}})
+
+    def mcp_test(self, req_id, params):
+        name = (params or {}).get("name", "")
+        if name not in self.mcp_servers:
+            respond(req_id, result={"test": {"ok": False, "error": "MCP_NOT_FOUND",
+                    "message": f"unknown MCP server: {name}", "tools": 0}})
+            return
+        respond(req_id, result={"test": {"ok": False, "error": "MCP_NOT_CONNECTED",
+                "message": "fake server never connects", "tools": 0}})
+
+    def plugin_list(self, req_id, _params):
+        respond(req_id, result={"plugins": [
+            {"name": "fake-plugin", "version": "0.1.0", "source": "user",
+             "scope": "global", "enabled": self.fake_plugin_enabled,
+             "path": "/fake/plugins/fake-plugin", "capabilities": ["tools"],
+             "diagnostics": [{"code": "OK", "message": "fake plugin loads cleanly"}]}
+        ]})
+
+    def plugin_enable(self, req_id, params):
+        self._plugin_set_enabled(req_id, params, True)
+
+    def plugin_disable(self, req_id, params):
+        self._plugin_set_enabled(req_id, params, False)
+
+    def _plugin_set_enabled(self, req_id, params, enabled):
+        params = params or {}
+        if params.get("name") != "fake-plugin":
+            fail(req_id, "NOT_FOUND", "Unknown plugin.")
+            return
+        self.fake_plugin_enabled = enabled
+        respond(req_id, result={"plugin": {
+            "name": "fake-plugin", "version": "0.1.0", "source": "user",
+            "scope": "global", "enabled": self.fake_plugin_enabled,
+            "path": "/fake/plugins/fake-plugin", "capabilities": ["tools"],
+            "diagnostics": [{"code": "OK", "message": "fake plugin loads cleanly"}]}})
+
+    def plugin_diagnostics(self, req_id, _params):
+        respond(req_id, result={"reports": [
+            {"name": "fake-plugin", "source": "user",
+             "diagnostics": [{"code": "OK", "message": "fake plugin loads cleanly"}]}
+        ]})
+
+    def tool_list(self, req_id, _params):
+        respond(req_id, result={"tools": [
+            {"name": "artifact.read", "description": "fake", "capabilities": None,
+             "permissions": None, "risk": "low", "side_effects": "none",
+             "namespace": "artifact", "always_loaded": True}
+        ]})
+
+    def policy_get(self, req_id, _params):
+        respond(req_id, result={"mode_profile": {
+            "plan": "READ_ONLY", "build": "WORKSPACE", "review": "READ_ONLY"},
+            "note": "fake policy mapping"})
 
     def session_history(self, req_id, params):
         params = params or {}
@@ -770,6 +878,20 @@ class FakeEngine:
             "soul.update": self.soul_update,
             "soul.remove": self.soul_remove,
             "soul.activate": self.soul_activate,
+            "mcp.list": self.mcp_list,
+            "mcp.get": self.mcp_list,
+            "mcp.create": self.mcp_create,
+            "mcp.remove": self.mcp_remove,
+            "mcp.enable": self.mcp_enable,
+            "mcp.disable": self.mcp_disable,
+            "mcp.test": self.mcp_test,
+            "plugin.list": self.plugin_list,
+            "plugin.get": self.plugin_list,
+            "plugin.enable": self.plugin_enable,
+            "plugin.disable": self.plugin_disable,
+            "plugin.diagnostics": self.plugin_diagnostics,
+            "tool.list": self.tool_list,
+            "policy.get": self.policy_get,
             "session.history": self.session_history,
             "session.turn.start": self.turn_start,
             "session.turn.cancel": self.turn_cancel,

@@ -149,6 +149,47 @@ export interface SoulDetail extends SoulSummary {
   identity: string;
 }
 
+export interface McpServer {
+  name: string;
+  transport: string;
+  command: string;
+  scope: string;
+  enabled: boolean;
+  connected: boolean;
+  updated_at: string | null;
+}
+
+export interface McpTest {
+  ok: boolean;
+  server?: string;
+  tools?: number;
+  names?: string[];
+  error?: string;
+  message?: string;
+}
+
+export interface PluginInfo {
+  name: string;
+  version: string;
+  source: string;
+  scope: string;
+  enabled: boolean;
+  path: string;
+  capabilities: string[];
+  diagnostics: Array<{ code: string; message: string }>;
+}
+
+export interface NativeTool {
+  name: string;
+  description: string;
+  capabilities: string[] | null;
+  permissions: string[] | null;
+  risk: string;
+  side_effects: string;
+  namespace: string;
+  always_loaded: boolean;
+}
+
 export interface ProjectChanges {
   available: boolean;
   branch: string | null;
@@ -297,6 +338,23 @@ export const engineApi = {
     }),
   soulRemove: (id: string) => invoke<{ removed: { id: string } }>("soul_remove", { id }),
   soulActivate: (id: string) => invoke<{ soul: SoulSummary }>("soul_activate", { id }),
+  mcpList: () => invoke<{ servers: McpServer[] }>("mcp_list"),
+  mcpCreate: (name: string, command: string[]) =>
+    invoke<{ server: McpServer }>("mcp_create", { name, command }),
+  mcpRemove: (name: string) => invoke<{ removed: { name: string } }>("mcp_remove", { name }),
+  mcpSetEnabled: (name: string, enabled: boolean) =>
+    invoke<{ server: McpServer }>("mcp_set_enabled", { name, enabled }),
+  mcpTest: (name: string) => invoke<{ test: McpTest }>("mcp_test", { name }),
+  pluginList: () => invoke<{ plugins: PluginInfo[] }>("plugin_list"),
+  pluginSetEnabled: (name: string, enabled: boolean) =>
+    invoke<{ plugin: PluginInfo }>("plugin_set_enabled", { name, enabled }),
+  pluginDiagnostics: () =>
+    invoke<{ reports: Array<{ name: string; source: string; diagnostics: Array<{ code: string; message: string }> }> }>(
+      "plugin_diagnostics",
+    ),
+  toolList: () => invoke<{ tools: NativeTool[] }>("tool_list"),
+  policyGet: () =>
+    invoke<{ mode_profile: Record<string, string>; note: string }>("policy_get"),
   startTurn: (sessionId: string, message: string) =>
     invoke<{ status: string; turn_id: string; session_id: string }>("turn_start", {
       session_id: sessionId,

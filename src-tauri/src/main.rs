@@ -291,6 +291,92 @@ fn soul_activate(
 }
 
 #[tauri::command]
+fn mcp_list(supervisor: State<'_, EngineSupervisor>) -> Result<serde_json::Value, CommandError> {
+    supervisor.mcp_list()
+}
+
+#[tauri::command]
+fn mcp_get(
+    supervisor: State<'_, EngineSupervisor>,
+    name: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.mcp_get(&name)
+}
+
+#[tauri::command]
+fn mcp_create(
+    supervisor: State<'_, EngineSupervisor>,
+    name: String,
+    command: Vec<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.mcp_create(&name, command)
+}
+
+#[tauri::command]
+fn mcp_remove(
+    supervisor: State<'_, EngineSupervisor>,
+    name: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.mcp_remove(&name)
+}
+
+#[tauri::command]
+fn mcp_set_enabled(
+    supervisor: State<'_, EngineSupervisor>,
+    name: String,
+    enabled: bool,
+) -> Result<serde_json::Value, CommandError> {
+    if enabled {
+        supervisor.mcp_enable(&name)
+    } else {
+        supervisor.mcp_disable(&name)
+    }
+}
+
+#[tauri::command]
+fn mcp_test(
+    supervisor: State<'_, EngineSupervisor>,
+    name: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.mcp_test(&name)
+}
+
+#[tauri::command]
+fn plugin_list(supervisor: State<'_, EngineSupervisor>) -> Result<serde_json::Value, CommandError> {
+    supervisor.plugin_list()
+}
+
+#[tauri::command]
+fn plugin_set_enabled(
+    supervisor: State<'_, EngineSupervisor>,
+    name: String,
+    enabled: bool,
+) -> Result<serde_json::Value, CommandError> {
+    if enabled {
+        supervisor.plugin_enable(&name)
+    } else {
+        supervisor.plugin_disable(&name)
+    }
+}
+
+#[tauri::command]
+fn plugin_diagnostics(
+    supervisor: State<'_, EngineSupervisor>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.plugin_diagnostics()
+}
+
+#[tauri::command]
+fn tool_list(supervisor: State<'_, EngineSupervisor>) -> Result<serde_json::Value, CommandError> {
+    supervisor.tool_list()
+}
+
+#[tauri::command]
+fn policy_get(supervisor: State<'_, EngineSupervisor>) -> Result<serde_json::Value, CommandError> {
+    supervisor.policy_get()
+}
+
+#[tauri::command]
 fn session_create(
     supervisor: State<'_, EngineSupervisor>,
     cwd: Option<String>,
@@ -571,6 +657,17 @@ pub fn run() {
             soul_update,
             soul_remove,
             soul_activate,
+            mcp_list,
+            mcp_get,
+            mcp_create,
+            mcp_remove,
+            mcp_set_enabled,
+            mcp_test,
+            plugin_list,
+            plugin_set_enabled,
+            plugin_diagnostics,
+            tool_list,
+            policy_get,
             session_create,
             turn_start,
             turn_cancel,

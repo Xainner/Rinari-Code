@@ -464,6 +464,67 @@ impl EngineSupervisor {
         self.request("soul.activate", Some(json!({"id": soul_id})))
     }
 
+    // -- ecosystem (Phase 9) ----------------------------------------------------
+
+    pub fn mcp_list(&self) -> Result<Value, CommandError> {
+        self.request("mcp.list", None)
+    }
+
+    pub fn mcp_get(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("mcp.get", Some(json!({"name": name})))
+    }
+
+    pub fn mcp_create(&self, name: &str, command: Vec<String>) -> Result<Value, CommandError> {
+        self.request(
+            "mcp.create",
+            Some(json!({"name": name, "command": command})),
+        )
+    }
+
+    pub fn mcp_remove(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("mcp.remove", Some(json!({"name": name})))
+    }
+
+    pub fn mcp_enable(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("mcp.enable", Some(json!({"name": name})))
+    }
+
+    pub fn mcp_disable(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("mcp.disable", Some(json!({"name": name})))
+    }
+
+    pub fn mcp_test(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("mcp.test", Some(json!({"name": name})))
+    }
+
+    pub fn plugin_list(&self) -> Result<Value, CommandError> {
+        self.request("plugin.list", None)
+    }
+
+    pub fn plugin_get(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("plugin.get", Some(json!({"name": name})))
+    }
+
+    pub fn plugin_enable(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("plugin.enable", Some(json!({"name": name})))
+    }
+
+    pub fn plugin_disable(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("plugin.disable", Some(json!({"name": name})))
+    }
+
+    pub fn plugin_diagnostics(&self) -> Result<Value, CommandError> {
+        self.request("plugin.diagnostics", None)
+    }
+
+    pub fn tool_list(&self) -> Result<Value, CommandError> {
+        self.request("tool.list", None)
+    }
+
+    pub fn policy_get(&self) -> Result<Value, CommandError> {
+        self.request("policy.get", None)
+    }
+
     pub fn approval_resolve(
         &self,
         approval_id: &str,

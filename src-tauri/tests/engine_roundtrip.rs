@@ -383,6 +383,67 @@ fn soul_crud_roundtrip_with_activation() {
     );
 }
 
+#[test]
+fn ecosystem_roundtrip_mcp_plugins_tools_policy() {
+    let harness = start_fake("stream");
+
+    let empty = harness.supervisor.mcp_list().expect("mcp.list");
+    assert_eq!(empty["servers"].as_array().unwrap().len(), 0);
+
+    let created = harness
+        .supervisor
+        .mcp_create("demo", vec!["npx".to_string(), "-y".to_string()])
+        .expect("mcp.create");
+    assert_eq!(created["server"]["name"], serde_json::json!("demo"));
+
+    // mcp.enable sends {name} only — the fake must enable, not read a flag.
+    let enabled = harness.supervisor.mcp_enable("demo").expect("mcp.enable");
+    assert_eq!(enabled["server"]["enabled"], serde_json::json!(true));
+    let disabled = harness.supervisor.mcp_disable("demo").expect("mcp.disable");
+    assert_eq!(disabled["server"]["enabled"], serde_json::json!(false));
+
+    let test = harness.supervisor.mcp_test("demo").expect("mcp.test");
+    assert_eq!(test["test"]["ok"], serde_json::json!(false));
+
+    harness.supervisor.mcp_remove("demo").expect("mcp.remove");
+    let missing = harness.supervisor.mcp_get("demo").expect("mcp.get");
+    assert_eq!(missing["servers"].as_array().unwrap().len(), 0);
+
+    let plugins = harness.supervisor.plugin_list().expect("plugin.list");
+    assert_eq!(plugins["plugins"].as_array().unwrap().len(), 1);
+    let toggled = harness
+        .supervisor
+        .plugin_disable("fake-plugin")
+        .expect("plugin.disable");
+    assert_eq!(toggled["plugin"]["enabled"], serde_json::json!(false));
+
+    let diags = harness
+        .supervisor
+        .plugin_diagnostics()
+        .expect("plugin.diagnostics");
+    assert_eq!(
+        diags["reports"][0]["diagnostics"][0]["code"],
+        serde_json::json!("OK")
+    );
+
+    let tools = harness.supervisor.tool_list().expect("tool.list");
+    assert_eq!(
+        tools["tools"][0]["name"],
+        serde_json::json!("artifact.read")
+    );
+
+    let policy = harness.supervisor.policy_get().expect("policy.get");
+    assert_eq!(
+        policy["mode_profile"]["build"],
+        serde_json::json!("WORKSPACE")
+    );
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
 fn deltas(harness: &Harness) -> Vec<String> {
     harness
         .events

@@ -23,6 +23,7 @@ export type SettingsSection =
   | 'soul'
   | 'mcp'
   | 'plugins'
+  | 'tools'
   | 'terminal'
   | 'advanced'
   | 'about'
