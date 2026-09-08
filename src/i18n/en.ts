@@ -479,6 +479,12 @@ export const en: Record<I18nKey, string> = {
   'providers.healthFail': 'Failed: {detail}',
   'providers.noCredential': 'No credential',
   'providers.offline': 'Offline',
+
+  /* Activity & history (Phase 4) */
+  'activity.title': 'Activity',
+  'activity.running': 'running',
+  'activity.done': 'done',
+  'history.hasMore': '+{n} earlier messages',
   'providers.credentialOk': 'Credential stored',
   'providers.alias': 'Alias',
   'providers.type': 'Type',

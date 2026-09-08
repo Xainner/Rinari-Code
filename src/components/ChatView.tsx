@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Virtualizer, type VirtualizerHandle } from 'virtua'
-import type { ChatMessage } from '../types'
+import type { ChatMessage, ToolActivity } from '../types'
 import type { ModelSummary } from '../services/engine'
 import { useI18n, type I18nKey } from '../i18n'
 import { useComposerStore } from '../stores/composer'
@@ -21,6 +21,8 @@ interface ChatViewProps {
   models: ModelSummary[]
   activeAlias: string | null
   onUseModel: (alias: string) => void
+  activity: ToolActivity[]
+  historyNote: { total: number; hasMore: boolean } | null
 }
 
 const SUGGESTIONS: I18nKey[] = [
@@ -40,6 +42,8 @@ export default function ChatView({
   models,
   activeAlias,
   onUseModel,
+  activity,
+  historyNote,
 }: ChatViewProps) {
   const { t } = useI18n()
   const autoFollow = useUIStore((s) => s.autoFollow)
@@ -133,6 +137,11 @@ export default function ChatView({
       ) : (
         <>
           <div ref={scrollRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
+            {historyNote?.hasMore && (
+              <p className="mx-auto max-w-3xl px-4 pt-4 text-center text-[11px] text-[var(--text-subtle)]">
+                {t('history.hasMore', { n: historyNote.total })}
+              </p>
+            )}
             <Virtualizer ref={virtRef} scrollRef={scrollRef} data={messages} bufferSize={800}>
               {(m, index) => (
                 <div
@@ -151,6 +160,30 @@ export default function ChatView({
               transition={{ duration: 0.22, ease: 'easeOut' }}
               className="mx-auto max-w-3xl"
             >
+              {activity.length > 0 && (
+                <details className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-1.5">
+                  <summary className="cursor-pointer text-xs text-[var(--text-muted)]">
+                    {t('activity.title')} · {activity.filter((a) => a.status === 'running').length > 0
+                      ? t('activity.running')
+                      : t('activity.done')}{' '}
+                    ({activity.length})
+                  </summary>
+                  <ul className="mt-1.5 space-y-1 pb-1">
+                    {activity.map((a, i) => (
+                      <li
+                        key={`${a.tool}-${i}`}
+                        className="flex items-center gap-2 font-mono text-[11px] text-[var(--text-subtle)]"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`size-1.5 rounded-full ${a.status === 'running' ? 'animate-pulse bg-[var(--accent-2)]' : 'bg-emerald-500/70'}`}
+                        />
+                        <span className="truncate">{a.tool}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
               {composer}
             </motion.div>
           </div>

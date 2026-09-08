@@ -38,6 +38,17 @@ export interface SessionSummary {
   updated_at: string;
 }
 
+export interface HistoryMessage {
+  id: string;
+  seq: number;
+  role: string;
+  content: string | null;
+  tool_calls: Array<{ id: string; name: string; arguments: string }> | null;
+  tool_call_id: string | null;
+  name: string | null;
+  created_at: string;
+}
+
 export interface ProviderSummary {
   id: string;
   alias: string;
@@ -115,6 +126,18 @@ export const engineApi = {
       chat: options?.chat ?? false,
       title: options?.title ?? null,
     }),
+  openSession: (reference: string) =>
+    invoke<{ session: SessionSummary; created: boolean; warnings: string[] }>(
+      "session_open",
+      { reference },
+    ),
+  sessionHistory: (reference: string, limit?: number) =>
+    invoke<{
+      session_id: string;
+      messages: HistoryMessage[];
+      total: number;
+      has_more: boolean;
+    }>("session_history", { reference, limit: limit ?? null }),
   startTurn: (sessionId: string, message: string) =>
     invoke<{ status: string; turn_id: string; session_id: string }>("turn_start", {
       session_id: sessionId,

@@ -6,11 +6,12 @@ import {
   onEngineEvent,
   type EngineEventMsg,
   type EngineStatus,
+  type HistoryMessage,
   type ModelSummary,
   type ProviderSummary,
   type SessionSummary,
 } from '../../services/engine'
-import type { ChatMessage, PendingApproval } from '../../types'
+import type { ChatMessage, PendingApproval, ToolActivity } from '../../types'
 
 let msgKey = 0
 function nextMsgId(): string {
@@ -18,10 +19,26 @@ function nextMsgId(): string {
   return `msg_${Date.now().toString(36)}_${msgKey}`
 }
 
+/** Filas persistidas → mensajes UI. Solo user/assistant con contenido útil. */
+function historyToMessages(rows: HistoryMessage[]): ChatMessage[] {
+  const out: ChatMessage[] = []
+  for (const row of rows) {
+    if (row.role !== 'user' && row.role !== 'assistant') continue
+    let content = row.content ?? ''
+    if (content === '' && row.tool_calls && row.tool_calls.length > 0) {
+      const names = [...new Set(row.tool_calls.map((t) => t.name))].join(', ')
+      content = `Used tools: ${names}`
+    }
+    if (content === '') continue
+    out.push({ id: `h${row.seq}`, role: row.role, content, createdAt: Date.now() })
+  }
+  return out
+}
+
 /**
  * Sesión de chat contra el engine: estado, sesiones, hilos de mensajes por
- * sesión (solo memoria de esta corrida; el historial persistente llega con
- * session.get en Fase 4), aprobaciones y streaming de deltas.
+ * sesión, historial persistente (session.history al seleccionar), actividad
+ * de herramientas, aprobaciones y streaming de deltas.
  */
 export function useEngineSession() {
   const [status, setStatus] = useState<EngineStatus | null>(null)
@@ -32,8 +49,16 @@ export function useEngineSession() {
   const [busy, setBusy] = useState<boolean>(false)
   const [providers, setProviders] = useState<ProviderSummary[]>([])
   const [models, setModels] = useState<ModelSummary[]>([])
+  /** tool.* por sesión, últimas 30. */
+  const [activity, setActivity] = useState<Record<string, ToolActivity[]>>({})
+  /** Total/has_more del historial cargado por sesión. */
+  const [historyInfo, setHistoryInfo] = useState<
+    Record<string, { total: number; hasMore: boolean }>
+  >({})
   /** turn_id -> id de mensaje assistant que acumula sus deltas. */
   const turnMsg = useRef(new Map<string, string>())
+  /** Sesiones con historial ya cargado o hilo vivo (no recargar encima). */
+  const historyLoaded = useRef(new Set<string>())
 
   const messages = activeSession !== '' ? (threads[activeSession] ?? []) : []
 
@@ -157,6 +182,31 @@ export function useEngineSession() {
             prev.filter((a) => a.approval_id !== payload.approval_id),
           )
           break
+        case 'tool.started':
+        case 'tool.completed': {
+          const sessionId = str(payload.session_id)
+          const tool = str(payload.tool)
+          if (sessionId === '' || tool === '') break
+          setActivity((prev) => {
+            const list = [...(prev[sessionId] ?? [])]
+            let next: ToolActivity[]
+            if (event.event === 'tool.started') {
+              next = [...list, { tool, status: 'running' as const }]
+            } else {
+              const idx = list
+                .map((a) => a.tool === tool && a.status === 'running')
+                .lastIndexOf(true)
+              next =
+                idx < 0
+                  ? [...list, { tool, status: 'done' as const }]
+                  : list.map((a, i) =>
+                      i === idx ? { ...a, status: 'done' as const } : a,
+                    )
+            }
+            return { ...prev, [sessionId]: next.slice(-30) }
+          })
+          break
+        }
         default:
           break
       }
@@ -200,11 +250,41 @@ export function useEngineSession() {
     try {
       const result = await engineApi.createSession({ chat: true })
       await refreshSessions()
+      historyLoaded.current.add(result.session.id)
       setActiveSession(result.session.id)
       return result.session.id
     } catch (err) {
       toast.error(commandMessage(err))
       return null
+    }
+  }
+
+  /** Selecciona sesión: reconcile (open) + historial persistente una vez. */
+  async function selectSession(id: string): Promise<void> {
+    setActiveSession(id)
+    try {
+      const opened = await engineApi.openSession(id)
+      for (const warning of opened.warnings ?? []) toast.warning(warning)
+    } catch (err) {
+      toast.error(commandMessage(err))
+      return
+    }
+    if (historyLoaded.current.has(id)) return
+    historyLoaded.current.add(id)
+    try {
+      const history = await engineApi.sessionHistory(id)
+      setHistoryInfo((prev) => ({
+        ...prev,
+        [id]: { total: history.total, hasMore: history.has_more },
+      }))
+      const messages = historyToMessages(history.messages)
+      setThreads((prev) => {
+        if ((prev[id]?.length ?? 0) > 0) return prev
+        return { ...prev, [id]: messages }
+      })
+    } catch (err) {
+      historyLoaded.current.delete(id)
+      toast.error(commandMessage(err))
     }
   }
 
@@ -284,6 +364,9 @@ export function useEngineSession() {
     activeModel: models.find((m) => m.active) ?? null,
     refreshCatalog,
     useModel,
+    selectSession,
+    activity,
+    historyInfo,
   }
 }
 

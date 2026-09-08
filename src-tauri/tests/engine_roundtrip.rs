@@ -81,6 +81,74 @@ fn is(name: &str) -> impl Fn(&EngineEvent) -> bool + '_ {
     move |event: &EngineEvent| event.event == name
 }
 
+#[test]
+fn history_grows_with_turns_and_rejects_unknown_sessions() {
+    let harness = start_fake("stream");
+    let session_id = create_session(&harness);
+
+    let empty = harness
+        .supervisor
+        .session_history(&session_id, None)
+        .expect("session.history");
+    assert_eq!(empty["total"], serde_json::json!(0));
+    assert_eq!(empty["has_more"], serde_json::json!(false));
+
+    harness
+        .supervisor
+        .turn_start(&session_id, "hola rinari")
+        .expect("session.turn.start");
+    wait_for(&harness, Duration::from_secs(10), is("turn.completed"));
+
+    // Transcript rows land just after the terminal event; poll briefly.
+    let start = Instant::now();
+    let history = loop {
+        let history = harness
+            .supervisor
+            .session_history(&session_id, None)
+            .expect("session.history");
+        if history["total"].as_u64().unwrap_or(0) >= 2 {
+            break history;
+        }
+        assert!(
+            start.elapsed() < Duration::from_secs(10),
+            "history must persist"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let roles: Vec<&str> = history["messages"]
+        .as_array()
+        .expect("messages array")
+        .iter()
+        .map(|m| m["role"].as_str().unwrap_or_default())
+        .collect();
+    assert_eq!(roles, vec!["user", "assistant"]);
+    assert_eq!(
+        history["messages"][0]["content"].as_str(),
+        Some("hola rinari")
+    );
+    assert_eq!(
+        history["messages"][1]["content"].as_str(),
+        Some("Hola, soy Rinari.")
+    );
+
+    let opened = harness
+        .supervisor
+        .session_open(&session_id)
+        .expect("session.open");
+    assert_eq!(opened["session"]["kind"], serde_json::json!("CHAT"));
+
+    let error = harness
+        .supervisor
+        .session_history("ses_missing", None)
+        .expect_err("unknown session must fail");
+    assert_eq!(error.code, "NOT_FOUND");
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
 fn deltas(harness: &Harness) -> Vec<String> {
     harness
         .events

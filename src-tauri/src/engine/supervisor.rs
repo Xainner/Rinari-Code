@@ -305,6 +305,23 @@ impl EngineSupervisor {
         )
     }
 
+    pub fn session_open(&self, reference: &str) -> Result<Value, CommandError> {
+        self.request("session.open", Some(json!({"ref": reference})))
+    }
+
+    pub fn session_history(
+        &self,
+        reference: &str,
+        limit: Option<u32>,
+    ) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("ref".to_string(), Value::String(reference.to_string()));
+        if let Some(limit) = limit {
+            params.insert("limit".to_string(), Value::Number(limit.into()));
+        }
+        self.request("session.history", Some(Value::Object(params)))
+    }
+
     pub fn approval_resolve(
         &self,
         approval_id: &str,

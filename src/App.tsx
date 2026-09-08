@@ -30,8 +30,9 @@ function App() {
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
 
   const session = useEngineSession()
-  const activeTitle =
-    session.sessions.find((s) => s.id === session.activeSession)?.title ?? null
+  const activeRecord =
+    session.sessions.find((s) => s.id === session.activeSession) ?? null
+  const activeTitle = activeRecord?.title ?? null
 
   // Alta guiada: motor listo y sin proveedores → abrir el wizard una vez.
   const [wizardOpen, setWizardOpen] = useState(false)
@@ -71,7 +72,7 @@ function App() {
             onToggleCollapse={toggleSidebarCollapsed}
             onSearch={() => setPaletteOpen(true)}
             onSelectSession={(id) => {
-              session.setActiveSession(id)
+              void session.selectSession(id)
               goChat()
             }}
             onNewSession={() => void session.createSession().then(() => goChat())}
@@ -85,6 +86,8 @@ function App() {
           view === 'chat' ? (
             <ChatHeader
               title={activeTitle}
+              kind={activeRecord?.kind ?? null}
+              mode={activeRecord?.mode ?? null}
               onOpenMobileSidebar={() => setSidebarOpen(true)}
               onExpandSidebar={toggleSidebarCollapsed}
               sidebarCollapsed={sidebarCollapsed}
@@ -105,6 +108,16 @@ function App() {
             models={session.models}
             activeAlias={session.activeModel?.alias ?? null}
             onUseModel={(alias) => void session.useModel(alias)}
+            activity={
+              session.activeSession !== ''
+                ? (session.activity[session.activeSession] ?? [])
+                : []
+            }
+            historyNote={
+              session.activeSession !== ''
+                ? (session.historyInfo[session.activeSession] ?? null)
+                : null
+            }
           />
         )}
         {view === 'engine' && <EngineConsole session={session} />}
@@ -135,7 +148,7 @@ function App() {
         sessions={session.sessions}
         activeId={session.activeSession || null}
         onSelectSession={(id) => {
-          session.setActiveSession(id)
+          void session.selectSession(id)
           goChat()
         }}
         onNewSession={() => void session.createSession().then(() => goChat())}

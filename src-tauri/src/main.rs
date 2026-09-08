@@ -62,6 +62,23 @@ fn session_list(
 }
 
 #[tauri::command]
+fn session_open(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.session_open(&reference)
+}
+
+#[tauri::command]
+fn session_history(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    limit: Option<u32>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.session_history(&reference, limit)
+}
+
+#[tauri::command]
 fn session_create(
     supervisor: State<'_, EngineSupervisor>,
     cwd: Option<String>,
@@ -320,6 +337,8 @@ pub fn run() {
             engine_shutdown,
             engine_restart,
             session_list,
+            session_open,
+            session_history,
             session_create,
             turn_start,
             turn_cancel,

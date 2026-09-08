@@ -227,6 +227,12 @@ export default function AppSidebar({
                   >
                     {session.title || t('sidebar.newChat')}
                   </span>
+                  <span
+                    title={session.kind}
+                    className="shrink-0 rounded-md border border-[var(--border)] px-1 py-px font-mono text-[9px] tracking-wide text-[var(--text-subtle)]"
+                  >
+                    {session.kind === 'PROJECT' ? 'PRJ' : 'CHAT'}
+                  </span>
                 </button>
               </li>
             )

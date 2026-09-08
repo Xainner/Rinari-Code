@@ -71,6 +71,8 @@ class FakeEngine:
         self.active_provider = None
         self.models = []
         self.model_seq = 0
+        self.transcripts = {}
+        self.pending_turns = {}
 
     def session_list(self, req_id, _params):
         respond(req_id, result={"sessions": list(self.sessions.values())})
@@ -79,20 +81,58 @@ class FakeEngine:
         params = params or {}
         self.session_seq += 1
         session_id = f"ses_fake{self.session_seq}"
-        record = {"session_id": session_id,
-                  "title": params.get("title", "fake"),
-                  "chat": params.get("chat", True)}
+        kind = "PROJECT" if not params.get("chat", True) else "CHAT"
+        record = {"id": session_id,
+                  "kind": kind,
+                  "title": params.get("title") or "fake",
+                  "mode": "ask",
+                  "state": "active",
+                  "updated_at": "2026-01-01T00:00:00Z"}
         self.sessions[session_id] = record
+        self.transcripts[session_id] = []
         respond(req_id, result={"session_id": session_id, "created": True,
                                "session": record})
 
+    def session_open(self, req_id, params):
+        session_id = (params or {}).get("ref", "")
+        record = self.sessions.get(session_id)
+        if record is None:
+            fail(req_id, "NOT_FOUND", f"Session {session_id} not found.")
+            return
+        respond(req_id, result={"session": record, "created": False, "warnings": []})
+
+    def session_history(self, req_id, params):
+        params = params or {}
+        session_id = params.get("ref", "")
+        rows = self.transcripts.get(session_id)
+        if rows is None:
+            fail(req_id, "NOT_FOUND", f"Session {session_id} not found.")
+            return
+        limit = params.get("limit", 200)
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 500:
+            fail(req_id, "INVALID_PARAMS", "Param 'limit' must be an int in 1..500.")
+            return
+        window = rows[-limit:] if len(rows) > limit else rows
+        respond(req_id, result={"session_id": session_id, "messages": window,
+                               "total": len(rows), "has_more": len(rows) > len(window)})
+
+    def _append_transcript(self, session_id, role, content):
+        rows = self.transcripts.setdefault(session_id, [])
+        rows.append({"id": f"msg_fake{len(rows) + 1}", "seq": len(rows) + 1,
+                    "role": role, "content": content, "tool_calls": None,
+                    "tool_call_id": None, "name": None,
+                    "created_at": "2026-01-01T00:00:00Z"})
+
     def turn_start(self, req_id, params):
-        session_id = (params or {}).get("session_id", "")
+        params = params or {}
+        session_id = params.get("session_id", "")
         if session_id not in self.sessions:
             fail(req_id, "NOT_FOUND", f"Session {session_id} not found.")
             return
         self.turn_seq += 1
         turn_id = f"turn_fake{self.turn_seq}"
+        with self.lock:
+            self.pending_turns[turn_id] = (session_id, params.get("message", ""))
         respond(req_id, result={"status": "started", "turn_id": turn_id,
                                "session_id": session_id})
         worker = threading.Thread(target=self._run_scenario,
@@ -169,6 +209,13 @@ class FakeEngine:
         else:
             emit("turn.completed", {"turn_id": turn_id, "session_id": session_id,
                                    "kind": "done", "content": "".join(deltas)})
+        with self.lock:
+            pending = self.pending_turns.pop(turn_id, None)
+        if pending is not None and scenario in ("stream", "slow"):
+            session_id, message = pending
+            if scenario == "stream" or not was_cancelled:
+                self._append_transcript(session_id, "user", message)
+                self._append_transcript(session_id, "assistant", "".join(deltas))
 
     def _run_approval(self, turn_id, session_id):
         emit("model.content.delta", {"turn_id": turn_id, "session_id": session_id,
@@ -445,6 +492,8 @@ class FakeEngine:
             "engine.info": self.engine_info,
             "session.list": self.session_list,
             "session.create": self.session_create,
+            "session.open": self.session_open,
+            "session.history": self.session_history,
             "session.turn.start": self.turn_start,
             "session.turn.cancel": self.turn_cancel,
             "approval.resolve": self.approval_resolve,

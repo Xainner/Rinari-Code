@@ -21,3 +21,9 @@ export interface PendingApproval {
   risk: string
   description: string
 }
+
+/** Actividad observable de herramientas por sesión (eventos tool.*). */
+export interface ToolActivity {
+  tool: string
+  status: 'running' | 'done'
+}

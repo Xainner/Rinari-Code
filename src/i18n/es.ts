@@ -497,6 +497,12 @@ export const es = {
   'providers.healthFail': 'Falló: {detail}',
   'providers.noCredential': 'Sin credencial',
   'providers.offline': 'Desconectado',
+
+  /* Actividad e historial (Fase 4) */
+  'activity.title': 'Actividad',
+  'activity.running': 'en curso',
+  'activity.done': 'listo',
+  'history.hasMore': '+{n} mensajes anteriores',
   'providers.credentialOk': 'Credencial guardada',
   'providers.alias': 'Alias',
   'providers.type': 'Tipo',

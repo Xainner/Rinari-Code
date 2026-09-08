@@ -4,14 +4,18 @@ import { useI18n } from '../../i18n'
 interface ChatHeaderProps {
   /** null = sin sesión activa. */
   title: string | null
+  kind: string | null
+  mode: string | null
   onOpenMobileSidebar: () => void
   onExpandSidebar: () => void
   sidebarCollapsed: boolean
 }
 
-/** Header mínimo y contextual: toggles + título. El menú de fila llega con historial (Fase 4). */
+/** Header mínimo y contextual: toggles + título + kind/modo de la sesión. */
 export default function ChatHeader({
   title,
+  kind,
+  mode,
   onOpenMobileSidebar,
   onExpandSidebar,
   sidebarCollapsed,
@@ -45,6 +49,11 @@ export default function ChatHeader({
         >
           {title}
         </p>
+      )}
+      {(kind ?? mode) && (
+        <span className="shrink-0 rounded-md border border-[var(--border)] px-1.5 py-0.5 font-mono text-[10px] tracking-wide text-[var(--text-subtle)]">
+          {[kind, mode].filter(Boolean).join(' · ')}
+        </span>
       )}
     </header>
   )
