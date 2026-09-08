@@ -88,6 +88,7 @@ class FakeEngine:
                   "mode": "build",
                   "state": "active",
                   "project_root": None,
+                  "current_cwd": "/fake/work",
                   "updated_at": "2026-01-01T00:00:00Z"}
         self.sessions[session_id] = record
         self.transcripts[session_id] = []
@@ -117,6 +118,96 @@ class FakeEngine:
         record["mode"] = mode
         respond(req_id, result={"session": record})
         emit("session.mode.changed", {"session_id": session_id, "mode": mode})
+
+    # -- workspace reads (Phase 6): canned, path-echoing shapes -------------
+
+    def task_tree(self, req_id, params):
+        if not (params or {}).get("path"):
+            fail(req_id, "INVALID_PARAMS", "Param 'path' must be a non-empty string.")
+            return
+        tasks = [{"id": "tsk_fake1", "title": "Fake task",
+                  "status": "in_progress", "depends_on": ""},
+                 {"id": "tsk_fake2", "title": "Fake child",
+                  "status": "pending", "depends_on": "tsk_fake1"}]
+        respond(req_id, result={"tasks": tasks,
+                               "depths": {"tsk_fake1": 0, "tsk_fake2": 1}})
+
+    def task_get(self, req_id, params):
+        params = params or {}
+        if not params.get("path"):
+            fail(req_id, "INVALID_PARAMS", "Param 'path' must be a non-empty string.")
+            return
+        if params.get("task_id") != "tsk_fake1":
+            fail(req_id, "NOT_FOUND", "Task not found: %s." % params.get("task_id"))
+            return
+        respond(req_id, result={"task": {"id": "tsk_fake1", "title": "Fake task",
+                                        "status": "in_progress",
+                                        "done_when": {"done": False,
+                                                     "blockers": ["tsk_fake2"]}}})
+
+    def verification_latest(self, req_id, params):
+        if not (params or {}).get("path"):
+            fail(req_id, "INVALID_PARAMS", "Param 'path' must be a non-empty string.")
+            return
+        respond(req_id, result={"records": [
+            {"id": "val_fake1", "kind": "test", "command": "pytest -q",
+             "result": "pass", "summary": "3 passed",
+             "created_at": "2026-01-01T00:00:00Z"}]})
+
+    def verification_plan(self, req_id, params):
+        params = params or {}
+        if not params.get("path"):
+            fail(req_id, "INVALID_PARAMS", "Param 'path' must be a non-empty string.")
+            return
+        changed = params.get("changed_files", [])
+        if not isinstance(changed, list):
+            fail(req_id, "INVALID_PARAMS", "Param 'changed_files' must be a list of strings.")
+            return
+        respond(req_id, result={"plan": {"changed": changed, "tests": ["pytest -q"],
+                                        "targeted": [], "adjacent": [], "broader": [],
+                                        "test_commands": ["pytest -q"], "lint_commands": [],
+                                        "typecheck_commands": [], "build_commands": [],
+                                        "sources": ["fake"], "risk": "low", "reasons": []}})
+
+    def checkpoint_list(self, req_id, _params):
+        respond(req_id, result={"checkpoints": [
+            {"id": "chk_fake1", "label": "fake point",
+             "created_at": "2026-01-01T00:00:00Z"}]})
+
+    def checkpoint_show(self, req_id, params):
+        if (params or {}).get("checkpoint_id") != "chk_fake1":
+            fail(req_id, "INVALID_USAGE", "Checkpoint not found: %s."
+                 % (params or {}).get("checkpoint_id"))
+            return
+        respond(req_id, result={"checkpoint": {"id": "chk_fake1", "label": "fake point",
+                                              "files": [{"path": "a.txt",
+                                                        "status": "modified"}]}})
+
+    def checkpoint_restore(self, req_id, params):
+        params = params or {}
+        if not params.get("path"):
+            fail(req_id, "INVALID_PARAMS", "Param 'path' must be a non-empty string.")
+            return
+        respond(req_id, result={"result": {"restored": ["a.txt"],
+                                          "preview": bool(params.get("preview"))}})
+
+    def project_changes(self, req_id, params):
+        if not (params or {}).get("path"):
+            fail(req_id, "INVALID_PARAMS", "Param 'path' must be a non-empty string.")
+            return
+        respond(req_id, result={"available": True, "branch": "main", "head": "abc123",
+                               "dirty": True,
+                               "files": [{"path": "a.txt", "staged": None,
+                                         "unstaged": "M"}]})
+
+    def project_diff(self, req_id, params):
+        params = params or {}
+        if not params.get("path"):
+            fail(req_id, "INVALID_PARAMS", "Param 'path' must be a non-empty string.")
+            return
+        diff = "diff --git a/a.txt b/a.txt\n+fake line\n"
+        respond(req_id, result={"diff": diff, "truncated": False, "binary": False,
+                               "chars": len(diff)})
 
     def session_history(self, req_id, params):
         params = params or {}
@@ -511,6 +602,15 @@ class FakeEngine:
             "session.create": self.session_create,
             "session.open": self.session_open,
             "session.mode.set": self.session_mode_set,
+            "task.tree": self.task_tree,
+            "task.get": self.task_get,
+            "verification.latest": self.verification_latest,
+            "verification.plan": self.verification_plan,
+            "checkpoint.list": self.checkpoint_list,
+            "checkpoint.show": self.checkpoint_show,
+            "checkpoint.restore": self.checkpoint_restore,
+            "project.changes": self.project_changes,
+            "project.diff": self.project_diff,
             "session.history": self.session_history,
             "session.turn.start": self.turn_start,
             "session.turn.cancel": self.turn_cancel,

@@ -3,6 +3,7 @@ import { Command } from 'cmdk'
 import {
   ArrowLeft,
   Cpu,
+  GitBranch,
   Languages,
   MessageSquare,
   Monitor,
@@ -26,6 +27,7 @@ interface CommandPaletteProps {
   onNewSession: () => void
   onOpenSettings: (section?: SettingsSection) => void
   onOpenEngine: () => void
+  onOpenWorkspace: () => void
   onEngineStart: () => void
   onEngineRestart: () => void
   theme: Theme
@@ -46,6 +48,7 @@ export default function CommandPalette({
   onNewSession,
   onOpenSettings,
   onOpenEngine,
+  onOpenWorkspace,
   onEngineStart,
   onEngineRestart,
   theme,
@@ -147,6 +150,14 @@ export default function CommandPalette({
               >
                 <Cpu />
                 {t('nav.engine')}
+              </Command.Item>
+              <Command.Item
+                value={t('nav.workspace')}
+                onSelect={() => run(onOpenWorkspace)}
+                className={itemClass}
+              >
+                <GitBranch />
+                {t('nav.workspace')}
               </Command.Item>
               <Command.Item
                 value={t('nav.settings')}

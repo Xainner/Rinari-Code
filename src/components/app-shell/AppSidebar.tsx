@@ -1,4 +1,4 @@
-import { Cpu, MessageSquare, PanelLeftClose, Play, Plus, Search, Settings2 } from 'lucide-react'
+import { Cpu, GitBranch, MessageSquare, PanelLeftClose, Play, Plus, Search, Settings2 } from 'lucide-react'
 import type { EngineStatus, SessionSummary } from '../../services/engine'
 import { useI18n } from '../../i18n'
 import { cn } from '../../lib/utils'
@@ -18,6 +18,7 @@ interface AppSidebarProps {
   onNewSession: () => void
   onOpenSettings: () => void
   onOpenEngine: () => void
+  onOpenWorkspace: () => void
   onStartEngine: () => void
   onResolveApproval: (id: string, decision: string) => void
 }
@@ -80,6 +81,7 @@ export default function AppSidebar({
   onNewSession,
   onOpenSettings,
   onOpenEngine,
+  onOpenWorkspace,
   onStartEngine,
   onResolveApproval,
 }: AppSidebarProps) {
@@ -158,6 +160,14 @@ export default function AppSidebar({
       </div>
 
       <nav aria-label={t('nav.chats')} className="space-y-0.5 px-3 pb-1">
+        <button
+          type="button"
+          onClick={onOpenWorkspace}
+          className="inline-flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text)]"
+        >
+          <GitBranch size={15} />
+          {t('nav.workspace')}
+        </button>
         <button
           type="button"
           onClick={onOpenEngine}

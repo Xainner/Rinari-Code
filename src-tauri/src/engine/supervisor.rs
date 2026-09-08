@@ -329,6 +329,84 @@ impl EngineSupervisor {
         )
     }
 
+    // -- tasks / verification / checkpoints / working tree (Phase 6) --------
+
+    pub fn task_tree(&self, path: &str) -> Result<Value, CommandError> {
+        self.request("task.tree", Some(json!({"path": path})))
+    }
+
+    pub fn task_get(&self, path: &str, task_id: &str) -> Result<Value, CommandError> {
+        self.request("task.get", Some(json!({"path": path, "task_id": task_id})))
+    }
+
+    pub fn verification_latest(
+        &self,
+        path: &str,
+        kinds: Option<Vec<String>>,
+        limit: Option<u32>,
+    ) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("path".to_string(), Value::String(path.to_string()));
+        if let Some(kinds) = kinds {
+            params.insert("kinds".to_string(), json!(kinds));
+        }
+        if let Some(limit) = limit {
+            params.insert("limit".to_string(), Value::Number(limit.into()));
+        }
+        self.request("verification.latest", Some(Value::Object(params)))
+    }
+
+    pub fn verification_plan(
+        &self,
+        path: &str,
+        changed_files: Vec<String>,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            "verification.plan",
+            Some(json!({"path": path, "changed_files": changed_files})),
+        )
+    }
+
+    pub fn checkpoint_list(&self, path: Option<String>) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        if let Some(path) = path {
+            params.insert("path".to_string(), Value::String(path));
+        }
+        self.request("checkpoint.list", Some(Value::Object(params)))
+    }
+
+    pub fn checkpoint_show(&self, checkpoint_id: &str) -> Result<Value, CommandError> {
+        self.request(
+            "checkpoint.show",
+            Some(json!({"checkpoint_id": checkpoint_id})),
+        )
+    }
+
+    pub fn checkpoint_restore(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("checkpoint.restore", Some(params))
+    }
+
+    pub fn project_changes(&self, path: &str) -> Result<Value, CommandError> {
+        self.request("project.changes", Some(json!({"path": path})))
+    }
+
+    pub fn project_diff(
+        &self,
+        path: &str,
+        file: Option<String>,
+        max_chars: Option<u32>,
+    ) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("path".to_string(), Value::String(path.to_string()));
+        if let Some(file) = file {
+            params.insert("file".to_string(), Value::String(file));
+        }
+        if let Some(max_chars) = max_chars {
+            params.insert("max_chars".to_string(), Value::Number(max_chars.into()));
+        }
+        self.request("project.diff", Some(Value::Object(params)))
+    }
+
     pub fn approval_resolve(
         &self,
         approval_id: &str,

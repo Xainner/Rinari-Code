@@ -88,6 +88,92 @@ fn session_mode_set(
 }
 
 #[tauri::command]
+fn task_tree(
+    supervisor: State<'_, EngineSupervisor>,
+    path: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.task_tree(&path)
+}
+
+#[tauri::command]
+fn task_get(
+    supervisor: State<'_, EngineSupervisor>,
+    path: String,
+    task_id: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.task_get(&path, &task_id)
+}
+
+#[tauri::command]
+fn verification_latest(
+    supervisor: State<'_, EngineSupervisor>,
+    path: String,
+    kinds: Option<Vec<String>>,
+    limit: Option<u32>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.verification_latest(&path, kinds, limit)
+}
+
+#[tauri::command]
+fn verification_plan(
+    supervisor: State<'_, EngineSupervisor>,
+    path: String,
+    changed_files: Vec<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.verification_plan(&path, changed_files)
+}
+
+#[tauri::command]
+fn checkpoint_list(
+    supervisor: State<'_, EngineSupervisor>,
+    path: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.checkpoint_list(path)
+}
+
+#[tauri::command]
+fn checkpoint_show(
+    supervisor: State<'_, EngineSupervisor>,
+    checkpoint_id: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.checkpoint_show(&checkpoint_id)
+}
+
+#[tauri::command]
+fn checkpoint_restore(
+    supervisor: State<'_, EngineSupervisor>,
+    path: String,
+    checkpoint_id: Option<String>,
+    preview: Option<bool>,
+    allow_mixed: Option<bool>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.checkpoint_restore(serde_json::json!({
+        "path": path,
+        "checkpoint_id": checkpoint_id,
+        "preview": preview.unwrap_or(false),
+        "allow_mixed": allow_mixed.unwrap_or(false),
+    }))
+}
+
+#[tauri::command]
+fn project_changes(
+    supervisor: State<'_, EngineSupervisor>,
+    path: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.project_changes(&path)
+}
+
+#[tauri::command]
+fn project_diff(
+    supervisor: State<'_, EngineSupervisor>,
+    path: String,
+    file: Option<String>,
+    max_chars: Option<u32>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.project_diff(&path, file, max_chars)
+}
+
+#[tauri::command]
 fn session_create(
     supervisor: State<'_, EngineSupervisor>,
     cwd: Option<String>,
@@ -349,6 +435,15 @@ pub fn run() {
             session_open,
             session_history,
             session_mode_set,
+            task_tree,
+            task_get,
+            verification_latest,
+            verification_plan,
+            checkpoint_list,
+            checkpoint_show,
+            checkpoint_restore,
+            project_changes,
+            project_diff,
             session_create,
             turn_start,
             turn_cancel,

@@ -11,7 +11,7 @@ import {
 } from '../lib/appearance'
 import type { Language } from '../types'
 
-export type View = 'chat' | 'settings' | 'engine'
+export type View = 'chat' | 'settings' | 'engine' | 'workspace'
 
 /** Secciones de Ajustes. Las marcadas con * llegan en fases posteriores. */
 export type SettingsSection =
@@ -74,6 +74,7 @@ interface UIState {
   showSuggestions: boolean
   goChat: () => void
   goEngine: () => void
+  goWorkspace: () => void
   goSettings: (section?: SettingsSection) => void
   setSettingsSection: (section: SettingsSection) => void
   setLang: (lang: Language) => void
@@ -114,6 +115,7 @@ export const useUIStore = create<UIState>((set) => ({
     typeof window === 'undefined' ? true : readBool('rinari.showSuggestions', true),
   goChat: () => set({ view: 'chat', sidebarOpen: false }),
   goEngine: () => set({ view: 'engine', sidebarOpen: false }),
+  goWorkspace: () => set({ view: 'workspace', sidebarOpen: false }),
   goSettings: (section = 'general') =>
     set({ view: 'settings', sidebarOpen: false, settingsSection: section }),
   setSettingsSection: (settingsSection) => set({ settingsSection }),

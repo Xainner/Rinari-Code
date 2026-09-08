@@ -37,6 +37,7 @@ export interface SessionSummary {
   state: string;
   updated_at: string;
   project_root: string | null;
+  current_cwd: string | null;
 }
 
 export interface HistoryMessage {
@@ -99,6 +100,27 @@ export interface DiscoveryCandidate {
   endpoint: string | null;
 }
 
+export interface TaskItem {
+  id: string;
+  title: string;
+  status: string;
+  [key: string]: unknown;
+}
+
+export interface ChangedFile {
+  path: string;
+  staged: string | null;
+  unstaged: string | null;
+}
+
+export interface ProjectChanges {
+  available: boolean;
+  branch: string | null;
+  head: string | null;
+  dirty: boolean;
+  files: ChangedFile[];
+}
+
 export const ENGINE_EVENT = "rinari-engine-event";
 
 export function isCommandError(value: unknown): value is CommandError {
@@ -141,6 +163,50 @@ export const engineApi = {
     }>("session_history", { reference, limit: limit ?? null }),
   setSessionMode: (reference: string, mode: string) =>
     invoke<{ session: SessionSummary }>("session_mode_set", { reference, mode }),
+  taskTree: (path: string) =>
+    invoke<{ tasks: TaskItem[]; depths: Record<string, number> }>("task_tree", {
+      path,
+    }),
+  taskGet: (path: string, task_id: string) =>
+    invoke<{ task: TaskItem }>("task_get", { path, task_id }),
+  verificationLatest: (path: string, kinds?: string[], limit?: number) =>
+    invoke<{ records: Array<Record<string, unknown>> }>("verification_latest", {
+      path,
+      kinds: kinds ?? null,
+      limit: limit ?? null,
+    }),
+  verificationPlan: (path: string, changed_files: string[]) =>
+    invoke<{ plan: Record<string, unknown> }>("verification_plan", {
+      path,
+      changed_files,
+    }),
+  checkpointList: (path?: string) =>
+    invoke<{ checkpoints: Array<Record<string, unknown>> }>("checkpoint_list", {
+      path: path ?? null,
+    }),
+  checkpointShow: (checkpoint_id: string) =>
+    invoke<{ checkpoint: Record<string, unknown> }>("checkpoint_show", {
+      checkpoint_id,
+    }),
+  checkpointRestore: (input: {
+    path: string;
+    checkpoint_id?: string;
+    preview?: boolean;
+    allow_mixed?: boolean;
+  }) =>
+    invoke<{ result: Record<string, unknown> }>("checkpoint_restore", {
+      path: input.path,
+      checkpoint_id: input.checkpoint_id ?? null,
+      preview: input.preview ?? null,
+      allow_mixed: input.allow_mixed ?? null,
+    }),
+  projectChanges: (path: string) =>
+    invoke<ProjectChanges>("project_changes", { path }),
+  projectDiff: (path: string, file?: string, max_chars?: number) =>
+    invoke<{ diff: string; truncated: boolean; binary: boolean; chars: number }>(
+      "project_diff",
+      { path, file: file ?? null, max_chars: max_chars ?? null },
+    ),
   startTurn: (sessionId: string, message: string) =>
     invoke<{ status: string; turn_id: string; session_id: string }>("turn_start", {
       session_id: sessionId,

@@ -9,6 +9,7 @@ import ChatView from './components/ChatView'
 import CommandPalette from './components/CommandPalette'
 import EngineConsole from './features/engine/EngineConsole'
 import SettingsView from './features/settings/SettingsView'
+import WorkspaceView from './features/workspace/WorkspaceView'
 import ProviderWizard from './features/providers/ProviderWizard'
 
 const APP_VERSION = '0.1.0'
@@ -24,6 +25,7 @@ function App() {
   const togglePalette = useUIStore((s) => s.togglePalette)
   const goChat = useUIStore((s) => s.goChat)
   const goEngine = useUIStore((s) => s.goEngine)
+  const goWorkspace = useUIStore((s) => s.goWorkspace)
   const goSettings = useUIStore((s) => s.goSettings)
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
   const toggleSidebarCollapsed = useUIStore((s) => s.toggleSidebarCollapsed)
@@ -78,6 +80,7 @@ function App() {
             onNewSession={() => void session.createSession().then(() => goChat())}
             onOpenSettings={() => goSettings()}
             onOpenEngine={goEngine}
+            onOpenWorkspace={goWorkspace}
             onStartEngine={() => void session.startEngine()}
             onResolveApproval={(id, decision) => void session.resolveApproval(id, decision)}
           />
@@ -123,6 +126,9 @@ function App() {
           />
         )}
         {view === 'engine' && <EngineConsole session={session} />}
+        {view === 'workspace' && (
+          <WorkspaceView session={activeRecord} onBack={goChat} />
+        )}
         {view === 'settings' && (
           <SettingsView
             appVersion={APP_VERSION}
@@ -156,6 +162,7 @@ function App() {
         onNewSession={() => void session.createSession().then(() => goChat())}
         onOpenSettings={(section) => goSettings(section)}
         onOpenEngine={goEngine}
+        onOpenWorkspace={goWorkspace}
         onEngineStart={() => void session.startEngine()}
         onEngineRestart={() => void session.restartEngine()}
         theme={theme}

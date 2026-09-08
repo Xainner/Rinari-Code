@@ -178,6 +178,84 @@ fn mode_set_roundtrip_emits_change_and_rejects_unknown() {
     );
 }
 
+#[test]
+fn workspace_reads_cover_tasks_verification_checkpoints_and_diff() {
+    let harness = start_fake("stream");
+
+    let tree = harness
+        .supervisor
+        .task_tree("/fake/work")
+        .expect("task.tree");
+    assert_eq!(tree["tasks"].as_array().map(Vec::len), Some(2));
+    assert_eq!(tree["depths"]["tsk_fake2"], serde_json::json!(1));
+
+    let detail = harness
+        .supervisor
+        .task_get("/fake/work", "tsk_fake1")
+        .expect("task.get");
+    assert_eq!(detail["task"]["title"], serde_json::json!("Fake task"));
+
+    let missing = harness
+        .supervisor
+        .task_get("/fake/work", "tsk_nope")
+        .expect_err("unknown task must fail");
+    assert_eq!(missing.code, "NOT_FOUND");
+
+    let latest = harness
+        .supervisor
+        .verification_latest("/fake/work", None, None)
+        .expect("verification.latest");
+    assert_eq!(latest["records"].as_array().map(Vec::len), Some(1));
+
+    let plan = harness
+        .supervisor
+        .verification_plan("/fake/work", vec!["a.txt".to_string()])
+        .expect("verification.plan");
+    assert_eq!(
+        plan["plan"]["test_commands"],
+        serde_json::json!(["pytest -q"])
+    );
+
+    let points = harness
+        .supervisor
+        .checkpoint_list(Some("/fake/work".to_string()))
+        .expect("checkpoint.list");
+    assert_eq!(points["checkpoints"].as_array().map(Vec::len), Some(1));
+
+    let preview = harness
+        .supervisor
+        .checkpoint_restore(serde_json::json!({
+            "path": "/fake/work",
+            "checkpoint_id": "chk_fake1",
+            "preview": true,
+            "allow_mixed": false,
+        }))
+        .expect("checkpoint.restore");
+    assert_eq!(preview["result"]["preview"], serde_json::json!(true));
+
+    let changes = harness
+        .supervisor
+        .project_changes("/fake/work")
+        .expect("changes");
+    assert_eq!(changes["dirty"], serde_json::json!(true));
+    assert_eq!(changes["files"][0]["path"], serde_json::json!("a.txt"));
+
+    let diff = harness
+        .supervisor
+        .project_diff("/fake/work", Some("a.txt".to_string()), None)
+        .expect("project.diff");
+    assert_eq!(diff["truncated"], serde_json::json!(false));
+    assert!(diff["diff"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("+fake line"));
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
 fn deltas(harness: &Harness) -> Vec<String> {
     harness
         .events
