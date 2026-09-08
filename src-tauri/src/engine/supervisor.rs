@@ -156,9 +156,7 @@ impl EngineSupervisor {
     fn set_state(&self, state: EngineState, detail: Option<String>) {
         if let Ok(mut inner) = self.inner.lock() {
             inner.state = state;
-            if state != EngineState::Failed {
-                inner.detail = detail;
-            } else if inner.detail.is_none() {
+            if state != EngineState::Failed || inner.detail.is_none() {
                 inner.detail = detail;
             }
         }
@@ -207,11 +205,10 @@ impl EngineSupervisor {
             EngineState::Handshaking,
             Some(format!("spawning {program}")),
         );
-        let (transport, hello) =
-            EngineTransport::spawn(&program, &args, cwd.as_deref()).map_err(|error| {
-                self.set_state(EngineState::Failed, Some(error.to_string()));
-                CommandError::from(error)
-            })?;
+        let (transport, hello) = EngineTransport::spawn(program, args, cwd).map_err(|error| {
+            self.set_state(EngineState::Failed, Some(error.to_string()));
+            CommandError::from(error)
+        })?;
         let transport = Arc::new(transport);
         if let Ok(mut inner) = self.inner.lock() {
             inner.transport = Some(Arc::clone(&transport));
@@ -305,6 +302,319 @@ impl EngineSupervisor {
         )
     }
 
+    pub fn session_open(&self, reference: &str) -> Result<Value, CommandError> {
+        self.request("session.open", Some(json!({"ref": reference})))
+    }
+
+    pub fn session_history(
+        &self,
+        reference: &str,
+        limit: Option<u32>,
+    ) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("ref".to_string(), Value::String(reference.to_string()));
+        if let Some(limit) = limit {
+            params.insert("limit".to_string(), Value::Number(limit.into()));
+        }
+        self.request("session.history", Some(Value::Object(params)))
+    }
+
+    pub fn session_mode_set(&self, reference: &str, mode: &str) -> Result<Value, CommandError> {
+        self.request(
+            "session.mode.set",
+            Some(json!({"ref": reference, "mode": mode})),
+        )
+    }
+
+    // -- tasks / verification / checkpoints / working tree (Phase 6) --------
+
+    pub fn task_tree(&self, path: &str) -> Result<Value, CommandError> {
+        self.request("task.tree", Some(json!({"path": path})))
+    }
+
+    pub fn task_get(&self, path: &str, task_id: &str) -> Result<Value, CommandError> {
+        self.request("task.get", Some(json!({"path": path, "task_id": task_id})))
+    }
+
+    pub fn verification_latest(
+        &self,
+        path: &str,
+        kinds: Option<Vec<String>>,
+        limit: Option<u32>,
+    ) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("path".to_string(), Value::String(path.to_string()));
+        if let Some(kinds) = kinds {
+            params.insert("kinds".to_string(), json!(kinds));
+        }
+        if let Some(limit) = limit {
+            params.insert("limit".to_string(), Value::Number(limit.into()));
+        }
+        self.request("verification.latest", Some(Value::Object(params)))
+    }
+
+    pub fn verification_plan(
+        &self,
+        path: &str,
+        changed_files: Vec<String>,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            "verification.plan",
+            Some(json!({"path": path, "changed_files": changed_files})),
+        )
+    }
+
+    pub fn checkpoint_list(&self, path: Option<String>) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        if let Some(path) = path {
+            params.insert("path".to_string(), Value::String(path));
+        }
+        self.request("checkpoint.list", Some(Value::Object(params)))
+    }
+
+    pub fn checkpoint_show(&self, checkpoint_id: &str) -> Result<Value, CommandError> {
+        self.request(
+            "checkpoint.show",
+            Some(json!({"checkpoint_id": checkpoint_id})),
+        )
+    }
+
+    pub fn checkpoint_restore(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("checkpoint.restore", Some(params))
+    }
+
+    pub fn project_changes(&self, path: &str) -> Result<Value, CommandError> {
+        self.request("project.changes", Some(json!({"path": path})))
+    }
+
+    pub fn project_diff(
+        &self,
+        path: &str,
+        file: Option<String>,
+        max_chars: Option<u32>,
+    ) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("path".to_string(), Value::String(path.to_string()));
+        if let Some(file) = file {
+            params.insert("file".to_string(), Value::String(file));
+        }
+        if let Some(max_chars) = max_chars {
+            params.insert("max_chars".to_string(), Value::Number(max_chars.into()));
+        }
+        self.request("project.diff", Some(Value::Object(params)))
+    }
+
+    // -- agents (Phase 7) -----------------------------------------------------
+
+    pub fn agent_list(&self) -> Result<Value, CommandError> {
+        self.request("agent.list", None)
+    }
+
+    pub fn agent_config_get(&self, agent: &str) -> Result<Value, CommandError> {
+        self.request("agent.config.get", Some(json!({"agent": agent})))
+    }
+
+    pub fn agent_config_set(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("agent.config.set", Some(params))
+    }
+
+    pub fn session_events(
+        &self,
+        reference: &str,
+        after_seq: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("ref".to_string(), Value::String(reference.to_string()));
+        if let Some(after_seq) = after_seq {
+            params.insert("after_seq".to_string(), Value::Number(after_seq.into()));
+        }
+        if let Some(limit) = limit {
+            params.insert("limit".to_string(), Value::Number(limit.into()));
+        }
+        self.request("session.events", Some(Value::Object(params)))
+    }
+
+    // -- souls (Phase 8) ------------------------------------------------------
+
+    pub fn soul_list(&self) -> Result<Value, CommandError> {
+        self.request("soul.list", None)
+    }
+
+    pub fn soul_get(&self, soul_id: &str) -> Result<Value, CommandError> {
+        self.request("soul.get", Some(json!({"id": soul_id})))
+    }
+
+    pub fn soul_create(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("soul.create", Some(params))
+    }
+
+    pub fn soul_update(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("soul.update", Some(params))
+    }
+
+    pub fn soul_remove(&self, soul_id: &str) -> Result<Value, CommandError> {
+        self.request("soul.remove", Some(json!({"id": soul_id})))
+    }
+
+    pub fn soul_activate(&self, soul_id: &str) -> Result<Value, CommandError> {
+        self.request("soul.activate", Some(json!({"id": soul_id})))
+    }
+
+    // -- ecosystem (Phase 9) ----------------------------------------------------
+
+    pub fn mcp_list(&self) -> Result<Value, CommandError> {
+        self.request("mcp.list", None)
+    }
+
+    pub fn mcp_get(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("mcp.get", Some(json!({"name": name})))
+    }
+
+    pub fn mcp_create(&self, name: &str, command: Vec<String>) -> Result<Value, CommandError> {
+        self.request(
+            "mcp.create",
+            Some(json!({"name": name, "command": command})),
+        )
+    }
+
+    pub fn mcp_remove(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("mcp.remove", Some(json!({"name": name})))
+    }
+
+    pub fn mcp_enable(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("mcp.enable", Some(json!({"name": name})))
+    }
+
+    pub fn mcp_disable(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("mcp.disable", Some(json!({"name": name})))
+    }
+
+    pub fn mcp_test(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("mcp.test", Some(json!({"name": name})))
+    }
+
+    pub fn plugin_list(&self) -> Result<Value, CommandError> {
+        self.request("plugin.list", None)
+    }
+
+    pub fn plugin_get(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("plugin.get", Some(json!({"name": name})))
+    }
+
+    pub fn plugin_enable(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("plugin.enable", Some(json!({"name": name})))
+    }
+
+    pub fn plugin_disable(&self, name: &str) -> Result<Value, CommandError> {
+        self.request("plugin.disable", Some(json!({"name": name})))
+    }
+
+    pub fn plugin_diagnostics(&self) -> Result<Value, CommandError> {
+        self.request("plugin.diagnostics", None)
+    }
+
+    pub fn tool_list(&self) -> Result<Value, CommandError> {
+        self.request("tool.list", None)
+    }
+
+    pub fn policy_get(&self) -> Result<Value, CommandError> {
+        self.request("policy.get", None)
+    }
+
+    // -- observability (Phase 10) -------------------------------------------------
+
+    pub fn artifact_list(&self, session_id: Option<String>) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        if let Some(session_id) = session_id {
+            params.insert("session_id".to_string(), Value::String(session_id));
+        }
+        let params = if params.is_empty() {
+            None
+        } else {
+            Some(Value::Object(params))
+        };
+        self.request("artifact.list", params)
+    }
+
+    pub fn artifact_read(&self, uri: &str, max_bytes: Option<u32>) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("uri".to_string(), Value::String(uri.to_string()));
+        if let Some(max_bytes) = max_bytes {
+            params.insert("max_bytes".to_string(), Value::Number(max_bytes.into()));
+        }
+        self.request("artifact.read", Some(Value::Object(params)))
+    }
+
+    pub fn context_get(&self, reference: &str) -> Result<Value, CommandError> {
+        self.request("context.get", Some(json!({"ref": reference})))
+    }
+
+    pub fn usage_get(&self, reference: Option<String>) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        if let Some(reference) = reference {
+            params.insert("ref".to_string(), Value::String(reference));
+        }
+        let params = if params.is_empty() {
+            None
+        } else {
+            Some(Value::Object(params))
+        };
+        self.request("usage.get", params)
+    }
+
+    // -- workflow (Phase 11) ------------------------------------------------------
+
+    pub fn queue_add(&self, session_id: &str, message: &str) -> Result<Value, CommandError> {
+        self.request(
+            "session.queue.add",
+            Some(json!({"session_id": session_id, "message": message})),
+        )
+    }
+
+    pub fn queue_list(&self, session_id: &str) -> Result<Value, CommandError> {
+        self.request(
+            "session.queue.list",
+            Some(json!({"session_id": session_id})),
+        )
+    }
+
+    pub fn queue_clear(&self, session_id: &str) -> Result<Value, CommandError> {
+        self.request(
+            "session.queue.clear",
+            Some(json!({"session_id": session_id})),
+        )
+    }
+
+    pub fn bundle_list(&self) -> Result<Value, CommandError> {
+        self.request("profile_bundle.list", None)
+    }
+
+    pub fn bundle_get(&self, id: &str) -> Result<Value, CommandError> {
+        self.request("profile_bundle.get", Some(json!({"id": id})))
+    }
+
+    pub fn bundle_create(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("profile_bundle.create", Some(params))
+    }
+
+    pub fn bundle_remove(&self, id: &str) -> Result<Value, CommandError> {
+        self.request("profile_bundle.remove", Some(json!({"id": id})))
+    }
+
+    pub fn bundle_apply(
+        &self,
+        id: &str,
+        session_ref: Option<String>,
+    ) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("id".to_string(), Value::String(id.to_string()));
+        if let Some(session_ref) = session_ref {
+            params.insert("session_ref".to_string(), Value::String(session_ref));
+        }
+        self.request("profile_bundle.apply", Some(Value::Object(params)))
+    }
+
     pub fn approval_resolve(
         &self,
         approval_id: &str,
@@ -318,6 +628,108 @@ impl EngineSupervisor {
 
     pub fn snapshot_get(&self) -> Result<Value, CommandError> {
         self.request("runtime.snapshot.get", None)
+    }
+
+    // -- providers / models (Phase 3) --------------------------------------
+
+    pub fn provider_list(&self) -> Result<Value, CommandError> {
+        self.request("provider.list", None)
+    }
+
+    pub fn provider_create(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("provider.create", Some(params))
+    }
+
+    pub fn provider_get(&self, ref_: &str) -> Result<Value, CommandError> {
+        self.request("provider.get", Some(json!({ "ref": ref_ })))
+    }
+
+    pub fn provider_update(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("provider.update", Some(params))
+    }
+
+    pub fn provider_remove(
+        &self,
+        ref_: &str,
+        switch_to: Option<String>,
+        keep_credentials: bool,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            "provider.remove",
+            Some(json!({ "ref": ref_, "switch_to": switch_to, "keep_credentials": keep_credentials })),
+        )
+    }
+
+    pub fn provider_test(&self, ref_: &str) -> Result<Value, CommandError> {
+        self.request("provider.test", Some(json!({ "ref": ref_ })))
+    }
+
+    pub fn provider_discover(&self) -> Result<Value, CommandError> {
+        self.request("provider.discover", None)
+    }
+
+    pub fn provider_use(&self, ref_: &str) -> Result<Value, CommandError> {
+        self.request("provider.use", Some(json!({ "ref": ref_ })))
+    }
+
+    pub fn model_list(&self, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request("model.list", Some(json!({ "provider": provider })))
+    }
+
+    pub fn model_get(&self, ref_: &str, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request(
+            "model.get",
+            Some(json!({ "ref": ref_, "provider": provider })),
+        )
+    }
+
+    pub fn model_add(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("model.add", Some(params))
+    }
+
+    pub fn model_alias(
+        &self,
+        ref_: &str,
+        new_alias: &str,
+        provider: Option<String>,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            "model.alias",
+            Some(json!({ "ref": ref_, "new_alias": new_alias, "provider": provider })),
+        )
+    }
+
+    pub fn model_remove(
+        &self,
+        ref_: &str,
+        provider: Option<String>,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            "model.remove",
+            Some(json!({ "ref": ref_, "provider": provider })),
+        )
+    }
+
+    pub fn model_use(&self, ref_: &str, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request(
+            "model.use",
+            Some(json!({ "ref": ref_, "provider": provider })),
+        )
+    }
+
+    pub fn model_discover(&self, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request("model.discover", Some(json!({ "provider": provider })))
+    }
+
+    pub fn model_refresh(&self, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request("model.refresh", Some(json!({ "provider": provider })))
+    }
+
+    pub fn model_test(&self, ref_: &str, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request(
+            "model.test",
+            Some(json!({ "ref": ref_, "provider": provider })),
+        )
     }
 
     fn current_transport(&self) -> Result<Arc<EngineTransport>, CommandError> {

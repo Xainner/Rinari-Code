@@ -81,6 +81,468 @@ fn is(name: &str) -> impl Fn(&EngineEvent) -> bool + '_ {
     move |event: &EngineEvent| event.event == name
 }
 
+#[test]
+fn history_grows_with_turns_and_rejects_unknown_sessions() {
+    let harness = start_fake("stream");
+    let session_id = create_session(&harness);
+
+    let empty = harness
+        .supervisor
+        .session_history(&session_id, None)
+        .expect("session.history");
+    assert_eq!(empty["total"], serde_json::json!(0));
+    assert_eq!(empty["has_more"], serde_json::json!(false));
+
+    harness
+        .supervisor
+        .turn_start(&session_id, "hola rinari")
+        .expect("session.turn.start");
+    wait_for(&harness, Duration::from_secs(10), is("turn.completed"));
+
+    // Transcript rows land just after the terminal event; poll briefly.
+    let start = Instant::now();
+    let history = loop {
+        let history = harness
+            .supervisor
+            .session_history(&session_id, None)
+            .expect("session.history");
+        if history["total"].as_u64().unwrap_or(0) >= 2 {
+            break history;
+        }
+        assert!(
+            start.elapsed() < Duration::from_secs(10),
+            "history must persist"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let roles: Vec<&str> = history["messages"]
+        .as_array()
+        .expect("messages array")
+        .iter()
+        .map(|m| m["role"].as_str().unwrap_or_default())
+        .collect();
+    assert_eq!(roles, vec!["user", "assistant"]);
+    assert_eq!(
+        history["messages"][0]["content"].as_str(),
+        Some("hola rinari")
+    );
+    assert_eq!(
+        history["messages"][1]["content"].as_str(),
+        Some("Hola, soy Rinari.")
+    );
+
+    let opened = harness
+        .supervisor
+        .session_open(&session_id)
+        .expect("session.open");
+    assert_eq!(opened["session"]["kind"], serde_json::json!("CHAT"));
+
+    let error = harness
+        .supervisor
+        .session_history("ses_missing", None)
+        .expect_err("unknown session must fail");
+    assert_eq!(error.code, "NOT_FOUND");
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
+#[test]
+fn mode_set_roundtrip_emits_change_and_rejects_unknown() {
+    let harness = start_fake("stream");
+    let session_id = create_session(&harness);
+
+    let updated = harness
+        .supervisor
+        .session_mode_set(&session_id, "plan")
+        .expect("session.mode.set");
+    assert_eq!(updated["session"]["mode"], serde_json::json!("plan"));
+
+    let changed = wait_for(&harness, Duration::from_secs(10), |event: &EngineEvent| {
+        event.event == "session.mode.changed"
+            && event.payload["session_id"].as_str() == Some(session_id.as_str())
+    });
+    assert_eq!(changed.payload["mode"], serde_json::json!("plan"));
+
+    let error = harness
+        .supervisor
+        .session_mode_set(&session_id, "yolo")
+        .expect_err("unknown mode must fail");
+    assert_eq!(error.code, "INVALID_USAGE");
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
+#[test]
+fn workspace_reads_cover_tasks_verification_checkpoints_and_diff() {
+    let harness = start_fake("stream");
+
+    let tree = harness
+        .supervisor
+        .task_tree("/fake/work")
+        .expect("task.tree");
+    assert_eq!(tree["tasks"].as_array().map(Vec::len), Some(2));
+    assert_eq!(tree["depths"]["tsk_fake2"], serde_json::json!(1));
+
+    let detail = harness
+        .supervisor
+        .task_get("/fake/work", "tsk_fake1")
+        .expect("task.get");
+    assert_eq!(detail["task"]["title"], serde_json::json!("Fake task"));
+
+    let missing = harness
+        .supervisor
+        .task_get("/fake/work", "tsk_nope")
+        .expect_err("unknown task must fail");
+    assert_eq!(missing.code, "NOT_FOUND");
+
+    let latest = harness
+        .supervisor
+        .verification_latest("/fake/work", None, None)
+        .expect("verification.latest");
+    assert_eq!(latest["records"].as_array().map(Vec::len), Some(1));
+
+    let plan = harness
+        .supervisor
+        .verification_plan("/fake/work", vec!["a.txt".to_string()])
+        .expect("verification.plan");
+    assert_eq!(
+        plan["plan"]["test_commands"],
+        serde_json::json!(["pytest -q"])
+    );
+
+    let points = harness
+        .supervisor
+        .checkpoint_list(Some("/fake/work".to_string()))
+        .expect("checkpoint.list");
+    assert_eq!(points["checkpoints"].as_array().map(Vec::len), Some(1));
+
+    let preview = harness
+        .supervisor
+        .checkpoint_restore(serde_json::json!({
+            "path": "/fake/work",
+            "checkpoint_id": "chk_fake1",
+            "preview": true,
+            "allow_mixed": false,
+        }))
+        .expect("checkpoint.restore");
+    assert_eq!(preview["result"]["preview"], serde_json::json!(true));
+
+    let changes = harness
+        .supervisor
+        .project_changes("/fake/work")
+        .expect("changes");
+    assert_eq!(changes["dirty"], serde_json::json!(true));
+    assert_eq!(changes["files"][0]["path"], serde_json::json!("a.txt"));
+
+    let diff = harness
+        .supervisor
+        .project_diff("/fake/work", Some("a.txt".to_string()), None)
+        .expect("project.diff");
+    assert_eq!(diff["truncated"], serde_json::json!(false));
+    assert!(diff["diff"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("+fake line"));
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
+#[test]
+fn agent_routing_roundtrip_with_validation_and_events() {
+    let harness = start_fake("stream");
+
+    let list = harness.supervisor.agent_list().expect("agent.list");
+    let names: Vec<&str> = list["agents"]
+        .as_array()
+        .expect("agents array")
+        .iter()
+        .map(|a| a["name"].as_str().unwrap_or_default())
+        .collect();
+    assert!(names.contains(&"explore"));
+    assert!(names.contains(&"verifier"));
+
+    let set = harness
+        .supervisor
+        .agent_config_set(serde_json::json!({
+            "agent": "explore",
+            "model": "fake-one",
+            "fallback": null,
+            "enabled": null,
+            "clear": false,
+        }))
+        .expect("agent.config.set");
+    assert_eq!(
+        set["agent"]["assignment"]["model"],
+        serde_json::json!("fake-one")
+    );
+
+    let get = harness
+        .supervisor
+        .agent_config_get("explore")
+        .expect("agent.config.get");
+    assert_eq!(
+        get["agent"]["assignment"]["model"],
+        serde_json::json!("fake-one")
+    );
+
+    let cleared = harness
+        .supervisor
+        .agent_config_set(serde_json::json!({
+            "agent": "explore",
+            "model": null,
+            "fallback": null,
+            "enabled": null,
+            "clear": true,
+        }))
+        .expect("agent.config.set clear");
+    assert_eq!(
+        cleared["agent"]["assignment"]["model"],
+        serde_json::Value::Null
+    );
+
+    let unknown = harness
+        .supervisor
+        .agent_config_get("nope")
+        .expect_err("unknown agent must fail");
+    assert_eq!(unknown.code, "NOT_FOUND");
+
+    let session_id = create_session(&harness);
+    let events = harness
+        .supervisor
+        .session_events(&session_id, None, None)
+        .expect("session.events");
+    assert_eq!(
+        events["events"][0]["type"],
+        serde_json::json!("SubagentStart")
+    );
+    assert_eq!(events["has_more"], serde_json::json!(false));
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
+#[test]
+fn soul_crud_roundtrip_with_activation() {
+    let harness = start_fake("stream");
+
+    let list = harness.supervisor.soul_list().expect("soul.list");
+    let ids: Vec<&str> = list["souls"]
+        .as_array()
+        .expect("souls array")
+        .iter()
+        .map(|s| s["id"].as_str().unwrap_or_default())
+        .collect();
+    assert!(ids.contains(&"rinari-default"));
+
+    let created = harness
+        .supervisor
+        .soul_create(serde_json::json!({
+            "id": "mio",
+            "name": "Mio",
+            "identity": "You are Mio.",
+            "description": null,
+            "version": null,
+        }))
+        .expect("soul.create");
+    assert_eq!(created["soul"]["name"], serde_json::json!("Mio"));
+
+    harness
+        .supervisor
+        .soul_activate("mio")
+        .expect("soul.activate");
+    let relisted = harness.supervisor.soul_list().expect("soul.list");
+    assert_eq!(relisted["active_id"], serde_json::json!("mio"));
+
+    harness.supervisor.soul_remove("mio").expect("soul.remove");
+    let missing = harness
+        .supervisor
+        .soul_get("mio")
+        .expect_err("removed soul must fail");
+    assert_eq!(missing.code, "NOT_FOUND");
+
+    let bundled = harness
+        .supervisor
+        .soul_remove("rinari-default")
+        .expect_err("bundled soul is read-only");
+    assert_eq!(bundled.code, "INVALID_USAGE");
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
+#[test]
+fn ecosystem_roundtrip_mcp_plugins_tools_policy() {
+    let harness = start_fake("stream");
+
+    let empty = harness.supervisor.mcp_list().expect("mcp.list");
+    assert_eq!(empty["servers"].as_array().unwrap().len(), 0);
+
+    let created = harness
+        .supervisor
+        .mcp_create("demo", vec!["npx".to_string(), "-y".to_string()])
+        .expect("mcp.create");
+    assert_eq!(created["server"]["name"], serde_json::json!("demo"));
+
+    // mcp.enable sends {name} only — the fake must enable, not read a flag.
+    let enabled = harness.supervisor.mcp_enable("demo").expect("mcp.enable");
+    assert_eq!(enabled["server"]["enabled"], serde_json::json!(true));
+    let disabled = harness.supervisor.mcp_disable("demo").expect("mcp.disable");
+    assert_eq!(disabled["server"]["enabled"], serde_json::json!(false));
+
+    let test = harness.supervisor.mcp_test("demo").expect("mcp.test");
+    assert_eq!(test["test"]["ok"], serde_json::json!(false));
+
+    harness.supervisor.mcp_remove("demo").expect("mcp.remove");
+    let missing = harness.supervisor.mcp_get("demo").expect("mcp.get");
+    assert_eq!(missing["servers"].as_array().unwrap().len(), 0);
+
+    let plugins = harness.supervisor.plugin_list().expect("plugin.list");
+    assert_eq!(plugins["plugins"].as_array().unwrap().len(), 1);
+    let toggled = harness
+        .supervisor
+        .plugin_disable("fake-plugin")
+        .expect("plugin.disable");
+    assert_eq!(toggled["plugin"]["enabled"], serde_json::json!(false));
+
+    let diags = harness
+        .supervisor
+        .plugin_diagnostics()
+        .expect("plugin.diagnostics");
+    assert_eq!(
+        diags["reports"][0]["diagnostics"][0]["code"],
+        serde_json::json!("OK")
+    );
+
+    let tools = harness.supervisor.tool_list().expect("tool.list");
+    assert_eq!(
+        tools["tools"][0]["name"],
+        serde_json::json!("artifact.read")
+    );
+
+    let policy = harness.supervisor.policy_get().expect("policy.get");
+    assert_eq!(
+        policy["mode_profile"]["build"],
+        serde_json::json!("WORKSPACE")
+    );
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
+#[test]
+fn observability_roundtrip_artifacts_context_usage() {
+    let harness = start_fake("stream");
+
+    let listed = harness
+        .supervisor
+        .artifact_list(Some("fake".to_string()))
+        .expect("artifact.list");
+    assert_eq!(listed["artifacts"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        listed["artifacts"][0]["uri"],
+        serde_json::json!("artifact://fake/notes/plan.md")
+    );
+
+    let read = harness
+        .supervisor
+        .artifact_read("artifact://fake/notes/plan.md", None)
+        .expect("artifact.read");
+    assert_eq!(read["text"], serde_json::json!("hello fake"));
+    assert_eq!(read["truncated"], serde_json::json!(false));
+
+    let missing = harness
+        .supervisor
+        .artifact_read("artifact://fake/notes/nope.md", None)
+        .expect_err("unknown artifact must fail");
+    assert_eq!(missing.code, "NOT_FOUND");
+
+    let context = harness.supervisor.context_get("fake").expect("context.get");
+    assert_eq!(context["context"]["compacted"], serde_json::json!(false));
+
+    let usage = harness
+        .supervisor
+        .usage_get(Some("fake".to_string()))
+        .expect("usage.get");
+    assert_eq!(usage["usage"]["cost"], serde_json::Value::Null);
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
+#[test]
+fn workflow_roundtrip_queue_and_bundles() {
+    let harness = start_fake("stream");
+
+    let added = harness
+        .supervisor
+        .queue_add("s1", "second")
+        .expect("queue.add");
+    assert_eq!(added["position"], serde_json::json!(1));
+    let empty = harness
+        .supervisor
+        .queue_add("s1", "   ")
+        .expect_err("empty queue message must fail");
+    assert_eq!(empty.code, "INVALID_PARAMS");
+
+    let listed = harness.supervisor.queue_list("s1").expect("queue.list");
+    assert_eq!(listed["pending"], serde_json::json!(1));
+    let cleared = harness.supervisor.queue_clear("s1").expect("queue.clear");
+    assert_eq!(cleared["removed"], serde_json::json!(1));
+
+    let created = harness
+        .supervisor
+        .bundle_create(serde_json::json!({
+            "id": "foco", "name": "Foco",
+            "description": null, "soul_id": null, "mode": "plan",
+        }))
+        .expect("bundle.create");
+    assert_eq!(created["profile"]["mode"], serde_json::json!("plan"));
+
+    let dup = harness
+        .supervisor
+        .bundle_create(serde_json::json!({"id": "foco", "name": "Dup"}))
+        .expect_err("duplicate bundle must fail");
+    assert_eq!(dup.code, "CONFLICT");
+
+    let applied = harness
+        .supervisor
+        .bundle_apply("foco", Some("s1".to_string()))
+        .expect("bundle.apply");
+    assert_eq!(applied["applied"]["profile_id"], serde_json::json!("foco"));
+
+    harness
+        .supervisor
+        .bundle_remove("foco")
+        .expect("bundle.remove");
+    let missing = harness
+        .supervisor
+        .bundle_apply("foco", None)
+        .expect_err("removed bundle must fail");
+    assert_eq!(missing.code, "NOT_FOUND");
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
 fn deltas(harness: &Harness) -> Vec<String> {
     harness
         .events
@@ -234,4 +696,68 @@ fn dead_engine_surfaces_as_error_not_hang() {
         format!("{:?}", harness.supervisor.shutdown().state),
         "Stopped"
     );
+}
+
+#[test]
+fn provider_crud_roundtrip() {
+    let harness = start_fake("stream");
+    let supervisor = &harness.supervisor;
+
+    let list = supervisor.provider_list().expect("provider.list");
+    assert_eq!(list["providers"].as_array().map(Vec::len), Some(0));
+
+    let created = supervisor
+        .provider_create(serde_json::json!({
+            "alias": "ollama",
+            "type": "custom",
+            "auth_method": "none",
+            "endpoint": "http://127.0.0.1:11434/v1",
+        }))
+        .expect("provider.create");
+    assert_eq!(created["provider"]["alias"], "ollama");
+    assert_eq!(created["provider"]["has_credential"], false);
+
+    let conflict = supervisor
+        .provider_create(serde_json::json!({"alias": "ollama", "type": "custom"}))
+        .expect_err("duplicate alias");
+    assert_eq!(conflict.code, "CONFLICT");
+
+    let updated = supervisor
+        .provider_update(serde_json::json!({"ref": "ollama", "endpoint": "http://x:9/v1"}))
+        .expect("provider.update");
+    assert_eq!(updated["provider"]["endpoint"], "http://x:9/v1");
+
+    let health = supervisor.provider_test("ollama").expect("provider.test");
+    assert_eq!(health["connected"], true);
+    assert_eq!(health["models_discovered"], 2);
+
+    let found = supervisor
+        .model_discover(Some("ollama".to_string()))
+        .expect("model.discover");
+    assert_eq!(found["providers"]["fake"].as_array().map(Vec::len), Some(2));
+
+    let added = supervisor
+        .model_add(serde_json::json!({
+            "provider": "ollama",
+            "provider_model_id": "mx-1",
+            "alias": "principal",
+        }))
+        .expect("model.add");
+    assert_eq!(added["model"]["active"], true);
+
+    let used = supervisor.model_use("principal", None).expect("model.use");
+    assert_eq!(used["model"]["alias"], "principal");
+
+    supervisor
+        .provider_create(serde_json::json!({"alias": "b", "type": "custom"}))
+        .expect("second provider");
+    supervisor.provider_use("b").expect("provider.use");
+    let removed = supervisor
+        .provider_remove("ollama", Some("b".to_string()), false)
+        .expect("provider.remove");
+    assert_eq!(removed["removed"]["alias"], "ollama");
+    let list = supervisor.provider_list().expect("provider.list");
+    assert_eq!(list["active_alias"], "b");
+
+    assert_eq!(format!("{:?}", supervisor.shutdown().state), "Stopped");
 }
