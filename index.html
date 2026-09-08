@@ -2,11 +2,44 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Rinari Code — escritorio para Rinari." />
     <title>Rinari Code</title>
+    <style>
+      html {
+        background: #09090b;
+      }
+      html[data-theme='light'] {
+        background: #ffffff;
+      }
+    </style>
+    <script>
+      // Tema antes del primer paint (sin flash). Default: system.
+      try {
+        var t = localStorage.getItem('rinari.theme') || 'system'
+        if (t !== 'light' && t !== 'dark') t = 'system'
+        var dark =
+          t === 'dark' ||
+          (t === 'system' &&
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches)
+        var resolved = dark ? 'dark' : 'light'
+        document.documentElement.dataset.theme = resolved
+        document.documentElement.style.colorScheme = resolved
+      } catch (e) {
+        document.documentElement.dataset.theme = 'dark'
+      }
+      // Acento y movimiento antes del primer paint (sin flash).
+      try {
+        var a = localStorage.getItem('rinari.accent') || 'nebula'
+        if (['nebula', 'cyan', 'fuchsia', 'blue', 'green', 'orange'].indexOf(a) < 0) a = 'nebula'
+        document.documentElement.dataset.accent = a
+        if (localStorage.getItem('rinari.reduceMotion') === '1') {
+          document.documentElement.dataset.motion = 'reduced'
+        }
+      } catch (e2) {}
+    </script>
   </head>
-
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

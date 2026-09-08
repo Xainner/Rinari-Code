@@ -1,0 +1,92 @@
+import type { Language } from '../../types'
+import { useI18n } from '../../i18n'
+import { useUIStore } from '../../stores/ui'
+import { inputClass, Row, Section } from './parts'
+import { Switch } from '../ui/switch'
+
+/** Settings > General (§19): idioma + comportamiento. Guardado inmediato. */
+export default function GeneralSettings({
+  language,
+  onLanguageChange,
+}: {
+  language: Language
+  onLanguageChange: (lang: Language) => void
+}) {
+  const { t } = useI18n()
+  const enterToSend = useUIStore((s) => s.enterToSend)
+  const setEnterToSend = useUIStore((s) => s.setEnterToSend)
+  const autoFollow = useUIStore((s) => s.autoFollow)
+  const setAutoFollow = useUIStore((s) => s.setAutoFollow)
+  const showSuggestions = useUIStore((s) => s.showSuggestions)
+  const setShowSuggestions = useUIStore((s) => s.setShowSuggestions)
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
+  const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed)
+
+  return (
+    <div className="space-y-6">
+      <Section title={t('settings.language')}>
+        <div className="max-w-xs">
+          <select
+            aria-label={t('settings.language')}
+            value={language}
+            onChange={(e) => onLanguageChange(e.target.value as Language)}
+            className={inputClass}
+          >
+            <option value="es">Español</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+      </Section>
+
+      <Section title={t('settings.general.chat')}>
+        <Row
+          title={t('settings.general.enterToSend')}
+          desc={t('settings.general.enterToSendDesc')}
+          control={
+            <Switch
+              checked={enterToSend}
+              onCheckedChange={setEnterToSend}
+              aria-label={t('settings.general.enterToSend')}
+            />
+          }
+        />
+        <Row
+          title={t('settings.general.autoFollow')}
+          desc={t('settings.general.autoFollowDesc')}
+          control={
+            <Switch
+              checked={autoFollow}
+              onCheckedChange={setAutoFollow}
+              aria-label={t('settings.general.autoFollow')}
+            />
+          }
+        />
+        <Row
+          title={t('settings.general.suggestions')}
+          desc={t('settings.general.suggestionsDesc')}
+          control={
+            <Switch
+              checked={showSuggestions}
+              onCheckedChange={setShowSuggestions}
+              aria-label={t('settings.general.suggestions')}
+            />
+          }
+        />
+      </Section>
+
+      <Section title={t('settings.general.sidebar')}>
+        <Row
+          title={t('settings.general.rememberSidebar')}
+          desc={t('settings.general.rememberSidebarDesc')}
+          control={
+            <Switch
+              checked={sidebarCollapsed}
+              onCheckedChange={setSidebarCollapsed}
+              aria-label={t('settings.general.rememberSidebar')}
+            />
+          }
+        />
+      </Section>
+    </div>
+  )
+}
