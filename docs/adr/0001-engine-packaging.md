@@ -35,7 +35,7 @@ entorno/ruta a otro ejecutable solo para desarrollo.
 
 ## Implicaciones para plugins (verificado en el engine real)
 
-`src/rinari/plugins/loader.py` (`RInari-CLI`) carga plugins de usuario y de
+`src/rinari/plugins/loader.py` (`Rinari-CLI`) carga plugins de usuario y de
 proyecto con `importlib.util.spec_from_file_location` + `exec_module` sobre
 archivos `.py` arbitrarios fuera del paquete, y ejecuta su `contribute(api)`.
 

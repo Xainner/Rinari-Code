@@ -2,7 +2,7 @@
 
 > **Status:** Implementation blueprint / source of truth for Rinari Code v1  
 > **Date:** 2026-09-08  
-> **Rinari-CLI baseline:** `Xainner/Rinari-CLI-2` @ `110ad4ee55dbea1f5bd1565b35af4b65f049dfd2`  
+> **Rinari-CLI baseline:** `Xainner/Rinari-CLI` @ `110ad4ee55dbea1f5bd1565b35af4b65f049dfd2`  \
 > **Luma UI baseline:** `Xainner/Luma` @ `6c58af5392abe8ebe9f703653b1b094d7353fdbd`  
 > **Desktop stack guide:** `AGENTS_Tauri_Rust_Master_Expanded.md`  
 > **Primary goal:** Build a polished native-feeling desktop client for the existing Rinari harness without duplicating or rewriting the agent runtime.
@@ -237,7 +237,7 @@ The new default may be mock-jealous or tsundere-like as roleplay flavor, but mus
 Maintain two repositories:
 
 ```text
-Rinari-CLI-2
+Rinari-CLI
 └── engine + CLI + shared state
 
 Rinari-Code
@@ -3427,7 +3427,7 @@ Rinari Code is distributable as a real desktop product, not only a dev build.
 
 # 55. File-by-file initial implementation map
 
-## 55.1 Rinari-CLI-2
+## 55.1 Rinari-CLI
 
 Expected new/changed areas:
 

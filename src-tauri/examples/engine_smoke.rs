@@ -1,7 +1,7 @@
 // Manual roundtrip smoke: desktop EngineSupervisor against a real engine.
 // Run with env pointing at a checkout, e.g. (git-bash):
 //   RINARI_ENGINE_BIN=uv RINARI_ENGINE_ARGS="run rinari" \
-//   RINARI_ENGINE_CWD=C:/Users/Xainner/Documents/DEV/RInari-CLI \
+//   RINARI_ENGINE_CWD=C:/Users/Xainner/Documents/DEV/Rinari-CLI \
 //   RINARI_HOME=$LOCALAPPDATA/Temp/rinari-desktop-smoke \
 //   cargo run --example engine_smoke
 // Turn execution needs a configured provider; without one the engine must

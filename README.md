@@ -32,7 +32,7 @@ npm run tauri dev    # full desktop app (compiles Rust on first run)
 Engine env (dev):
 
 ```bash
-RINARI_ENGINE_BIN=uv RINARI_ENGINE_ARGS="run rinari" RINARI_ENGINE_CWD=../RInari-CLI
+RINARI_ENGINE_BIN=uv RINARI_ENGINE_ARGS="run rinari" RINARI_ENGINE_CWD=../Rinari-CLI
 ```
 
 ## Tests
