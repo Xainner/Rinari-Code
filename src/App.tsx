@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
+import { listen } from '@tauri-apps/api/event'
+import { toast } from 'sonner'
 import { I18nProvider } from './i18n'
+import { engineApi } from './services/engine'
 import { useUIStore } from './stores/ui'
 import { useEngineSession } from './features/engine/useEngineSession'
 import AppShell from './components/app-shell/AppShell'
@@ -35,6 +38,48 @@ function App() {
   const activeRecord =
     session.sessions.find((s) => s.id === session.activeSession) ?? null
   const activeTitle = activeRecord?.title ?? null
+
+  // Handoff `rinari code [path] [--session]`: misma sesión/proyecto.
+  useEffect(() => {
+    async function handleOpen(request: { project: string | null; session: string | null }) {
+      try {
+        if (request.session) {
+          await session.selectSession(request.session)
+          goChat()
+          return
+        }
+        if (request.project) {
+          const match = session.sessions.find(
+            (s) => s.project_root === request.project || s.current_cwd === request.project,
+          )
+          if (match) {
+            await session.selectSession(match.id)
+          } else {
+            const created = await engineApi.createSession({ cwd: request.project ?? undefined })
+            await session.selectSession(created.session.id)
+          }
+          goChat()
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : String(err))
+      }
+    }
+    let unlisten: (() => void) | undefined
+    void engineApi
+      .initialOpenRequest()
+      .then((request) => {
+        if (request.project || request.session) void handleOpen(request)
+      })
+      .catch(() => {})
+    void listen<{ project: string | null; session: string | null }>(
+      'rinari-open-request',
+      (wrapper) => void handleOpen(wrapper.payload),
+    ).then((stop) => {
+      unlisten = stop
+    })
+    return () => unlisten?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Alta guiada: motor listo y sin proveedores → abrir el wizard una vez.
   const [wizardOpen, setWizardOpen] = useState(false)
@@ -102,6 +147,7 @@ function App() {
       >
         {view === 'chat' && (
           <ChatView
+            sessionId={session.activeSession || null}
             messages={session.messages}
             isStreaming={session.busy}
             engineReady={session.ready}

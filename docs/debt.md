@@ -76,6 +76,17 @@ riesgo); el preview acotado cubre v1.
 `pty.start/write/resize/terminate` + eventos `pty.output`; export con
 diálogo nativo de destino y validación de paths.
 
+## Fase 11 — Branching de sesión (2026-09-08)
+
+**Recorte:** sin branching conversación/trabajo en v1.
+
+**Causa:** exige semántica de persistencia en el engine (fork de
+task graph + contexto + checkpoints); copiar solo mensajes visibles
+perdería estado y mentiría.
+
+**Criterio para saldar:** `session.branch` en el engine con fork real de
+tasks/contexto/checkpoints; recién entonces UI de ramas.
+
 ## Transversales
 
 - Chunk JS de 772 KB (aviso de Vite): code-splitting cuando se sumen

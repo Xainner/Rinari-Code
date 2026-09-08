@@ -486,6 +486,63 @@ fn observability_roundtrip_artifacts_context_usage() {
     );
 }
 
+#[test]
+fn workflow_roundtrip_queue_and_bundles() {
+    let harness = start_fake("stream");
+
+    let added = harness
+        .supervisor
+        .queue_add("s1", "second")
+        .expect("queue.add");
+    assert_eq!(added["position"], serde_json::json!(1));
+    let empty = harness
+        .supervisor
+        .queue_add("s1", "   ")
+        .expect_err("empty queue message must fail");
+    assert_eq!(empty.code, "INVALID_PARAMS");
+
+    let listed = harness.supervisor.queue_list("s1").expect("queue.list");
+    assert_eq!(listed["pending"], serde_json::json!(1));
+    let cleared = harness.supervisor.queue_clear("s1").expect("queue.clear");
+    assert_eq!(cleared["removed"], serde_json::json!(1));
+
+    let created = harness
+        .supervisor
+        .bundle_create(serde_json::json!({
+            "id": "foco", "name": "Foco",
+            "description": null, "soul_id": null, "mode": "plan",
+        }))
+        .expect("bundle.create");
+    assert_eq!(created["profile"]["mode"], serde_json::json!("plan"));
+
+    let dup = harness
+        .supervisor
+        .bundle_create(serde_json::json!({"id": "foco", "name": "Dup"}))
+        .expect_err("duplicate bundle must fail");
+    assert_eq!(dup.code, "CONFLICT");
+
+    let applied = harness
+        .supervisor
+        .bundle_apply("foco", Some("s1".to_string()))
+        .expect("bundle.apply");
+    assert_eq!(applied["applied"]["profile_id"], serde_json::json!("foco"));
+
+    harness
+        .supervisor
+        .bundle_remove("foco")
+        .expect("bundle.remove");
+    let missing = harness
+        .supervisor
+        .bundle_apply("foco", None)
+        .expect_err("removed bundle must fail");
+    assert_eq!(missing.code, "NOT_FOUND");
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
 fn deltas(harness: &Harness) -> Vec<String> {
     harness
         .events

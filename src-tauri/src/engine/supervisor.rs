@@ -566,6 +566,58 @@ impl EngineSupervisor {
         self.request("usage.get", params)
     }
 
+    // -- workflow (Phase 11) ------------------------------------------------------
+
+    pub fn queue_add(&self, session_id: &str, message: &str) -> Result<Value, CommandError> {
+        self.request(
+            "session.queue.add",
+            Some(json!({"session_id": session_id, "message": message})),
+        )
+    }
+
+    pub fn queue_list(&self, session_id: &str) -> Result<Value, CommandError> {
+        self.request(
+            "session.queue.list",
+            Some(json!({"session_id": session_id})),
+        )
+    }
+
+    pub fn queue_clear(&self, session_id: &str) -> Result<Value, CommandError> {
+        self.request(
+            "session.queue.clear",
+            Some(json!({"session_id": session_id})),
+        )
+    }
+
+    pub fn bundle_list(&self) -> Result<Value, CommandError> {
+        self.request("profile_bundle.list", None)
+    }
+
+    pub fn bundle_get(&self, id: &str) -> Result<Value, CommandError> {
+        self.request("profile_bundle.get", Some(json!({"id": id})))
+    }
+
+    pub fn bundle_create(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("profile_bundle.create", Some(params))
+    }
+
+    pub fn bundle_remove(&self, id: &str) -> Result<Value, CommandError> {
+        self.request("profile_bundle.remove", Some(json!({"id": id})))
+    }
+
+    pub fn bundle_apply(
+        &self,
+        id: &str,
+        session_ref: Option<String>,
+    ) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("id".to_string(), Value::String(id.to_string()));
+        if let Some(session_ref) = session_ref {
+            params.insert("session_ref".to_string(), Value::String(session_ref));
+        }
+        self.request("profile_bundle.apply", Some(Value::Object(params)))
+    }
+
     pub fn approval_resolve(
         &self,
         approval_id: &str,

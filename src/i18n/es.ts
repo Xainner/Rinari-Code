@@ -540,6 +540,23 @@ export const es = {
   'terminal.title': 'Terminal',
   'terminal.status': 'Estado',
   'terminal.unavailable': 'Sin sesiones PTY en el engine v1: los procesos viven dentro de los tool calls. La terminal integrada llegará con el protocolo PTY, sin puentes genéricos de shell.',
+
+  /* Queue (Fase 11) */
+  'queue.placeholder': 'Encolar siguiente…',
+  'queue.enqueue': 'Encolar',
+  'queue.clear': 'Vaciar cola',
+
+  /* Profiles (Fase 11) */
+  'rbundles.title': 'Perfiles Rinari',
+  'rbundles.create': 'Crear perfil',
+  'rbundles.apply': 'Aplicar',
+  'rbundles.delete': 'Eliminar',
+  'rbundles.confirmDelete': 'Eliminar el perfil «{name}»?',
+  'rbundles.applied': 'Perfil aplicado (soul {soul}, modo {mode}).',
+  'rbundles.idLabel': 'ID (a-z, 0-9, guiones)',
+  'rbundles.nameLabel': 'Nombre',
+  'rbundles.soulLabel': 'Soul (id, opcional)',
+  'rbundles.modeLabel': 'Modo (plan/build/review, opcional)',
   'workspace.refresh': 'Actualizar',
   'workspace.noSession': 'Selecciona una sesión para ver su proyecto.',
   'workspace.noGit': 'Esta carpeta no es un repositorio git.',

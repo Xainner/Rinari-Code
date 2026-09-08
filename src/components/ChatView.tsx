@@ -9,9 +9,11 @@ import { useUIStore } from '../stores/ui'
 import Composer from './composer/Composer'
 import Logo from './Logo'
 import MessageBubble from './MessageBubble'
+import QueueBar from './chat/QueueBar'
 import ScrollToBottom from './chat/ScrollToBottom'
 
 interface ChatViewProps {
+  sessionId: string | null
   messages: ChatMessage[]
   isStreaming: boolean
   engineReady: boolean
@@ -35,6 +37,7 @@ const SUGGESTIONS: I18nKey[] = [
 ]
 
 export default function ChatView({
+  sessionId,
   messages,
   isStreaming,
   engineReady,
@@ -190,6 +193,7 @@ export default function ChatView({
                   </ul>
                 </details>
               )}
+              <QueueBar sessionId={sessionId} refreshKey={isStreaming} />
               {composer}
             </motion.div>
           </div>

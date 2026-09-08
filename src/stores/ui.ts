@@ -24,6 +24,7 @@ export type SettingsSection =
   | 'mcp'
   | 'plugins'
   | 'tools'
+  | 'profiles'
   | 'terminal'
   | 'advanced'
   | 'about'

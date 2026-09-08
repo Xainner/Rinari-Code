@@ -14,6 +14,7 @@ import McpView from '../ecosystem/McpView'
 import PluginsView from '../ecosystem/PluginsView'
 import ToolsView from '../ecosystem/ToolsView'
 import TerminalView from '../ecosystem/TerminalView'
+import ProfilesView from '../ecosystem/ProfilesView'
 
 /** Vista de ajustes: shell + sección activa. Terminal llega en Fase 10. */
 export default function SettingsView({
@@ -62,9 +63,15 @@ export default function SettingsView({
       {section === 'mcp' && <McpView onChanged={onCatalogChanged} />}
       {section === 'plugins' && <PluginsView onChanged={onCatalogChanged} />}
       {section === 'tools' && <ToolsView />}
+      {section === 'profiles' && (
+        <ProfilesView
+          activeSessionId={activeSessionId}
+          onChanged={onCatalogChanged}
+        />
+      )}
       {section === 'terminal' && <TerminalView />}
       {section === 'about' && <AboutSettings version={appVersion} />}
-      {!['general', 'appearance', 'providers', 'models', 'agents', 'soul', 'mcp', 'plugins', 'tools', 'terminal', 'about'].includes(section) && (
+      {!['general', 'appearance', 'providers', 'models', 'agents', 'soul', 'mcp', 'plugins', 'tools', 'profiles', 'terminal', 'about'].includes(section) && (
         <SoonSettings />
       )}
     </SettingsShell>

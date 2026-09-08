@@ -223,6 +223,15 @@ export interface SessionUsage {
   cost: number | null;
 }
 
+export interface ProfileBundle {
+  id: string;
+  name: string;
+  description: string;
+  soul_id: string | null;
+  mode: string | null;
+  agents: Record<string, { model?: string; fallback?: string }>;
+}
+
 export interface ProjectChanges {
   available: boolean;
   branch: string | null;
@@ -401,6 +410,42 @@ export const engineApi = {
     invoke<{ context: SessionContext }>("context_get", { reference }),
   usageGet: (reference?: string) =>
     invoke<{ usage: SessionUsage }>("usage_get", { reference: reference ?? null }),
+  queueAdd: (session_id: string, message: string) =>
+    invoke<{ session_id: string; position: number; pending: number }>("queue_add", {
+      session_id,
+      message,
+    }),
+  queueList: (session_id: string) =>
+    invoke<{ session_id: string; queue: string[]; pending: number }>("queue_list", {
+      session_id,
+    }),
+  queueClear: (session_id: string) =>
+    invoke<{ session_id: string; removed: number }>("queue_clear", { session_id }),
+  bundleList: () => invoke<{ profiles: ProfileBundle[] }>("bundle_list"),
+  bundleCreate: (input: {
+    id: string;
+    name: string;
+    description?: string;
+    soul_id?: string;
+    mode?: string;
+    agents?: Record<string, { model?: string; fallback?: string }>;
+  }) =>
+    invoke<{ profile: ProfileBundle }>("bundle_create", {
+      id: input.id,
+      name: input.name,
+      description: input.description ?? null,
+      soul_id: input.soul_id ?? null,
+      mode: input.mode ?? null,
+      agents: input.agents ?? null,
+    }),
+  bundleRemove: (id: string) => invoke<{ removed: { id: string } }>("bundle_remove", { id }),
+  bundleApply: (id: string, session_ref?: string) =>
+    invoke<{ applied: Record<string, unknown> }>("bundle_apply", {
+      id,
+      session_ref: session_ref ?? null,
+    }),
+  initialOpenRequest: () =>
+    invoke<{ project: string | null; session: string | null }>("initial_open_request"),
   startTurn: (sessionId: string, message: string) =>
     invoke<{ status: string; turn_id: string; session_id: string }>("turn_start", {
       session_id: sessionId,

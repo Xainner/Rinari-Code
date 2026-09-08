@@ -78,6 +78,8 @@ class FakeEngine:
         self.active_soul = None
         self.mcp_servers = {}
         self.fake_plugin_enabled = True
+        self.queue = []
+        self.bundles = {}
 
     def session_list(self, req_id, _params):
         respond(req_id, result={"sessions": list(self.sessions.values())})
@@ -502,6 +504,70 @@ class FakeEngine:
             "model_calls": 0,
             "tokens": {"input": 0, "output": 0, "cached": 0, "reasoning": 0},
             "tool_calls": {"total": 0, "ok": 0, "error": 0}, "cost": None}})
+
+    # -- workflow (Phase 11): canned queue + bundles ------------------------------
+
+    def queue_add(self, req_id, params):
+        params = params or {}
+        message = (params.get("message") or "").strip()
+        if not message:
+            fail(req_id, "INVALID_PARAMS", "Queued message is empty.")
+            return
+        self.queue.append(message)
+        respond(req_id, result={"session_id": params.get("session_id", ""),
+                "position": len(self.queue), "pending": len(self.queue)})
+
+    def queue_list(self, req_id, params):
+        respond(req_id, result={"session_id": (params or {}).get("session_id", ""),
+                "queue": list(self.queue), "pending": len(self.queue)})
+
+    def queue_clear(self, req_id, params):
+        removed = len(self.queue)
+        self.queue.clear()
+        respond(req_id, result={"session_id": (params or {}).get("session_id", ""),
+                "removed": removed})
+
+    def bundle_list(self, req_id, _params):
+        respond(req_id, result={"profiles": [
+            {"id": key, "name": val["name"], "description": val.get("description", ""),
+             "soul_id": val.get("soul_id"), "mode": val.get("mode"),
+             "agents": val.get("agents", {})}
+            for key, val in sorted(self.bundles.items())]})
+
+    def bundle_create(self, req_id, params):
+        params = params or {}
+        bundle_id = params.get("id", "")
+        if not bundle_id:
+            fail(req_id, "INVALID_PARAMS", "Param 'id' is required.")
+            return
+        if bundle_id in self.bundles:
+            fail(req_id, "CONFLICT", f"Profile exists: {bundle_id}.")
+            return
+        if not params.get("name"):
+            fail(req_id, "INVALID_PARAMS", "Param 'name' is required.")
+            return
+        self.bundles[bundle_id] = {"name": params.get("name"),
+            "description": params.get("description") or "",
+            "soul_id": params.get("soul_id"), "mode": params.get("mode"),
+            "agents": params.get("agents") or {}}
+        respond(req_id, result={"profile": {"id": bundle_id, **self.bundles[bundle_id]}})
+
+    def bundle_remove(self, req_id, params):
+        bundle_id = (params or {}).get("id", "")
+        if bundle_id not in self.bundles:
+            fail(req_id, "NOT_FOUND", f"Unknown profile: {bundle_id}.")
+            return
+        del self.bundles[bundle_id]
+        respond(req_id, result={"removed": {"id": bundle_id}})
+
+    def bundle_apply(self, req_id, params):
+        bundle_id = (params or {}).get("id", "")
+        if bundle_id not in self.bundles:
+            fail(req_id, "NOT_FOUND", f"Unknown profile: {bundle_id}.")
+            return
+        respond(req_id, result={"applied": {"profile_id": bundle_id,
+                "soul_id": self.bundles[bundle_id].get("soul_id"),
+                "session_id": (params or {}).get("session_ref")}})
 
     def session_history(self, req_id, params):
         params = params or {}
@@ -933,6 +999,14 @@ class FakeEngine:
             "artifact.read": self.artifact_read,
             "context.get": self.context_get,
             "usage.get": self.usage_get,
+            "session.queue.add": self.queue_add,
+            "session.queue.list": self.queue_list,
+            "session.queue.clear": self.queue_clear,
+            "profile_bundle.list": self.bundle_list,
+            "profile_bundle.get": self.bundle_list,
+            "profile_bundle.create": self.bundle_create,
+            "profile_bundle.remove": self.bundle_remove,
+            "profile_bundle.apply": self.bundle_apply,
             "session.history": self.session_history,
             "session.turn.start": self.turn_start,
             "session.turn.cancel": self.turn_cancel,

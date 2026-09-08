@@ -410,6 +410,140 @@ fn usage_get(
 }
 
 #[tauri::command]
+fn queue_add(
+    supervisor: State<'_, EngineSupervisor>,
+    session_id: String,
+    message: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.queue_add(&session_id, &message)
+}
+
+#[tauri::command]
+fn queue_list(
+    supervisor: State<'_, EngineSupervisor>,
+    session_id: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.queue_list(&session_id)
+}
+
+#[tauri::command]
+fn queue_clear(
+    supervisor: State<'_, EngineSupervisor>,
+    session_id: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.queue_clear(&session_id)
+}
+
+#[tauri::command]
+fn bundle_list(supervisor: State<'_, EngineSupervisor>) -> Result<serde_json::Value, CommandError> {
+    supervisor.bundle_list()
+}
+
+#[tauri::command]
+fn bundle_create(
+    supervisor: State<'_, EngineSupervisor>,
+    id: String,
+    name: String,
+    description: Option<String>,
+    soul_id: Option<String>,
+    mode: Option<String>,
+    agents: Option<serde_json::Value>,
+) -> Result<serde_json::Value, CommandError> {
+    let mut params = serde_json::Map::new();
+    params.insert("id".to_string(), serde_json::Value::String(id));
+    params.insert("name".to_string(), serde_json::Value::String(name));
+    if let Some(description) = description {
+        params.insert(
+            "description".to_string(),
+            serde_json::Value::String(description),
+        );
+    }
+    if let Some(soul_id) = soul_id {
+        params.insert("soul_id".to_string(), serde_json::Value::String(soul_id));
+    }
+    if let Some(mode) = mode {
+        params.insert("mode".to_string(), serde_json::Value::String(mode));
+    }
+    if let Some(agents) = agents {
+        params.insert("agents".to_string(), agents);
+    }
+    supervisor.bundle_create(serde_json::Value::Object(params))
+}
+
+#[tauri::command]
+fn bundle_remove(
+    supervisor: State<'_, EngineSupervisor>,
+    id: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.bundle_remove(&id)
+}
+
+#[tauri::command]
+fn bundle_apply(
+    supervisor: State<'_, EngineSupervisor>,
+    id: String,
+    session_ref: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.bundle_apply(&id, session_ref)
+}
+
+/// `rinari code [path] [--session id]` handoff: explicit args only.
+#[derive(Debug, Clone, serde::Serialize)]
+struct OpenRequest {
+    project: Option<String>,
+    session: Option<String>,
+}
+
+#[tauri::command]
+fn initial_open_request() -> OpenRequest {
+    parse_open_request(&std::env::args().collect::<Vec<_>>())
+}
+
+fn parse_open_request(argv: &[String]) -> OpenRequest {
+    let mut project = None;
+    let mut session = None;
+    let mut iter = argv.iter().skip(1).peekable();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--project" => project = iter.next().cloned(),
+            "--session" => session = iter.next().cloned(),
+            other if !other.starts_with("--") && project.is_none() => {
+                project = Some(other.to_string());
+            }
+            _ => {}
+        }
+    }
+    OpenRequest { project, session }
+}
+
+#[cfg(test)]
+mod open_request_tests {
+    use super::parse_open_request;
+
+    #[test]
+    fn parses_project_and_session_flags() {
+        let argv = vec![
+            "rinari-code".to_string(),
+            "--project".to_string(),
+            "C:/work/demo".to_string(),
+            "--session".to_string(),
+            "abc123".to_string(),
+        ];
+        let request = parse_open_request(&argv);
+        assert_eq!(request.project.as_deref(), Some("C:/work/demo"));
+        assert_eq!(request.session.as_deref(), Some("abc123"));
+    }
+
+    #[test]
+    fn ignores_unrelated_flags() {
+        let argv = vec!["rinari-code".to_string(), "--devtools".to_string()];
+        let request = parse_open_request(&argv);
+        assert!(request.project.is_none());
+        assert!(request.session.is_none());
+    }
+}
+
+#[tauri::command]
 fn session_create(
     supervisor: State<'_, EngineSupervisor>,
     cwd: Option<String>,
@@ -654,9 +788,15 @@ fn model_test(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default().build())
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_focus();
+            }
+            let request = parse_open_request(&argv);
+            if request.project.is_some() || request.session.is_some() {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.emit("rinari-open-request", &request);
+                }
             }
         }))
         .plugin(tauri_plugin_window_state::Builder::default().build())
@@ -705,6 +845,14 @@ pub fn run() {
             artifact_read,
             context_get,
             usage_get,
+            queue_add,
+            queue_list,
+            queue_clear,
+            bundle_list,
+            bundle_create,
+            bundle_remove,
+            bundle_apply,
+            initial_open_request,
             session_create,
             turn_start,
             turn_cancel,

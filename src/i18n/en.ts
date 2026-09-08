@@ -522,6 +522,23 @@ export const en: Record<I18nKey, string> = {
   'terminal.title': 'Terminal',
   'terminal.status': 'Status',
   'terminal.unavailable': 'No PTY sessions in engine v1: processes live inside tool calls. The integrated terminal arrives with the PTY protocol, no generic shell bridges.',
+
+  /* Queue (Phase 11) */
+  'queue.placeholder': 'Queue next…',
+  'queue.enqueue': 'Queue',
+  'queue.clear': 'Clear queue',
+
+  /* Profiles (Phase 11) */
+  'rbundles.title': 'Rinari Profiles',
+  'rbundles.create': 'Create profile',
+  'rbundles.apply': 'Apply',
+  'rbundles.delete': 'Delete',
+  'rbundles.confirmDelete': 'Delete profile "{name}"?',
+  'rbundles.applied': 'Profile applied (soul {soul}, mode {mode}).',
+  'rbundles.idLabel': 'ID (a-z, 0-9, dashes)',
+  'rbundles.nameLabel': 'Name',
+  'rbundles.soulLabel': 'Soul (id, optional)',
+  'rbundles.modeLabel': 'Mode (plan/build/review, optional)',
   'workspace.refresh': 'Refresh',
   'workspace.noSession': 'Select a session to see its project.',
   'workspace.noGit': 'This folder is not a git repository.',
