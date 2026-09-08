@@ -227,6 +227,14 @@ export default function AppSidebar({
                   >
                     {session.title || t('sidebar.newChat')}
                   </span>
+                  {session.kind === 'PROJECT' && session.project_root && (
+                    <span
+                      title={session.project_root}
+                      className="block max-w-full truncate font-mono text-[10px] text-[var(--text-subtle)]"
+                    >
+                      {session.project_root.split(/[/\\]/).pop()}
+                    </span>
+                  )}
                   <span
                     title={session.kind}
                     className="shrink-0 rounded-md border border-[var(--border)] px-1 py-px font-mono text-[9px] tracking-wide text-[var(--text-subtle)]"

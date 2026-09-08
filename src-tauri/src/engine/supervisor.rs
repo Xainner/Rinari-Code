@@ -322,6 +322,13 @@ impl EngineSupervisor {
         self.request("session.history", Some(Value::Object(params)))
     }
 
+    pub fn session_mode_set(&self, reference: &str, mode: &str) -> Result<Value, CommandError> {
+        self.request(
+            "session.mode.set",
+            Some(json!({"ref": reference, "mode": mode})),
+        )
+    }
+
     pub fn approval_resolve(
         &self,
         approval_id: &str,

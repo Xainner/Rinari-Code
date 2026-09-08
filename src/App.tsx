@@ -108,6 +108,8 @@ function App() {
             models={session.models}
             activeAlias={session.activeModel?.alias ?? null}
             onUseModel={(alias) => void session.useModel(alias)}
+            sessionMode={activeRecord?.mode ?? null}
+            onModeChange={(mode) => void session.setMode(mode)}
             activity={
               session.activeSession !== ''
                 ? (session.activity[session.activeSession] ?? [])

@@ -503,6 +503,12 @@ export const es = {
   'activity.running': 'en curso',
   'activity.done': 'listo',
   'history.hasMore': '+{n} mensajes anteriores',
+
+  /* Modos (Fase 5) */
+  'mode.plan': 'PLAN',
+  'mode.build': 'BUILD',
+  'mode.review': 'REVIEW',
+  'mode.change': 'Modo',
   'providers.credentialOk': 'Credencial guardada',
   'providers.alias': 'Alias',
   'providers.type': 'Tipo',

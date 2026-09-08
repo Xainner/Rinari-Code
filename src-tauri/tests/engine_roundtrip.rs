@@ -149,6 +149,35 @@ fn history_grows_with_turns_and_rejects_unknown_sessions() {
     );
 }
 
+#[test]
+fn mode_set_roundtrip_emits_change_and_rejects_unknown() {
+    let harness = start_fake("stream");
+    let session_id = create_session(&harness);
+
+    let updated = harness
+        .supervisor
+        .session_mode_set(&session_id, "plan")
+        .expect("session.mode.set");
+    assert_eq!(updated["session"]["mode"], serde_json::json!("plan"));
+
+    let changed = wait_for(&harness, Duration::from_secs(10), |event: &EngineEvent| {
+        event.event == "session.mode.changed"
+            && event.payload["session_id"].as_str() == Some(session_id.as_str())
+    });
+    assert_eq!(changed.payload["mode"], serde_json::json!("plan"));
+
+    let error = harness
+        .supervisor
+        .session_mode_set(&session_id, "yolo")
+        .expect_err("unknown mode must fail");
+    assert_eq!(error.code, "INVALID_USAGE");
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
 fn deltas(harness: &Harness) -> Vec<String> {
     harness
         .events

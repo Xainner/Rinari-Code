@@ -163,6 +163,9 @@ export function useEngineSession() {
           })
           break
         }
+        case 'session.mode.changed':
+          void refreshSessions()
+          break
         case 'approval.requested':
           setApprovals((prev) => [
             ...prev.filter((a) => a.approval_id !== payload.approval_id),
@@ -341,6 +344,17 @@ export function useEngineSession() {
     }
   }
 
+  /** Cambia PLAN/BUILD/REVIEW. Misma sesión, tareas y contexto intactos. */
+  async function setMode(mode: string): Promise<void> {
+    if (activeSession === '') return
+    try {
+      await engineApi.setSessionMode(activeSession, mode)
+      await refreshSessions()
+    } catch (err) {
+      toast.error(commandMessage(err))
+    }
+  }
+
   return {
     status,
     sessions,
@@ -365,6 +379,7 @@ export function useEngineSession() {
     refreshCatalog,
     useModel,
     selectSession,
+    setMode,
     activity,
     historyInfo,
   }

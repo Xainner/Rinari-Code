@@ -36,6 +36,7 @@ export interface SessionSummary {
   mode: string;
   state: string;
   updated_at: string;
+  project_root: string | null;
 }
 
 export interface HistoryMessage {
@@ -138,6 +139,8 @@ export const engineApi = {
       total: number;
       has_more: boolean;
     }>("session_history", { reference, limit: limit ?? null }),
+  setSessionMode: (reference: string, mode: string) =>
+    invoke<{ session: SessionSummary }>("session_mode_set", { reference, mode }),
   startTurn: (sessionId: string, message: string) =>
     invoke<{ status: string; turn_id: string; session_id: string }>("turn_start", {
       session_id: sessionId,

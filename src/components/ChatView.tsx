@@ -23,6 +23,8 @@ interface ChatViewProps {
   onUseModel: (alias: string) => void
   activity: ToolActivity[]
   historyNote: { total: number; hasMore: boolean } | null
+  sessionMode: string | null
+  onModeChange: (mode: string) => void
 }
 
 const SUGGESTIONS: I18nKey[] = [
@@ -44,6 +46,8 @@ export default function ChatView({
   onUseModel,
   activity,
   historyNote,
+  sessionMode,
+  onModeChange,
 }: ChatViewProps) {
   const { t } = useI18n()
   const autoFollow = useUIStore((s) => s.autoFollow)
@@ -78,6 +82,8 @@ export default function ChatView({
       models={models}
       activeAlias={activeAlias}
       onUseModel={onUseModel}
+      sessionMode={sessionMode}
+      onModeChange={onModeChange}
       onOpenProviders={onOpenProviders}
     />
   )

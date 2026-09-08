@@ -485,6 +485,12 @@ export const en: Record<I18nKey, string> = {
   'activity.running': 'running',
   'activity.done': 'done',
   'history.hasMore': '+{n} earlier messages',
+
+  /* Modes (Phase 5) */
+  'mode.plan': 'PLAN',
+  'mode.build': 'BUILD',
+  'mode.review': 'REVIEW',
+  'mode.change': 'Mode',
   'providers.credentialOk': 'Credential stored',
   'providers.alias': 'Alias',
   'providers.type': 'Type',

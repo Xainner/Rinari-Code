@@ -85,8 +85,9 @@ class FakeEngine:
         record = {"id": session_id,
                   "kind": kind,
                   "title": params.get("title") or "fake",
-                  "mode": "ask",
+                  "mode": "build",
                   "state": "active",
+                  "project_root": None,
                   "updated_at": "2026-01-01T00:00:00Z"}
         self.sessions[session_id] = record
         self.transcripts[session_id] = []
@@ -100,6 +101,22 @@ class FakeEngine:
             fail(req_id, "NOT_FOUND", f"Session {session_id} not found.")
             return
         respond(req_id, result={"session": record, "created": False, "warnings": []})
+
+    def session_mode_set(self, req_id, params):
+        params = params or {}
+        session_id = params.get("ref", "")
+        record = self.sessions.get(session_id)
+        if record is None:
+            fail(req_id, "NOT_FOUND", f"Session {session_id} not found.")
+            return
+        mode = params.get("mode", "")
+        if mode not in ("plan", "build", "review"):
+            fail(req_id, "INVALID_USAGE",
+                 f"Unknown session mode: {mode!r}. Valid modes: plan, build, review.")
+            return
+        record["mode"] = mode
+        respond(req_id, result={"session": record})
+        emit("session.mode.changed", {"session_id": session_id, "mode": mode})
 
     def session_history(self, req_id, params):
         params = params or {}
@@ -493,6 +510,7 @@ class FakeEngine:
             "session.list": self.session_list,
             "session.create": self.session_create,
             "session.open": self.session_open,
+            "session.mode.set": self.session_mode_set,
             "session.history": self.session_history,
             "session.turn.start": self.turn_start,
             "session.turn.cancel": self.turn_cancel,

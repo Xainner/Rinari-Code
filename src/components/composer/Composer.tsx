@@ -17,7 +17,11 @@ interface ComposerProps {
   activeAlias: string | null
   onUseModel: (alias: string) => void
   onOpenProviders: () => void
+  sessionMode: string | null
+  onModeChange: (mode: string) => void
 }
+
+const MODES = ['plan', 'build', 'review'] as const
 
 /**
  * Composer: una sola unidad visual (textarea + toolbar con modelo).
@@ -33,6 +37,8 @@ export default function Composer({
   activeAlias,
   onUseModel,
   onOpenProviders,
+  sessionMode,
+  onModeChange,
 }: ComposerProps) {
   const { t } = useI18n()
   const text = useComposerStore((s) => s.text)
@@ -97,6 +103,33 @@ export default function Composer({
           className="block max-h-[240px] min-h-13 w-full resize-none bg-transparent text-[15px] leading-relaxed text-[var(--text)] placeholder:text-[var(--text-subtle)] focus:outline-none"
         />
         <div className="mt-1 flex items-center gap-1.5">
+          <div
+            role="group"
+            aria-label={t('mode.change')}
+            className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-subtle)] p-0.5"
+          >
+            {MODES.map((mode) => {
+              const current = (sessionMode ?? 'build').toLowerCase()
+              const selected = current === mode
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  disabled={sessionMode === null || isStreaming}
+                  onClick={() => onModeChange(mode)}
+                  aria-pressed={selected}
+                  title={t(`mode.${mode}` as 'mode.plan')}
+                  className={`rounded-full px-2.5 py-1 font-mono text-[10px] tracking-wide transition-all disabled:opacity-40 ${
+                    selected
+                      ? 'bg-[var(--accent)] font-bold text-white'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  {t(`mode.${mode}` as 'mode.plan')}
+                </button>
+              )
+            })}
+          </div>
           <Popover>
             <PopoverTrigger asChild>
               <button
