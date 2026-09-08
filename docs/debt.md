@@ -51,6 +51,18 @@ Guardar un campo sin efecto sería deshonesto.
 **Criterio para saldar:** plomear effort en el router/llamadas del engine
 primero; recién entonces exponerlo en protocolo y UI.
 
+## Fase 8 — Scopes proyecto/sesión de Soul (2026-09-08)
+
+**Recorte:** solo activación global. Sin override por proyecto ni sesión,
+sin sliders de personalidad ni intensidad.
+
+**Causa:** el override por sesión exige columna/migración en sessions;
+el de proyecto exige diseño con project trust. Los sliders serían
+fragmentos de prompt sin síntesis real.
+
+**Criterio para saldar:** migración `soul_id` en sessions + override
+proyecto tras diseño de trust; sliders solo con síntesis estructurada.
+
 ## Transversales
 
 - Chunk JS de 772 KB (aviso de Vite): code-splitting cuando se sumen

@@ -74,6 +74,8 @@ class FakeEngine:
         self.transcripts = {}
         self.pending_turns = {}
         self.agent_configs = {}
+        self.souls = {}
+        self.active_soul = None
 
     def session_list(self, req_id, _params):
         respond(req_id, result={"sessions": list(self.sessions.values())})
@@ -274,6 +276,87 @@ class FakeEngine:
                   "created_at": "2026-01-01T00:00:00Z"}]
         respond(req_id, result={"session_id": session_id, "events": events,
                                "has_more": False})
+
+    # -- souls (Phase 8): canned registry ------------------------------------
+
+    def soul_list(self, req_id, _params):
+        souls = [{"id": "rinari-default", "name": "Rinari", "version": "3.0",
+                 "description": "fake default", "source": "bundled"}]
+        for soul_id, saved in sorted(self.souls.items()):
+            souls.append({"id": soul_id, "name": saved.get("name", soul_id),
+                         "version": saved.get("version", "1.0"),
+                         "description": saved.get("description", ""),
+                         "source": "custom"})
+        respond(req_id, result={"souls": souls, "active_id": self.active_soul})
+
+    def _soul_detail(self, soul_id):
+        if soul_id == "rinari-default":
+            return {"id": "rinari-default", "name": "Rinari", "version": "3.0",
+                   "description": "fake default", "source": "bundled",
+                   "identity": "You are Rinari, a fake soul."}
+        saved = self.souls.get(soul_id)
+        if saved is None:
+            return None
+        return {"id": soul_id, "name": saved.get("name", soul_id),
+               "version": saved.get("version", "1.0"),
+               "description": saved.get("description", ""), "source": "custom",
+               "identity": saved.get("identity", "")}
+
+    def soul_get(self, req_id, params):
+        detail = self._soul_detail((params or {}).get("id", ""))
+        if detail is None:
+            fail(req_id, "NOT_FOUND", "Unknown soul: %s." % (params or {}).get("id"))
+            return
+        respond(req_id, result={"soul": detail})
+
+    def soul_create(self, req_id, params):
+        params = params or {}
+        soul_id = params.get("id", "")
+        if not soul_id or soul_id == "rinari-default" or soul_id in self.souls:
+            fail(req_id, "INVALID_PARAMS" if soul_id == "rinari-default" or not soul_id else "CONFLICT",
+                 f"Cannot create soul: {soul_id!r}.")
+            return
+        if not params.get("name") or not params.get("identity"):
+            fail(req_id, "INVALID_PARAMS", "Params 'name'/'identity' are required.")
+            return
+        self.souls[soul_id] = {"name": params.get("name"),
+                              "identity": params.get("identity"),
+                              "description": params.get("description") or "",
+                              "version": params.get("version") or "1.0"}
+        self.soul_get(req_id, {"id": soul_id})
+
+    def soul_update(self, req_id, params):
+        params = params or {}
+        soul_id = params.get("id", "")
+        if soul_id == "rinari-default" or soul_id not in self.souls:
+            fail(req_id, "INVALID_USAGE" if soul_id == "rinari-default" else "NOT_FOUND",
+                 f"Cannot update soul: {soul_id!r}.")
+            return
+        saved = self.souls[soul_id]
+        for key in ("name", "identity", "description", "version"):
+            if params.get(key) is not None:
+                saved[key] = params.get(key)
+        self.soul_get(req_id, {"id": soul_id})
+
+    def soul_remove(self, req_id, params):
+        soul_id = (params or {}).get("id", "")
+        if soul_id == "rinari-default" or soul_id not in self.souls:
+            fail(req_id, "INVALID_USAGE" if soul_id == "rinari-default" else "NOT_FOUND",
+                 f"Cannot remove soul: {soul_id!r}.")
+            return
+        del self.souls[soul_id]
+        if self.active_soul == soul_id:
+            self.active_soul = None
+        respond(req_id, result={"removed": {"id": soul_id}})
+
+    def soul_activate(self, req_id, params):
+        soul_id = (params or {}).get("id", "")
+        if soul_id != "rinari-default" and soul_id not in self.souls:
+            fail(req_id, "NOT_FOUND", f"Unknown soul: {soul_id}.")
+            return
+        self.active_soul = soul_id
+        detail = self._soul_detail(soul_id)
+        respond(req_id, result={"soul": {k: v for k, v in detail.items() if k != "identity"}})
 
     def session_history(self, req_id, params):
         params = params or {}
@@ -681,6 +764,12 @@ class FakeEngine:
             "agent.config.get": self.agent_config_get,
             "agent.config.set": self.agent_config_set,
             "session.events": self.session_events,
+            "soul.list": self.soul_list,
+            "soul.get": self.soul_get,
+            "soul.create": self.soul_create,
+            "soul.update": self.soul_update,
+            "soul.remove": self.soul_remove,
+            "soul.activate": self.soul_activate,
             "session.history": self.session_history,
             "session.turn.start": self.turn_start,
             "session.turn.cancel": self.turn_cancel,

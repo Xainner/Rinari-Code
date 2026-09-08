@@ -438,6 +438,32 @@ impl EngineSupervisor {
         self.request("session.events", Some(Value::Object(params)))
     }
 
+    // -- souls (Phase 8) ------------------------------------------------------
+
+    pub fn soul_list(&self) -> Result<Value, CommandError> {
+        self.request("soul.list", None)
+    }
+
+    pub fn soul_get(&self, soul_id: &str) -> Result<Value, CommandError> {
+        self.request("soul.get", Some(json!({"id": soul_id})))
+    }
+
+    pub fn soul_create(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("soul.create", Some(params))
+    }
+
+    pub fn soul_update(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("soul.update", Some(params))
+    }
+
+    pub fn soul_remove(&self, soul_id: &str) -> Result<Value, CommandError> {
+        self.request("soul.remove", Some(json!({"id": soul_id})))
+    }
+
+    pub fn soul_activate(&self, soul_id: &str) -> Result<Value, CommandError> {
+        self.request("soul.activate", Some(json!({"id": soul_id})))
+    }
+
     pub fn approval_resolve(
         &self,
         approval_id: &str,

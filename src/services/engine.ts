@@ -137,6 +137,18 @@ export interface SessionEvent {
   created_at: string;
 }
 
+export interface SoulSummary {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  source: string;
+}
+
+export interface SoulDetail extends SoulSummary {
+  identity: string;
+}
+
 export interface ProjectChanges {
   available: boolean;
   branch: string | null;
@@ -253,6 +265,38 @@ export const engineApi = {
       "session_events",
       { reference, after_seq: after_seq ?? null, limit: limit ?? null },
     ),
+  soulList: () => invoke<{ souls: SoulSummary[]; active_id: string | null }>("soul_list"),
+  soulGet: (id: string) => invoke<{ soul: SoulDetail }>("soul_get", { id }),
+  soulCreate: (input: {
+    id: string;
+    name: string;
+    identity: string;
+    description?: string;
+    version?: string;
+  }) =>
+    invoke<{ soul: SoulDetail }>("soul_create", {
+      id: input.id,
+      name: input.name,
+      identity: input.identity,
+      description: input.description ?? null,
+      version: input.version ?? null,
+    }),
+  soulUpdate: (input: {
+    id: string;
+    name?: string;
+    identity?: string;
+    description?: string;
+    version?: string;
+  }) =>
+    invoke<{ soul: SoulDetail }>("soul_update", {
+      id: input.id,
+      name: input.name ?? null,
+      identity: input.identity ?? null,
+      description: input.description ?? null,
+      version: input.version ?? null,
+    }),
+  soulRemove: (id: string) => invoke<{ removed: { id: string } }>("soul_remove", { id }),
+  soulActivate: (id: string) => invoke<{ soul: SoulSummary }>("soul_activate", { id }),
   startTurn: (sessionId: string, message: string) =>
     invoke<{ status: string; turn_id: string; session_id: string }>("turn_start", {
       session_id: sessionId,

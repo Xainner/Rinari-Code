@@ -332,6 +332,57 @@ fn agent_routing_roundtrip_with_validation_and_events() {
     );
 }
 
+#[test]
+fn soul_crud_roundtrip_with_activation() {
+    let harness = start_fake("stream");
+
+    let list = harness.supervisor.soul_list().expect("soul.list");
+    let ids: Vec<&str> = list["souls"]
+        .as_array()
+        .expect("souls array")
+        .iter()
+        .map(|s| s["id"].as_str().unwrap_or_default())
+        .collect();
+    assert!(ids.contains(&"rinari-default"));
+
+    let created = harness
+        .supervisor
+        .soul_create(serde_json::json!({
+            "id": "mio",
+            "name": "Mio",
+            "identity": "You are Mio.",
+            "description": null,
+            "version": null,
+        }))
+        .expect("soul.create");
+    assert_eq!(created["soul"]["name"], serde_json::json!("Mio"));
+
+    harness
+        .supervisor
+        .soul_activate("mio")
+        .expect("soul.activate");
+    let relisted = harness.supervisor.soul_list().expect("soul.list");
+    assert_eq!(relisted["active_id"], serde_json::json!("mio"));
+
+    harness.supervisor.soul_remove("mio").expect("soul.remove");
+    let missing = harness
+        .supervisor
+        .soul_get("mio")
+        .expect_err("removed soul must fail");
+    assert_eq!(missing.code, "NOT_FOUND");
+
+    let bundled = harness
+        .supervisor
+        .soul_remove("rinari-default")
+        .expect_err("bundled soul is read-only");
+    assert_eq!(bundled.code, "INVALID_USAGE");
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
 fn deltas(harness: &Harness) -> Vec<String> {
     harness
         .events
