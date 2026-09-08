@@ -87,6 +87,21 @@ perdería estado y mentiría.
 **Criterio para saldar:** `session.branch` en el engine con fork real de
 tasks/contexto/checkpoints; recién entonces UI de ramas.
 
+## Fase 12 — Release hardening (2026-09-08)
+
+**Hecho en v1:** CI (`code-ci.yml`: build frontend + fmt/clippy/test en
+3 OS), clippy `-D warnings` limpio, About con las 4 versiones visibles
+(Code/engine/protocolo/bundled soul), README actualizado, revisión de
+secretos (solo memoria del form → engine; nada en storage/logs),
+`cargo fmt --check` verde.
+
+**Queda fuera de v1 (requiere distribución real):** instaladores,
+firma de código, updater, bundle del engine firmado, smoke en máquina
+limpia, suite E2E con provider real, `tauri dev` visual.
+
+**Criterio para saldar:** pipeline de release con firma + updater +
+smoke limpio antes de cualquier distribución.
+
 ## Transversales
 
 - Chunk JS de 772 KB (aviso de Vite): code-splitting cuando se sumen

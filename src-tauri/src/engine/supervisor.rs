@@ -156,9 +156,7 @@ impl EngineSupervisor {
     fn set_state(&self, state: EngineState, detail: Option<String>) {
         if let Ok(mut inner) = self.inner.lock() {
             inner.state = state;
-            if state != EngineState::Failed {
-                inner.detail = detail;
-            } else if inner.detail.is_none() {
+            if state != EngineState::Failed || inner.detail.is_none() {
                 inner.detail = detail;
             }
         }
@@ -207,11 +205,10 @@ impl EngineSupervisor {
             EngineState::Handshaking,
             Some(format!("spawning {program}")),
         );
-        let (transport, hello) =
-            EngineTransport::spawn(&program, &args, cwd.as_deref()).map_err(|error| {
-                self.set_state(EngineState::Failed, Some(error.to_string()));
-                CommandError::from(error)
-            })?;
+        let (transport, hello) = EngineTransport::spawn(program, args, cwd).map_err(|error| {
+            self.set_state(EngineState::Failed, Some(error.to_string()));
+            CommandError::from(error)
+        })?;
         let transport = Arc::new(transport);
         if let Ok(mut inner) = self.inner.lock() {
             inner.transport = Some(Arc::clone(&transport));
