@@ -444,6 +444,48 @@ fn ecosystem_roundtrip_mcp_plugins_tools_policy() {
     );
 }
 
+#[test]
+fn observability_roundtrip_artifacts_context_usage() {
+    let harness = start_fake("stream");
+
+    let listed = harness
+        .supervisor
+        .artifact_list(Some("fake".to_string()))
+        .expect("artifact.list");
+    assert_eq!(listed["artifacts"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        listed["artifacts"][0]["uri"],
+        serde_json::json!("artifact://fake/notes/plan.md")
+    );
+
+    let read = harness
+        .supervisor
+        .artifact_read("artifact://fake/notes/plan.md", None)
+        .expect("artifact.read");
+    assert_eq!(read["text"], serde_json::json!("hello fake"));
+    assert_eq!(read["truncated"], serde_json::json!(false));
+
+    let missing = harness
+        .supervisor
+        .artifact_read("artifact://fake/notes/nope.md", None)
+        .expect_err("unknown artifact must fail");
+    assert_eq!(missing.code, "NOT_FOUND");
+
+    let context = harness.supervisor.context_get("fake").expect("context.get");
+    assert_eq!(context["context"]["compacted"], serde_json::json!(false));
+
+    let usage = harness
+        .supervisor
+        .usage_get(Some("fake".to_string()))
+        .expect("usage.get");
+    assert_eq!(usage["usage"]["cost"], serde_json::Value::Null);
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
 fn deltas(harness: &Harness) -> Vec<String> {
     harness
         .events

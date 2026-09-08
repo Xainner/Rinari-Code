@@ -377,6 +377,39 @@ fn policy_get(supervisor: State<'_, EngineSupervisor>) -> Result<serde_json::Val
 }
 
 #[tauri::command]
+fn artifact_list(
+    supervisor: State<'_, EngineSupervisor>,
+    session_id: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.artifact_list(session_id)
+}
+
+#[tauri::command]
+fn artifact_read(
+    supervisor: State<'_, EngineSupervisor>,
+    uri: String,
+    max_bytes: Option<u32>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.artifact_read(&uri, max_bytes)
+}
+
+#[tauri::command]
+fn context_get(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.context_get(&reference)
+}
+
+#[tauri::command]
+fn usage_get(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.usage_get(reference)
+}
+
+#[tauri::command]
 fn session_create(
     supervisor: State<'_, EngineSupervisor>,
     cwd: Option<String>,
@@ -668,6 +701,10 @@ pub fn run() {
             plugin_diagnostics,
             tool_list,
             policy_get,
+            artifact_list,
+            artifact_read,
+            context_get,
+            usage_get,
             session_create,
             turn_start,
             turn_cancel,

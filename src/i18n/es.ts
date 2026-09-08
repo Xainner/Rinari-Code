@@ -517,6 +517,29 @@ export const es = {
   'workspace.tab.tasks': 'Tareas',
   'workspace.tab.verification': 'Verificación',
   'workspace.tab.checkpoints': 'Checkpoints',
+  'workspace.tab.artifacts': 'Artefactos',
+  'workspace.tab.insight': 'Contexto y uso',
+
+  /* Artifacts (Phase 10) */
+  'artifacts.empty': 'Esta sesión aún no tiene artefactos.',
+  'artifacts.truncated': 'Vista truncada: el artefacto completo vive en el store del engine.',
+
+  /* Insight (Phase 10) */
+  'insight.context': 'Contexto',
+  'insight.usage': 'Uso',
+  'insight.loading': 'Cargando…',
+  'insight.compacted': 'Compactado',
+  'insight.yes': 'Sí',
+  'insight.no': 'No',
+  'insight.modelCalls': 'Llamadas al modelo',
+  'insight.tokens': 'Tokens in / out',
+  'insight.toolCalls': 'Tool calls',
+  'insight.noCost': 'Sin costo estimado: el engine no conoce precios.',
+
+  /* Terminal (Phase 10) */
+  'terminal.title': 'Terminal',
+  'terminal.status': 'Estado',
+  'terminal.unavailable': 'Sin sesiones PTY en el engine v1: los procesos viven dentro de los tool calls. La terminal integrada llegará con el protocolo PTY, sin puentes genéricos de shell.',
   'workspace.refresh': 'Actualizar',
   'workspace.noSession': 'Selecciona una sesión para ver su proyecto.',
   'workspace.noGit': 'Esta carpeta no es un repositorio git.',

@@ -63,6 +63,19 @@ fragmentos de prompt sin síntesis real.
 **Criterio para saldar:** migración `soul_id` en sessions + override
 proyecto tras diseño de trust; sliders solo con síntesis estructurada.
 
+## Fase 10 — PTY del engine y export de artefactos (2026-09-08)
+
+**Recorte:** sin `pty.*` en el protocolo, sin `artifact.export`, sin xterm.
+
+**Causa:** los PTY viven dentro de los tool calls (PtyRegistry por
+proceso); exponerlos exige registry engine-owned + ciclo de vida +
+streaming de eventos. El export escribe fuera del store (superficie de
+riesgo); el preview acotado cubre v1.
+
+**Criterio para saldar:** registry PTY en el engine con métodos
+`pty.start/write/resize/terminate` + eventos `pty.output`; export con
+diálogo nativo de destino y validación de paths.
+
 ## Transversales
 
 - Chunk JS de 772 KB (aviso de Vite): code-splitting cuando se sumen

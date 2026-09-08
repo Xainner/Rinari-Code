@@ -525,6 +525,47 @@ impl EngineSupervisor {
         self.request("policy.get", None)
     }
 
+    // -- observability (Phase 10) -------------------------------------------------
+
+    pub fn artifact_list(&self, session_id: Option<String>) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        if let Some(session_id) = session_id {
+            params.insert("session_id".to_string(), Value::String(session_id));
+        }
+        let params = if params.is_empty() {
+            None
+        } else {
+            Some(Value::Object(params))
+        };
+        self.request("artifact.list", params)
+    }
+
+    pub fn artifact_read(&self, uri: &str, max_bytes: Option<u32>) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("uri".to_string(), Value::String(uri.to_string()));
+        if let Some(max_bytes) = max_bytes {
+            params.insert("max_bytes".to_string(), Value::Number(max_bytes.into()));
+        }
+        self.request("artifact.read", Some(Value::Object(params)))
+    }
+
+    pub fn context_get(&self, reference: &str) -> Result<Value, CommandError> {
+        self.request("context.get", Some(json!({"ref": reference})))
+    }
+
+    pub fn usage_get(&self, reference: Option<String>) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        if let Some(reference) = reference {
+            params.insert("ref".to_string(), Value::String(reference));
+        }
+        let params = if params.is_empty() {
+            None
+        } else {
+            Some(Value::Object(params))
+        };
+        self.request("usage.get", params)
+    }
+
     pub fn approval_resolve(
         &self,
         approval_id: &str,

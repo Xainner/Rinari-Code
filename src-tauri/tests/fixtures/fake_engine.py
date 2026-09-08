@@ -466,6 +466,43 @@ class FakeEngine:
             "plan": "READ_ONLY", "build": "WORKSPACE", "review": "READ_ONLY"},
             "note": "fake policy mapping"})
 
+    # -- observability (Phase 10): canned artifacts/context/usage ------------------
+
+    def artifact_list(self, req_id, params):
+        respond(req_id, result={"artifacts": [self._fake_artifact()]})
+
+    def _fake_artifact(self):
+        return {"uri": "artifact://fake/notes/plan.md", "id": "art-1",
+               "session": "fake", "project_root": "", "namespace": "notes",
+               "name": "plan.md", "content_type": "text/plain",
+               "sha256": "deadbeef", "byte_count": 11, "summary": "fake",
+               "provenance": "fake", "retention": "session",
+               "created_at": "2026-01-01T00:00:00Z"}
+
+    def artifact_read(self, req_id, params):
+        uri = (params or {}).get("uri", "")
+        if uri != "artifact://fake/notes/plan.md":
+            fail(req_id, "NOT_FOUND", f"Artifact not found: {uri}.")
+            return
+        respond(req_id, result={"artifact": self._fake_artifact(),
+                "text": "hello fake", "truncated": False, "max_bytes": 65536})
+
+    def context_get(self, req_id, params):
+        respond(req_id, result={"context": {
+            "session_id": (params or {}).get("ref", ""),
+            "compacted": False, "compacted_at": "", "goal": "",
+            "provider_model": "",
+            "counts": {"tasks_completed": 0, "tasks_active": 0,
+                      "tasks_blocked": 0, "changed_files": 0,
+                      "validations": 0, "approvals": 0, "artifacts": 1}}})
+
+    def usage_get(self, req_id, params):
+        respond(req_id, result={"usage": {
+            "session_id": (params or {}).get("ref"),
+            "model_calls": 0,
+            "tokens": {"input": 0, "output": 0, "cached": 0, "reasoning": 0},
+            "tool_calls": {"total": 0, "ok": 0, "error": 0}, "cost": None}})
+
     def session_history(self, req_id, params):
         params = params or {}
         session_id = params.get("ref", "")
@@ -892,6 +929,10 @@ class FakeEngine:
             "plugin.diagnostics": self.plugin_diagnostics,
             "tool.list": self.tool_list,
             "policy.get": self.policy_get,
+            "artifact.list": self.artifact_list,
+            "artifact.read": self.artifact_read,
+            "context.get": self.context_get,
+            "usage.get": self.usage_get,
             "session.history": self.session_history,
             "session.turn.start": self.turn_start,
             "session.turn.cancel": self.turn_cancel,

@@ -190,6 +190,39 @@ export interface NativeTool {
   always_loaded: boolean;
 }
 
+export interface ArtifactSummary {
+  uri: string;
+  id: string;
+  session: string;
+  project_root: string;
+  namespace: string;
+  name: string;
+  content_type: string;
+  sha256: string;
+  byte_count: number;
+  summary: string;
+  provenance: string;
+  retention: string;
+  created_at: string;
+}
+
+export interface SessionContext {
+  session_id: string;
+  compacted: boolean;
+  compacted_at: string;
+  goal: string;
+  provider_model: string;
+  counts: Record<string, number>;
+}
+
+export interface SessionUsage {
+  session_id: string | null;
+  model_calls: number;
+  tokens: { input: number; output: number; cached: number; reasoning: number };
+  tool_calls: { total: number; ok: number; error: number };
+  cost: number | null;
+}
+
 export interface ProjectChanges {
   available: boolean;
   branch: string | null;
@@ -355,6 +388,19 @@ export const engineApi = {
   toolList: () => invoke<{ tools: NativeTool[] }>("tool_list"),
   policyGet: () =>
     invoke<{ mode_profile: Record<string, string>; note: string }>("policy_get"),
+  artifactList: (session_id?: string) =>
+    invoke<{ artifacts: ArtifactSummary[] }>("artifact_list", {
+      session_id: session_id ?? null,
+    }),
+  artifactRead: (uri: string, max_bytes?: number) =>
+    invoke<{ artifact: ArtifactSummary; text: string; truncated: boolean; max_bytes: number }>(
+      "artifact_read",
+      { uri, max_bytes: max_bytes ?? null },
+    ),
+  contextGet: (reference: string) =>
+    invoke<{ context: SessionContext }>("context_get", { reference }),
+  usageGet: (reference?: string) =>
+    invoke<{ usage: SessionUsage }>("usage_get", { reference: reference ?? null }),
   startTurn: (sessionId: string, message: string) =>
     invoke<{ status: string; turn_id: string; session_id: string }>("turn_start", {
       session_id: sessionId,

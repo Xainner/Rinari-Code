@@ -5,10 +5,12 @@ import ChangesPanel from './ChangesPanel'
 import TasksPanel from './TasksPanel'
 import VerificationPanel from './VerificationPanel'
 import CheckpointsPanel from './CheckpointsPanel'
+import ArtifactsPanel from './ArtifactsPanel'
+import InsightPanel from './InsightPanel'
 
-type Tab = 'changes' | 'tasks' | 'verification' | 'checkpoints'
+type Tab = 'changes' | 'tasks' | 'verification' | 'checkpoints' | 'artifacts' | 'insight'
 
-const TABS: Tab[] = ['changes', 'tasks', 'verification', 'checkpoints']
+const TABS: Tab[] = ['changes', 'tasks', 'verification', 'checkpoints', 'artifacts', 'insight']
 
 /**
  * Vista workspace: cambios, tareas, verificación y checkpoints del proyecto
@@ -78,6 +80,8 @@ export default function WorkspaceView({
               <VerificationPanel path={path} changedFiles={changedFiles} />
             )}
             {tab === 'checkpoints' && <CheckpointsPanel path={path} />}
+            {tab === 'artifacts' && session && <ArtifactsPanel sessionId={session.id} />}
+            {tab === 'insight' && session && <InsightPanel sessionId={session.id} />}
           </div>
         </>
       )}
