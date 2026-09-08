@@ -1,0 +1,402 @@
+/* Rinari Code — design tokens, Phase 0 baseline.
+ * Adapted from Luma donor: LLM-Chat/web/src/index.css (Luma 2.0 §3.2).
+ * Identity renamed Luma → Rinari; default accent is Rinari violet.
+ * Selectors kept identical to ease the Phase 2 component migration. */
+
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Instrument Sans', ui-sans-serif, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  /* Paleta histórica remapeada a tokens semánticos (dark/light vía vars). */
+  --color-ink-950: var(--bg-app);
+  --color-ink-900: var(--bg-elevated);
+  --color-ink-850: var(--bg-subtle);
+  --color-ink-800: var(--bg-hover);
+  --color-ink-700: var(--bg-hover);
+  --color-ink-600: var(--border-strong);
+
+  --color-mist-100: var(--text);
+  --color-mist-200: var(--text-muted);
+  --color-mist-400: var(--text-muted);
+  --color-mist-500: var(--text-subtle);
+  --color-mist-600: var(--text-subtle);
+
+  --color-nebula-300: var(--accent-2);
+  --color-nebula-400: var(--accent-2);
+  --color-nebula-500: var(--accent-2);
+
+  --color-iris-300: var(--accent);
+  --color-iris-400: var(--accent);
+  --color-iris-500: var(--accent);
+  --color-iris-600: var(--accent);
+
+  --color-flare-400: var(--accent-3);
+  --color-flare-500: var(--accent-3);
+
+  --color-red-400: var(--danger);
+  --color-red-500: var(--danger);
+  --color-amber-400: var(--warning);
+
+  --animate-caret: caret-blink 1s step-end infinite;
+  --animate-float-a: float-a 9s ease-in-out infinite;
+  --animate-float-b: float-b 12s ease-in-out infinite;
+}
+
+/* Tokens semánticos (§3.2). :root = dark. */
+:root {
+  --bg-app: #09090b;
+  --bg-sidebar: #0c0c0f;
+  --bg-elevated: #111116;
+  --bg-subtle: #15151b;
+  --bg-hover: #1b1b22;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: #f5f5f6;
+  --text-muted: #a1a1aa;
+  --text-subtle: #71717a;
+  --accent: #8b5cf6;
+  --accent-2: #22d3ee;
+  --accent-3: #e879f9;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --success: #22c55e;
+  --nebula-gradient: linear-gradient(135deg, #22d3ee 0%, #8b5cf6 52%, #e879f9 100%);
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  --bg-app: #ffffff;
+  --bg-sidebar: #f7f7f8;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #f4f4f5;
+  --bg-hover: #ececef;
+  --border: rgba(24, 24, 27, 0.08);
+  --border-strong: rgba(24, 24, 27, 0.14);
+  --text: #18181b;
+  --text-muted: #52525b;
+  --text-subtle: #71717a;
+  --accent: #7c3aed;
+  --accent-2: #0891b2;
+  --accent-3: #c026d3;
+  --danger: #dc2626;
+  --warning: #d97706;
+  --success: #16a34a;
+  color-scheme: light;
+}
+
+/* Presets de acento (§20). Nebula = valores base, sin override. */
+html[data-accent='cyan'] {
+  --accent: #22d3ee;
+  --accent-2: #34d399;
+  --accent-3: #38bdf8;
+}
+html[data-theme='light'][data-accent='cyan'] {
+  --accent: #0e7490;
+  --accent-2: #059669;
+  --accent-3: #0284c7;
+}
+html[data-accent='fuchsia'] {
+  --accent: #e879f9;
+  --accent-2: #f0abfc;
+  --accent-3: #c084fc;
+}
+html[data-theme='light'][data-accent='fuchsia'] {
+  --accent: #a21caf;
+  --accent-2: #c026d3;
+  --accent-3: #9333ea;
+}
+html[data-accent='blue'] {
+  --accent: #60a5fa;
+  --accent-2: #38bdf8;
+  --accent-3: #818cf8;
+}
+html[data-theme='light'][data-accent='blue'] {
+  --accent: #1d4ed8;
+  --accent-2: #0284c7;
+  --accent-3: #4f46e5;
+}
+html[data-accent='green'] {
+  --accent: #34d399;
+  --accent-2: #a3e635;
+  --accent-3: #22d3ee;
+}
+html[data-theme='light'][data-accent='green'] {
+  --accent: #047857;
+  --accent-2: #4d7c0f;
+  --accent-3: #0e7490;
+}
+html[data-accent='orange'] {
+  --accent: #fb923c;
+  --accent-2: #fbbf24;
+  --accent-3: #f472b6;
+}
+html[data-theme='light'][data-accent='orange'] {
+  --accent: #c2410c;
+  --accent-2: #b45309;
+  --accent-3: #be123c;
+}
+
+@keyframes caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes float-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(30px, -24px, 0) scale(1.08);
+  }
+}
+
+@keyframes float-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-26px, 18px, 0) scale(0.94);
+  }
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  background: var(--bg-app);
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-app);
+  color: var(--text);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Nebula como acento tenue, no tres auroras fuertes permanentes. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(56rem 36rem at 50% -12%, rgba(139, 92, 246, 0.1), transparent 60%);
+  pointer-events: none;
+}
+
+html[data-theme='light'] body::before {
+  background: none;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+html[data-theme='light'] body::after {
+  display: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-nebula-400);
+  outline-offset: 2px;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* ---------- Markdown body ---------- */
+
+.md-body {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.md-body > *:first-child {
+  margin-top: 0;
+}
+.md-body > *:last-child {
+  margin-bottom: 0;
+}
+.md-body h1,
+.md-body h2,
+.md-body h3,
+.md-body h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--color-mist-100);
+  line-height: 1.25;
+  margin: 1.25em 0 0.5em;
+}
+.md-body h1 {
+  font-size: 1.35em;
+}
+.md-body h2 {
+  font-size: 1.2em;
+}
+.md-body h3 {
+  font-size: 1.08em;
+}
+.md-body p {
+  margin: 0.6em 0;
+}
+.md-body a {
+  color: var(--color-nebula-400);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md-body a:hover {
+  color: var(--color-nebula-300);
+}
+.md-body ul,
+.md-body ol {
+  margin: 0.6em 0;
+  padding-left: 1.4em;
+}
+.md-body ul {
+  list-style: disc;
+}
+.md-body ol {
+  list-style: decimal;
+}
+.md-body li {
+  margin: 0.25em 0;
+}
+.md-body blockquote {
+  margin: 0.8em 0;
+  padding: 0.1em 1em;
+  border-left: 3px solid var(--color-iris-500);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: 0 10px 10px 0;
+  color: var(--color-mist-400);
+}
+.md-body :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  padding: 0.15em 0.4em;
+  border-radius: 6px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--color-nebula-300);
+}
+.md-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.9em 0;
+  font-size: 0.9em;
+}
+.md-body th,
+.md-body td {
+  border: 1px solid var(--border);
+  padding: 0.45em 0.7em;
+  text-align: left;
+}
+.md-body th {
+  background: var(--bg-subtle);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.md-body hr {
+  border: 0;
+  height: 1px;
+  background: var(--border);
+  margin: 1.2em 0;
+}
+.md-body img {
+  max-width: 100%;
+  border-radius: 10px;
+}
+/* Shiki trae su propio <pre> con fondo inline: transparentarlo al tema. */
+.md-body .shiki-wrap .shiki {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+}
+.md-body .katex-display {
+  overflow-x: auto;
+  padding: 0.4em 0;
+}
+
+/* Overlays/menús: entradas cortas, sin bounce. */
+@keyframes rinari-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes rinari-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Toggle manual "Reducir animaciones": mismo efecto que el SO. */
+html[data-motion='reduced'] *,
+html[data-motion='reduced'] *::before,
+html[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
