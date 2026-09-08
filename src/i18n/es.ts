@@ -544,6 +544,15 @@ export const es = {
   'workspace.restore': 'Restaurar',
   'workspace.confirmRestore': 'Restaura archivos desde el checkpoint. Los cambios actuales del worktree pueden perderse.',
   'workspace.restored': 'Checkpoint restaurado.',
+
+  /* Agentes (Fase 7) */
+  'agents.live': 'Subagentes en vivo',
+  'agents.model': 'Modelo',
+  'agents.fallback': 'Fallback',
+  'agents.enabled': 'Habilitado',
+  'agents.inherit': 'Heredar sesión',
+  'agents.reset': 'Restablecer',
+  'agents.budget': 'máx {n} tools',
   'providers.credentialOk': 'Credencial guardada',
   'providers.alias': 'Alias',
   'providers.type': 'Tipo',

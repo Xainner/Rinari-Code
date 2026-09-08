@@ -174,6 +174,47 @@ fn project_diff(
 }
 
 #[tauri::command]
+fn agent_list(supervisor: State<'_, EngineSupervisor>) -> Result<serde_json::Value, CommandError> {
+    supervisor.agent_list()
+}
+
+#[tauri::command]
+fn agent_config_get(
+    supervisor: State<'_, EngineSupervisor>,
+    agent: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.agent_config_get(&agent)
+}
+
+#[tauri::command]
+fn agent_config_set(
+    supervisor: State<'_, EngineSupervisor>,
+    agent: String,
+    model: Option<String>,
+    fallback: Option<String>,
+    enabled: Option<bool>,
+    clear: Option<bool>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.agent_config_set(serde_json::json!({
+        "agent": agent,
+        "model": model,
+        "fallback": fallback,
+        "enabled": enabled,
+        "clear": clear.unwrap_or(false),
+    }))
+}
+
+#[tauri::command]
+fn session_events(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    after_seq: Option<u64>,
+    limit: Option<u32>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.session_events(&reference, after_seq, limit)
+}
+
+#[tauri::command]
 fn session_create(
     supervisor: State<'_, EngineSupervisor>,
     cwd: Option<String>,
@@ -444,6 +485,10 @@ pub fn run() {
             checkpoint_restore,
             project_changes,
             project_diff,
+            agent_list,
+            agent_config_get,
+            agent_config_set,
+            session_events,
             session_create,
             turn_start,
             turn_cancel,

@@ -113,6 +113,30 @@ export interface ChangedFile {
   unstaged: string | null;
 }
 
+export interface AgentAssignment {
+  model: string | null;
+  fallback: string | null;
+  enabled: boolean;
+}
+
+export interface AgentView {
+  name: string;
+  description: string;
+  profile: string;
+  provenance: string;
+  tool_allowlist: string[];
+  budget: { max_model_calls: number; max_tool_calls: number; max_wall_time_s: number };
+  assignment: AgentAssignment;
+}
+
+export interface SessionEvent {
+  id: string;
+  seq: number;
+  type: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface ProjectChanges {
   available: boolean;
   branch: string | null;
@@ -206,6 +230,28 @@ export const engineApi = {
     invoke<{ diff: string; truncated: boolean; binary: boolean; chars: number }>(
       "project_diff",
       { path, file: file ?? null, max_chars: max_chars ?? null },
+    ),
+  agentList: () => invoke<{ agents: AgentView[] }>("agent_list"),
+  agentConfigGet: (agent: string) =>
+    invoke<{ agent: AgentView }>("agent_config_get", { agent }),
+  agentConfigSet: (input: {
+    agent: string;
+    model?: string;
+    fallback?: string;
+    enabled?: boolean;
+    clear?: boolean;
+  }) =>
+    invoke<{ agent: AgentView }>("agent_config_set", {
+      agent: input.agent,
+      model: input.model ?? null,
+      fallback: input.fallback ?? null,
+      enabled: input.enabled ?? null,
+      clear: input.clear ?? null,
+    }),
+  sessionEvents: (reference: string, after_seq?: number, limit?: number) =>
+    invoke<{ session_id: string; events: SessionEvent[]; has_more: boolean }>(
+      "session_events",
+      { reference, after_seq: after_seq ?? null, limit: limit ?? null },
     ),
   startTurn: (sessionId: string, message: string) =>
     invoke<{ status: string; turn_id: string; session_id: string }>("turn_start", {

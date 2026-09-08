@@ -526,6 +526,15 @@ export const en: Record<I18nKey, string> = {
   'workspace.restore': 'Restore',
   'workspace.confirmRestore': 'Restores files from the checkpoint. Current worktree changes may be lost.',
   'workspace.restored': 'Checkpoint restored.',
+
+  /* Agents (Phase 7) */
+  'agents.live': 'Live subagents',
+  'agents.model': 'Model',
+  'agents.fallback': 'Fallback',
+  'agents.enabled': 'Enabled',
+  'agents.inherit': 'Inherit session',
+  'agents.reset': 'Reset',
+  'agents.budget': 'max {n} tools',
   'providers.credentialOk': 'Credential stored',
   'providers.alias': 'Alias',
   'providers.type': 'Type',

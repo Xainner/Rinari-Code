@@ -1,6 +1,6 @@
 import { useI18n } from '../../i18n'
 import { useUIStore } from '../../stores/ui'
-import type { ProviderSummary } from '../../services/engine'
+import type { ModelSummary, ProviderSummary } from '../../services/engine'
 import SettingsShell from '../../components/settings/SettingsShell'
 import GeneralSettings from '../../components/settings/GeneralSettings'
 import AppearanceSettings from '../../components/settings/AppearanceSettings'
@@ -8,15 +8,20 @@ import AboutSettings from '../../components/settings/AboutSettings'
 import SoonSettings from '../../components/settings/SoonSettings'
 import ProvidersView from '../providers/ProvidersView'
 import ModelsView from '../providers/ModelsView'
+import AgentsView from '../agents/AgentsView'
 
-/** Vista de ajustes: shell + sección activa. Agentes/Soul/MCP llegan en Fases 7–9. */
+/** Vista de ajustes: shell + sección activa. Soul/MCP llegan en Fases 8–9. */
 export default function SettingsView({
   appVersion,
   providers,
+  models,
+  activeSessionId,
   onCatalogChanged,
 }: {
   appVersion: string
   providers: ProviderSummary[]
+  models: ModelSummary[]
+  activeSessionId: string | null
   onCatalogChanged: () => void
 }) {
   const { lang } = useI18n()
@@ -41,8 +46,15 @@ export default function SettingsView({
           onAddProvider={() => setSection('providers')}
         />
       )}
+      {section === 'agents' && (
+        <AgentsView
+          models={models}
+          activeSessionId={activeSessionId}
+          onChanged={onCatalogChanged}
+        />
+      )}
       {section === 'about' && <AboutSettings version={appVersion} />}
-      {!['general', 'appearance', 'providers', 'models', 'about'].includes(section) && (
+      {!['general', 'appearance', 'providers', 'models', 'agents', 'about'].includes(section) && (
         <SoonSettings />
       )}
     </SettingsShell>

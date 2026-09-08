@@ -407,6 +407,37 @@ impl EngineSupervisor {
         self.request("project.diff", Some(Value::Object(params)))
     }
 
+    // -- agents (Phase 7) -----------------------------------------------------
+
+    pub fn agent_list(&self) -> Result<Value, CommandError> {
+        self.request("agent.list", None)
+    }
+
+    pub fn agent_config_get(&self, agent: &str) -> Result<Value, CommandError> {
+        self.request("agent.config.get", Some(json!({"agent": agent})))
+    }
+
+    pub fn agent_config_set(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("agent.config.set", Some(params))
+    }
+
+    pub fn session_events(
+        &self,
+        reference: &str,
+        after_seq: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("ref".to_string(), Value::String(reference.to_string()));
+        if let Some(after_seq) = after_seq {
+            params.insert("after_seq".to_string(), Value::Number(after_seq.into()));
+        }
+        if let Some(limit) = limit {
+            params.insert("limit".to_string(), Value::Number(limit.into()));
+        }
+        self.request("session.events", Some(Value::Object(params)))
+    }
+
     pub fn approval_resolve(
         &self,
         approval_id: &str,

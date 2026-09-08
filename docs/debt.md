@@ -34,11 +34,22 @@ tasks/artifacts/checkpoints).
 (estados + cascada), exponerlo en el protocolo, y recién entonces el UI.
 
 ## Fase 4 — Adjuntos/contexto explícito y prompt queue (2026-09-08)
-
 **Recorte:** composer sin adjuntos, sin chips de contexto, sin cola de
 prompts.
 
 **Criterio para saldar:** post-core, tras estabilizar chat/sesiones/modos.
+
+## Fase 7 — Sin effort/reasoning por agente (2026-09-08)
+
+**Recorte:** la asignación por agente cubre modelo, fallback y enabled.
+No hay override de effort.
+
+**Causa:** la capa de modelos no tiene plomería de effort por modelo
+(`reasoning_effort` existe en tipos pero nada lo fija por llamada).
+Guardar un campo sin efecto sería deshonesto.
+
+**Criterio para saldar:** plomear effort en el router/llamadas del engine
+primero; recién entonces exponerlo en protocolo y UI.
 
 ## Transversales
 

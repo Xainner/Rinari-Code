@@ -133,6 +133,8 @@ function App() {
           <SettingsView
             appVersion={APP_VERSION}
             providers={session.providers}
+            models={session.models}
+            activeSessionId={session.activeSession || null}
             onCatalogChanged={() => void session.refreshCatalog()}
           />
         )}

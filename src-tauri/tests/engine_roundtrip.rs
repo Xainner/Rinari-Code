@@ -256,6 +256,82 @@ fn workspace_reads_cover_tasks_verification_checkpoints_and_diff() {
     );
 }
 
+#[test]
+fn agent_routing_roundtrip_with_validation_and_events() {
+    let harness = start_fake("stream");
+
+    let list = harness.supervisor.agent_list().expect("agent.list");
+    let names: Vec<&str> = list["agents"]
+        .as_array()
+        .expect("agents array")
+        .iter()
+        .map(|a| a["name"].as_str().unwrap_or_default())
+        .collect();
+    assert!(names.contains(&"explore"));
+    assert!(names.contains(&"verifier"));
+
+    let set = harness
+        .supervisor
+        .agent_config_set(serde_json::json!({
+            "agent": "explore",
+            "model": "fake-one",
+            "fallback": null,
+            "enabled": null,
+            "clear": false,
+        }))
+        .expect("agent.config.set");
+    assert_eq!(
+        set["agent"]["assignment"]["model"],
+        serde_json::json!("fake-one")
+    );
+
+    let get = harness
+        .supervisor
+        .agent_config_get("explore")
+        .expect("agent.config.get");
+    assert_eq!(
+        get["agent"]["assignment"]["model"],
+        serde_json::json!("fake-one")
+    );
+
+    let cleared = harness
+        .supervisor
+        .agent_config_set(serde_json::json!({
+            "agent": "explore",
+            "model": null,
+            "fallback": null,
+            "enabled": null,
+            "clear": true,
+        }))
+        .expect("agent.config.set clear");
+    assert_eq!(
+        cleared["agent"]["assignment"]["model"],
+        serde_json::Value::Null
+    );
+
+    let unknown = harness
+        .supervisor
+        .agent_config_get("nope")
+        .expect_err("unknown agent must fail");
+    assert_eq!(unknown.code, "NOT_FOUND");
+
+    let session_id = create_session(&harness);
+    let events = harness
+        .supervisor
+        .session_events(&session_id, None, None)
+        .expect("session.events");
+    assert_eq!(
+        events["events"][0]["type"],
+        serde_json::json!("SubagentStart")
+    );
+    assert_eq!(events["has_more"], serde_json::json!(false));
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
 fn deltas(harness: &Harness) -> Vec<String> {
     harness
         .events

@@ -73,6 +73,7 @@ class FakeEngine:
         self.model_seq = 0
         self.transcripts = {}
         self.pending_turns = {}
+        self.agent_configs = {}
 
     def session_list(self, req_id, _params):
         respond(req_id, result={"sessions": list(self.sessions.values())})
@@ -208,6 +209,71 @@ class FakeEngine:
         diff = "diff --git a/a.txt b/a.txt\n+fake line\n"
         respond(req_id, result={"diff": diff, "truncated": False, "binary": False,
                                "chars": len(diff)})
+
+    # -- agents (Phase 7): canned registry + assignments ---------------------
+
+    def agent_list(self, req_id, _params):
+        agents = []
+        for name in ("explore", "reviewer", "debugger", "researcher",
+                     "implementer", "verifier"):
+            saved = self.agent_configs.get(name, {})
+            agents.append({"name": name, "description": f"fake {name}",
+                          "profile": "read-only", "provenance": "builtin",
+                          "tool_allowlist": [],
+                          "budget": {"max_model_calls": 12, "max_tool_calls": 48,
+                                    "max_wall_time_s": 600.0},
+                          "assignment": {"model": saved.get("model"),
+                                        "fallback": saved.get("fallback"),
+                                        "enabled": saved.get("enabled", True)}})
+        respond(req_id, result={"agents": agents})
+
+    def agent_config_get(self, req_id, params):
+        name = (params or {}).get("agent", "")
+        if name not in ("explore", "reviewer", "debugger", "researcher",
+                        "implementer", "verifier"):
+            fail(req_id, "NOT_FOUND", f"Unknown agent: {name}.")
+            return
+        saved = self.agent_configs.get(name, {})
+        respond(req_id, result={"agent": {"name": name, "description": f"fake {name}",
+                                         "profile": "read-only", "provenance": "builtin",
+                                         "tool_allowlist": [],
+                                         "budget": {"max_model_calls": 12,
+                                                   "max_tool_calls": 48,
+                                                   "max_wall_time_s": 600.0},
+                                         "assignment": {"model": saved.get("model"),
+                                                       "fallback": saved.get("fallback"),
+                                                       "enabled": saved.get("enabled", True)}}})
+
+    def agent_config_set(self, req_id, params):
+        params = params or {}
+        name = params.get("agent", "")
+        if name not in ("explore", "reviewer", "debugger", "researcher",
+                        "implementer", "verifier"):
+            fail(req_id, "NOT_FOUND", f"Unknown agent: {name}.")
+            return
+        if params.get("clear") is True:
+            self.agent_configs.pop(name, None)
+        else:
+            saved = self.agent_configs.setdefault(name, {})
+            if params.get("model") is not None:
+                saved["model"] = params.get("model")
+            if params.get("fallback") is not None:
+                saved["fallback"] = params.get("fallback")
+            if params.get("enabled") is not None:
+                saved["enabled"] = params.get("enabled")
+        self.agent_config_get(req_id, {"agent": name})
+
+    def session_events(self, req_id, params):
+        params = params or {}
+        session_id = params.get("ref", "")
+        if session_id not in self.sessions:
+            fail(req_id, "NOT_FOUND", f"Session {session_id} not found.")
+            return
+        events = [{"id": "evt_fake1", "seq": 1, "type": "SubagentStart",
+                  "payload": {"agent": "explore", "state": "running"},
+                  "created_at": "2026-01-01T00:00:00Z"}]
+        respond(req_id, result={"session_id": session_id, "events": events,
+                               "has_more": False})
 
     def session_history(self, req_id, params):
         params = params or {}
@@ -611,6 +677,10 @@ class FakeEngine:
             "checkpoint.restore": self.checkpoint_restore,
             "project.changes": self.project_changes,
             "project.diff": self.project_diff,
+            "agent.list": self.agent_list,
+            "agent.config.get": self.agent_config_get,
+            "agent.config.set": self.agent_config_set,
+            "session.events": self.session_events,
             "session.history": self.session_history,
             "session.turn.start": self.turn_start,
             "session.turn.cancel": self.turn_cancel,
