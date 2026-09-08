@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Virtualizer, type VirtualizerHandle } from 'virtua'
 import type { ChatMessage } from '../types'
+import type { ModelSummary } from '../services/engine'
 import { useI18n, type I18nKey } from '../i18n'
 import { useComposerStore } from '../stores/composer'
 import { useUIStore } from '../stores/ui'
@@ -17,6 +18,9 @@ interface ChatViewProps {
   onSend: (text: string) => Promise<boolean>
   onStop: () => void
   onOpenProviders: () => void
+  models: ModelSummary[]
+  activeAlias: string | null
+  onUseModel: (alias: string) => void
 }
 
 const SUGGESTIONS: I18nKey[] = [
@@ -33,6 +37,9 @@ export default function ChatView({
   onSend,
   onStop,
   onOpenProviders,
+  models,
+  activeAlias,
+  onUseModel,
 }: ChatViewProps) {
   const { t } = useI18n()
   const autoFollow = useUIStore((s) => s.autoFollow)
@@ -64,6 +71,9 @@ export default function ChatView({
       onSend={onSend}
       isStreaming={isStreaming}
       onStop={onStop}
+      models={models}
+      activeAlias={activeAlias}
+      onUseModel={onUseModel}
       onOpenProviders={onOpenProviders}
     />
   )

@@ -6,6 +6,8 @@ import {
   onEngineEvent,
   type EngineEventMsg,
   type EngineStatus,
+  type ModelSummary,
+  type ProviderSummary,
   type SessionSummary,
 } from '../../services/engine'
 import type { ChatMessage, PendingApproval } from '../../types'
@@ -28,6 +30,8 @@ export function useEngineSession() {
   const [threads, setThreads] = useState<Record<string, ChatMessage[]>>({})
   const [approvals, setApprovals] = useState<PendingApproval[]>([])
   const [busy, setBusy] = useState<boolean>(false)
+  const [providers, setProviders] = useState<ProviderSummary[]>([])
+  const [models, setModels] = useState<ModelSummary[]>([])
   /** turn_id -> id de mensaje assistant que acumula sus deltas. */
   const turnMsg = useRef(new Map<string, string>())
 
@@ -85,6 +89,20 @@ export function useEngineSession() {
       toast.error(commandMessage(err))
     }
   }, [])
+
+  const refreshCatalog = useCallback(async () => {
+    try {
+      const [p, m] = await Promise.all([engineApi.providerList(), engineApi.modelList()])
+      setProviders(p.providers)
+      setModels(m.models)
+    } catch (err) {
+      toast.error(commandMessage(err))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (status?.state === 'ready') void refreshCatalog()
+  }, [status?.state, refreshCatalog])
 
   useEffect(() => {
     void refreshStatus()
@@ -234,6 +252,15 @@ export function useEngineSession() {
     }
   }
 
+  async function useModel(alias: string): Promise<void> {
+    try {
+      await engineApi.modelUse(alias)
+      await refreshCatalog()
+    } catch (err) {
+      toast.error(commandMessage(err))
+    }
+  }
+
   return {
     status,
     sessions,
@@ -252,6 +279,11 @@ export function useEngineSession() {
     send,
     cancelTurn,
     resolveApproval,
+    providers,
+    models,
+    activeModel: models.find((m) => m.active) ?? null,
+    refreshCatalog,
+    useModel,
   }
 }
 

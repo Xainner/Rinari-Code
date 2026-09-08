@@ -320,6 +320,108 @@ impl EngineSupervisor {
         self.request("runtime.snapshot.get", None)
     }
 
+    // -- providers / models (Phase 3) --------------------------------------
+
+    pub fn provider_list(&self) -> Result<Value, CommandError> {
+        self.request("provider.list", None)
+    }
+
+    pub fn provider_create(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("provider.create", Some(params))
+    }
+
+    pub fn provider_get(&self, ref_: &str) -> Result<Value, CommandError> {
+        self.request("provider.get", Some(json!({ "ref": ref_ })))
+    }
+
+    pub fn provider_update(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("provider.update", Some(params))
+    }
+
+    pub fn provider_remove(
+        &self,
+        ref_: &str,
+        switch_to: Option<String>,
+        keep_credentials: bool,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            "provider.remove",
+            Some(json!({ "ref": ref_, "switch_to": switch_to, "keep_credentials": keep_credentials })),
+        )
+    }
+
+    pub fn provider_test(&self, ref_: &str) -> Result<Value, CommandError> {
+        self.request("provider.test", Some(json!({ "ref": ref_ })))
+    }
+
+    pub fn provider_discover(&self) -> Result<Value, CommandError> {
+        self.request("provider.discover", None)
+    }
+
+    pub fn provider_use(&self, ref_: &str) -> Result<Value, CommandError> {
+        self.request("provider.use", Some(json!({ "ref": ref_ })))
+    }
+
+    pub fn model_list(&self, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request("model.list", Some(json!({ "provider": provider })))
+    }
+
+    pub fn model_get(&self, ref_: &str, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request(
+            "model.get",
+            Some(json!({ "ref": ref_, "provider": provider })),
+        )
+    }
+
+    pub fn model_add(&self, params: Value) -> Result<Value, CommandError> {
+        self.request("model.add", Some(params))
+    }
+
+    pub fn model_alias(
+        &self,
+        ref_: &str,
+        new_alias: &str,
+        provider: Option<String>,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            "model.alias",
+            Some(json!({ "ref": ref_, "new_alias": new_alias, "provider": provider })),
+        )
+    }
+
+    pub fn model_remove(
+        &self,
+        ref_: &str,
+        provider: Option<String>,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            "model.remove",
+            Some(json!({ "ref": ref_, "provider": provider })),
+        )
+    }
+
+    pub fn model_use(&self, ref_: &str, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request(
+            "model.use",
+            Some(json!({ "ref": ref_, "provider": provider })),
+        )
+    }
+
+    pub fn model_discover(&self, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request("model.discover", Some(json!({ "provider": provider })))
+    }
+
+    pub fn model_refresh(&self, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request("model.refresh", Some(json!({ "provider": provider })))
+    }
+
+    pub fn model_test(&self, ref_: &str, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request(
+            "model.test",
+            Some(json!({ "ref": ref_, "provider": provider })),
+        )
+    }
+
     fn current_transport(&self) -> Result<Arc<EngineTransport>, CommandError> {
         let inner = self
             .inner

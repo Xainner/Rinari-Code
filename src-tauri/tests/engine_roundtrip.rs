@@ -235,3 +235,67 @@ fn dead_engine_surfaces_as_error_not_hang() {
         "Stopped"
     );
 }
+
+#[test]
+fn provider_crud_roundtrip() {
+    let harness = start_fake("stream");
+    let supervisor = &harness.supervisor;
+
+    let list = supervisor.provider_list().expect("provider.list");
+    assert_eq!(list["providers"].as_array().map(Vec::len), Some(0));
+
+    let created = supervisor
+        .provider_create(serde_json::json!({
+            "alias": "ollama",
+            "type": "custom",
+            "auth_method": "none",
+            "endpoint": "http://127.0.0.1:11434/v1",
+        }))
+        .expect("provider.create");
+    assert_eq!(created["provider"]["alias"], "ollama");
+    assert_eq!(created["provider"]["has_credential"], false);
+
+    let conflict = supervisor
+        .provider_create(serde_json::json!({"alias": "ollama", "type": "custom"}))
+        .expect_err("duplicate alias");
+    assert_eq!(conflict.code, "CONFLICT");
+
+    let updated = supervisor
+        .provider_update(serde_json::json!({"ref": "ollama", "endpoint": "http://x:9/v1"}))
+        .expect("provider.update");
+    assert_eq!(updated["provider"]["endpoint"], "http://x:9/v1");
+
+    let health = supervisor.provider_test("ollama").expect("provider.test");
+    assert_eq!(health["connected"], true);
+    assert_eq!(health["models_discovered"], 2);
+
+    let found = supervisor
+        .model_discover(Some("ollama".to_string()))
+        .expect("model.discover");
+    assert_eq!(found["providers"]["fake"].as_array().map(Vec::len), Some(2));
+
+    let added = supervisor
+        .model_add(serde_json::json!({
+            "provider": "ollama",
+            "provider_model_id": "mx-1",
+            "alias": "principal",
+        }))
+        .expect("model.add");
+    assert_eq!(added["model"]["active"], true);
+
+    let used = supervisor.model_use("principal", None).expect("model.use");
+    assert_eq!(used["model"]["alias"], "principal");
+
+    supervisor
+        .provider_create(serde_json::json!({"alias": "b", "type": "custom"}))
+        .expect("second provider");
+    supervisor.provider_use("b").expect("provider.use");
+    let removed = supervisor
+        .provider_remove("ollama", Some("b".to_string()), false)
+        .expect("provider.remove");
+    assert_eq!(removed["removed"]["alias"], "ollama");
+    let list = supervisor.provider_list().expect("provider.list");
+    assert_eq!(list["active_alias"], "b");
+
+    assert_eq!(format!("{:?}", supervisor.shutdown().state), "Stopped");
+}

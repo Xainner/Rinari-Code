@@ -104,6 +104,204 @@ fn snapshot_get(
     supervisor.snapshot_get()
 }
 
+#[tauri::command]
+fn provider_list(
+    supervisor: State<'_, EngineSupervisor>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.provider_list()
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+fn provider_create(
+    supervisor: State<'_, EngineSupervisor>,
+    alias: String,
+    provider_type: String,
+    auth_method: Option<String>,
+    endpoint: Option<String>,
+    account_hint: Option<String>,
+    secret: Option<String>,
+    secret_env: Option<String>,
+    settings: Option<serde_json::Value>,
+) -> Result<serde_json::Value, CommandError> {
+    // Secrets travel only in memory to the local engine child, which stores
+    // them via its credential backend. They never touch frontend storage.
+    supervisor.provider_create(serde_json::json!({
+        "alias": alias,
+        "type": provider_type,
+        "auth_method": auth_method,
+        "endpoint": endpoint,
+        "account_hint": account_hint,
+        "secret": secret,
+        "secret_env": secret_env,
+        "settings": settings,
+    }))
+}
+
+#[tauri::command]
+fn provider_get(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.provider_get(&reference)
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+fn provider_update(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    alias: Option<String>,
+    endpoint: Option<String>,
+    account_hint: Option<String>,
+    secret: Option<String>,
+    secret_env: Option<String>,
+    settings: Option<serde_json::Value>,
+) -> Result<serde_json::Value, CommandError> {
+    let mut params = serde_json::Map::new();
+    params.insert("ref".to_string(), serde_json::Value::String(reference));
+    if let Some(v) = alias {
+        params.insert("alias".to_string(), serde_json::Value::String(v));
+    }
+    if let Some(v) = endpoint {
+        params.insert("endpoint".to_string(), serde_json::Value::String(v));
+    }
+    if let Some(v) = account_hint {
+        params.insert("account_hint".to_string(), serde_json::Value::String(v));
+    }
+    if let Some(v) = secret {
+        params.insert("secret".to_string(), serde_json::Value::String(v));
+    }
+    if let Some(v) = secret_env {
+        params.insert("secret_env".to_string(), serde_json::Value::String(v));
+    }
+    if let Some(v) = settings {
+        params.insert("settings".to_string(), v);
+    }
+    supervisor.provider_update(serde_json::Value::Object(params))
+}
+
+#[tauri::command]
+fn provider_remove(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    switch_to: Option<String>,
+    keep_credentials: Option<bool>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.provider_remove(&reference, switch_to, keep_credentials.unwrap_or(false))
+}
+
+#[tauri::command]
+fn provider_test(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.provider_test(&reference)
+}
+
+#[tauri::command]
+fn provider_discover(
+    supervisor: State<'_, EngineSupervisor>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.provider_discover()
+}
+
+#[tauri::command]
+fn provider_use(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.provider_use(&reference)
+}
+
+#[tauri::command]
+fn model_list(
+    supervisor: State<'_, EngineSupervisor>,
+    provider: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.model_list(provider)
+}
+
+#[tauri::command]
+fn model_get(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    provider: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.model_get(&reference, provider)
+}
+
+#[tauri::command]
+fn model_add(
+    supervisor: State<'_, EngineSupervisor>,
+    provider: String,
+    provider_model_id: String,
+    alias: String,
+    capabilities: Option<serde_json::Value>,
+    settings: Option<serde_json::Value>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.model_add(serde_json::json!({
+        "provider": provider,
+        "provider_model_id": provider_model_id,
+        "alias": alias,
+        "capabilities": capabilities,
+        "settings": settings,
+    }))
+}
+
+#[tauri::command]
+fn model_alias(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    new_alias: String,
+    provider: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.model_alias(&reference, &new_alias, provider)
+}
+
+#[tauri::command]
+fn model_remove(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    provider: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.model_remove(&reference, provider)
+}
+
+#[tauri::command]
+fn model_use(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    provider: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.model_use(&reference, provider)
+}
+
+#[tauri::command]
+fn model_discover(
+    supervisor: State<'_, EngineSupervisor>,
+    provider: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.model_discover(provider)
+}
+
+#[tauri::command]
+fn model_refresh(
+    supervisor: State<'_, EngineSupervisor>,
+    provider: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.model_refresh(provider)
+}
+
+#[tauri::command]
+fn model_test(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    provider: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.model_test(&reference, provider)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -127,6 +325,23 @@ pub fn run() {
             turn_cancel,
             approval_resolve,
             snapshot_get,
+            provider_list,
+            provider_create,
+            provider_get,
+            provider_update,
+            provider_remove,
+            provider_test,
+            provider_discover,
+            provider_use,
+            model_list,
+            model_get,
+            model_add,
+            model_alias,
+            model_remove,
+            model_use,
+            model_discover,
+            model_refresh,
+            model_test,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { ArrowUp, Box, Square } from 'lucide-react'
+import { ArrowUp, Box, Check, Square } from 'lucide-react'
 import { useI18n } from '../../i18n'
 import { useComposerStore } from '../../stores/composer'
 import { useUIStore } from '../../stores/ui'
+import type { ModelSummary } from '../../services/engine'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 
 export type ComposerPlacement = 'centered' | 'bottom'
 
@@ -11,19 +13,25 @@ interface ComposerProps {
   onSend: (text: string) => Promise<boolean>
   isStreaming: boolean
   onStop: () => void
+  models: ModelSummary[]
+  activeAlias: string | null
+  onUseModel: (alias: string) => void
   onOpenProviders: () => void
 }
 
 /**
- * Composer: una sola unidad visual (textarea + toolbar).
+ * Composer: una sola unidad visual (textarea + toolbar con modelo).
  * El borrador vive en el store y sobrevive al cambio centered ↔ bottom.
- * Adjuntos, modelo y esfuerzo llegan en Fases 3–4.
+ * Adjuntos y contexto explícito llegan en Fase 4.
  */
 export default function Composer({
   placement,
   onSend,
   isStreaming,
   onStop,
+  models,
+  activeAlias,
+  onUseModel,
   onOpenProviders,
 }: ComposerProps) {
   const { t } = useI18n()
@@ -89,15 +97,58 @@ export default function Composer({
           className="block max-h-[240px] min-h-13 w-full resize-none bg-transparent text-[15px] leading-relaxed text-[var(--text)] placeholder:text-[var(--text-subtle)] focus:outline-none"
         />
         <div className="mt-1 flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onOpenProviders}
-            title={t('composer.manageModels')}
-            className="inline-flex max-w-[220px] items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--text)]"
-          >
-            <Box size={13} aria-hidden="true" className="shrink-0" />
-            <span className="truncate">{t('composer.noModel')}</span>
-          </button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                title={t('composer.chooseModel')}
+                className="inline-flex max-w-[220px] items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--text)]"
+              >
+                <Box size={13} aria-hidden="true" className="shrink-0" />
+                <span className="truncate">{activeAlias ?? t('composer.noModel')}</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-64 p-1.5">
+              {models.length === 0 && (
+                <button
+                  type="button"
+                  onClick={onOpenProviders}
+                  className="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text)]"
+                >
+                  {t('composer.noModelsSetup')}
+                </button>
+              )}
+              {models.map((model) => (
+                <button
+                  key={model.id}
+                  type="button"
+                  onClick={() => onUseModel(model.alias)}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)]"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium text-[var(--text)]">
+                      {model.alias}
+                    </span>
+                    <span className="block truncate font-mono text-[11px] text-[var(--text-subtle)]">
+                      {model.provider ?? ''} · {model.provider_model_id}
+                    </span>
+                  </span>
+                  {model.active && (
+                    <Check size={14} aria-hidden="true" className="shrink-0 text-[var(--accent-2)]" />
+                  )}
+                </button>
+              ))}
+              {models.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onOpenProviders}
+                  className="mt-1 flex w-full items-center rounded-lg border-t border-[var(--border)] px-2.5 py-2 text-left text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                >
+                  {t('composer.manageModels')}
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
           <span className="flex-1" />
           {isStreaming ? (
             <button

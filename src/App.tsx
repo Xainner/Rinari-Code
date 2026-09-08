@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { I18nProvider } from './i18n'
 import { useUIStore } from './stores/ui'
 import { useEngineSession } from './features/engine/useEngineSession'
@@ -9,6 +9,7 @@ import ChatView from './components/ChatView'
 import CommandPalette from './components/CommandPalette'
 import EngineConsole from './features/engine/EngineConsole'
 import SettingsView from './features/settings/SettingsView'
+import ProviderWizard from './features/providers/ProviderWizard'
 
 const APP_VERSION = '0.1.0'
 
@@ -31,6 +32,15 @@ function App() {
   const session = useEngineSession()
   const activeTitle =
     session.sessions.find((s) => s.id === session.activeSession)?.title ?? null
+
+  // Alta guiada: motor listo y sin proveedores → abrir el wizard una vez.
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [wizardSnoozed, setWizardSnoozed] = useState(false)
+  useEffect(() => {
+    if (session.ready && session.providers.length === 0 && !wizardSnoozed) {
+      setWizardOpen(true)
+    }
+  }, [session.ready, session.providers.length, wizardSnoozed])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -92,11 +102,32 @@ function App() {
             onSend={session.send}
             onStop={() => void session.cancelTurn()}
             onOpenProviders={() => goSettings('providers')}
+            models={session.models}
+            activeAlias={session.activeModel?.alias ?? null}
+            onUseModel={(alias) => void session.useModel(alias)}
           />
         )}
         {view === 'engine' && <EngineConsole session={session} />}
-        {view === 'settings' && <SettingsView appVersion={APP_VERSION} />}
+        {view === 'settings' && (
+          <SettingsView
+            appVersion={APP_VERSION}
+            providers={session.providers}
+            onCatalogChanged={() => void session.refreshCatalog()}
+          />
+        )}
       </AppShell>
+
+      <ProviderWizard
+        open={wizardOpen}
+        onClose={(finished) => {
+          setWizardOpen(false)
+          if (finished) {
+            void session.refreshCatalog().then(() => session.refreshSessions())
+          } else {
+            setWizardSnoozed(true)
+          }
+        }}
+      />
 
       <CommandPalette
         open={paletteOpen}
