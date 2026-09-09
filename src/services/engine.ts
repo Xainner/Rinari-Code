@@ -446,11 +446,18 @@ export const engineApi = {
     }),
   initialOpenRequest: () =>
     invoke<{ project: string | null; session: string | null }>("initial_open_request"),
-  startTurn: (sessionId: string, message: string) =>
-    invoke<{ status: string; turn_id: string; session_id: string }>("turn_start", {
+  startTurn: (sessionId: string, message: string) => {
+    // Fail-fast con texto inconfundible: si esto salta, el bug está en la
+    // UI (nunca debería invocar sin sesión); si salta el mensaje del
+    // backend "(app 0.1.1)", el bug está en el puente Tauri.
+    if (!sessionId) {
+      return Promise.reject(new Error('UI sin sesión (fail-fast frontend)'))
+    }
+    return invoke<{ status: string; turn_id: string; session_id: string }>("turn_start", {
       session_id: sessionId,
       message,
-    }),
+    })
+  },
   cancelTurn: (sessionId: string) =>
     invoke<{ status: string; turn_id: string; session_id: string }>("turn_cancel", {
       session_id: sessionId,

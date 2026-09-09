@@ -419,45 +419,42 @@ fn usage_get(
 }
 
 #[tauri::command]
-#[allow(non_snake_case)]
 fn queue_add(
     supervisor: State<'_, EngineSupervisor>,
-    session_id: Option<String>,
-    sessionId: Option<String>,
+    session_id: String,
     message: String,
 ) -> Result<serde_json::Value, CommandError> {
-    let session_id = session_id
-        .or(sessionId)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| "queue_add requires session_id".to_string())?;
+    if session_id.is_empty() {
+        return Err("queue_add requires session_id (app 0.1.1)"
+            .to_string()
+            .into());
+    }
     supervisor.queue_add(&session_id, &message)
 }
 
 #[tauri::command]
-#[allow(non_snake_case)]
 fn queue_list(
     supervisor: State<'_, EngineSupervisor>,
-    session_id: Option<String>,
-    sessionId: Option<String>,
+    session_id: String,
 ) -> Result<serde_json::Value, CommandError> {
-    let session_id = session_id
-        .or(sessionId)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| "queue_list requires session_id".to_string())?;
+    if session_id.is_empty() {
+        return Err("queue_list requires session_id (app 0.1.1)"
+            .to_string()
+            .into());
+    }
     supervisor.queue_list(&session_id)
 }
 
 #[tauri::command]
-#[allow(non_snake_case)]
 fn queue_clear(
     supervisor: State<'_, EngineSupervisor>,
-    session_id: Option<String>,
-    sessionId: Option<String>,
+    session_id: String,
 ) -> Result<serde_json::Value, CommandError> {
-    let session_id = session_id
-        .or(sessionId)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| "queue_clear requires session_id".to_string())?;
+    if session_id.is_empty() {
+        return Err("queue_clear requires session_id (app 0.1.1)"
+            .to_string()
+            .into());
+    }
     supervisor.queue_clear(&session_id)
 }
 
@@ -581,33 +578,32 @@ fn session_create(
 }
 
 #[tauri::command]
-#[allow(non_snake_case)]
 fn turn_start(
     supervisor: State<'_, EngineSupervisor>,
-    session_id: Option<String>,
-    sessionId: Option<String>,
+    session_id: String,
     message: String,
 ) -> Result<serde_json::Value, CommandError> {
-    // Acepta snake_case y camelCase: instaladores viejos (misma versión)
-    // pueden traer un frontend con la otra convención.
-    let session_id = session_id
-        .or(sessionId)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| "turn_start requires session_id".to_string())?;
+    // Un solo nombre canónico: el frontend siempre manda snake_case.
+    // (Se probó aceptar también camelCase, pero dos params que solo se
+    // diferencian por casing/underscores confunden al parser de args.)
+    if session_id.is_empty() {
+        return Err("turn_start requires session_id (app 0.1.1)"
+            .to_string()
+            .into());
+    }
     supervisor.turn_start(&session_id, &message)
 }
 
 #[tauri::command]
-#[allow(non_snake_case)]
 fn turn_cancel(
     supervisor: State<'_, EngineSupervisor>,
-    session_id: Option<String>,
-    sessionId: Option<String>,
+    session_id: String,
 ) -> Result<serde_json::Value, CommandError> {
-    let session_id = session_id
-        .or(sessionId)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| "turn_cancel requires session_id".to_string())?;
+    if session_id.is_empty() {
+        return Err("turn_cancel requires session_id (app 0.1.1)"
+            .to_string()
+            .into());
+    }
     supervisor.turn_cancel(&session_id)
 }
 
@@ -636,12 +632,10 @@ fn provider_list(
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-#[allow(non_snake_case)]
 fn provider_create(
     supervisor: State<'_, EngineSupervisor>,
     alias: String,
-    provider_type: Option<String>,
-    providerType: Option<String>,
+    provider_type: String,
     auth_method: Option<String>,
     endpoint: Option<String>,
     account_hint: Option<String>,
@@ -651,10 +645,11 @@ fn provider_create(
 ) -> Result<serde_json::Value, CommandError> {
     // Secrets travel only in memory to the local engine child, which stores
     // them via its credential backend. They never touch frontend storage.
-    let provider_type = provider_type
-        .or(providerType)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| "provider_create requires provider_type".to_string())?;
+    if provider_type.is_empty() {
+        return Err("provider_create requires provider_type (app 0.1.1)"
+            .to_string()
+            .into());
+    }
     supervisor.provider_create(serde_json::json!({
         "alias": alias,
         "type": provider_type,
