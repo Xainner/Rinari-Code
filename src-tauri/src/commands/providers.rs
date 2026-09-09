@@ -4,15 +4,15 @@ use tauri::State;
 use rinari_code_lib::engine::{CommandError, EngineSupervisor};
 
 #[tauri::command]
-pub(crate) fn provider_list(
+pub(crate) async fn provider_list(
     supervisor: State<'_, EngineSupervisor>,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.provider_list()
+    super::run_engine(supervisor, |engine| engine.provider_list()).await
 }
 
 #[tauri::command(rename_all = "snake_case")]
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn provider_create(
+pub(crate) async fn provider_create(
     supervisor: State<'_, EngineSupervisor>,
     alias: String,
     provider_type: String,
@@ -30,7 +30,7 @@ pub(crate) fn provider_create(
             .to_string()
             .into());
     }
-    supervisor.provider_create(serde_json::json!({
+    let params = serde_json::json!({
         "alias": alias,
         "type": provider_type,
         "auth_method": auth_method,
@@ -39,20 +39,21 @@ pub(crate) fn provider_create(
         "secret": secret,
         "secret_env": secret_env,
         "settings": settings,
-    }))
+    });
+    super::run_engine(supervisor, move |engine| engine.provider_create(params)).await
 }
 
 #[tauri::command]
-pub(crate) fn provider_get(
+pub(crate) async fn provider_get(
     supervisor: State<'_, EngineSupervisor>,
     reference: String,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.provider_get(&reference)
+    super::run_engine(supervisor, move |engine| engine.provider_get(&reference)).await
 }
 
 #[tauri::command(rename_all = "snake_case")]
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn provider_update(
+pub(crate) async fn provider_update(
     supervisor: State<'_, EngineSupervisor>,
     reference: String,
     alias: Option<String>,
@@ -82,38 +83,44 @@ pub(crate) fn provider_update(
     if let Some(v) = settings {
         params.insert("settings".to_string(), v);
     }
-    supervisor.provider_update(serde_json::Value::Object(params))
+    super::run_engine(supervisor, move |engine| {
+        engine.provider_update(serde_json::Value::Object(params))
+    })
+    .await
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub(crate) fn provider_remove(
+pub(crate) async fn provider_remove(
     supervisor: State<'_, EngineSupervisor>,
     reference: String,
     switch_to: Option<String>,
     keep_credentials: Option<bool>,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.provider_remove(&reference, switch_to, keep_credentials.unwrap_or(false))
+    super::run_engine(supervisor, move |engine| {
+        engine.provider_remove(&reference, switch_to, keep_credentials.unwrap_or(false))
+    })
+    .await
 }
 
 #[tauri::command]
-pub(crate) fn provider_test(
+pub(crate) async fn provider_test(
     supervisor: State<'_, EngineSupervisor>,
     reference: String,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.provider_test(&reference)
+    super::run_engine(supervisor, move |engine| engine.provider_test(&reference)).await
 }
 
 #[tauri::command]
-pub(crate) fn provider_discover(
+pub(crate) async fn provider_discover(
     supervisor: State<'_, EngineSupervisor>,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.provider_discover()
+    super::run_engine(supervisor, |engine| engine.provider_discover()).await
 }
 
 #[tauri::command]
-pub(crate) fn provider_use(
+pub(crate) async fn provider_use(
     supervisor: State<'_, EngineSupervisor>,
     reference: String,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.provider_use(&reference)
+    super::run_engine(supervisor, move |engine| engine.provider_use(&reference)).await
 }

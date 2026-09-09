@@ -28,15 +28,10 @@ export function useSessionList(options: {
   const refreshSessions = useCallback(async (): Promise<void> => {
     try {
       const result = await engineApi.sessions(undefined, true)
-      const normalized = result.sessions
-        .filter((item) => item.state !== 'closed')
-        .map((item) => (item.mode === 'ask' ? { ...item, mode: 'build' } : item))
+      const normalized = result.sessions.filter((item) => item.state === 'active')
       setSessions(normalized)
-      setClosedSessions(result.sessions.filter((item) => item.state === 'closed'))
+      setClosedSessions(result.sessions.filter((item) => item.state !== 'active'))
       setSessionsError(null)
-      for (const item of result.sessions.filter((session) => session.mode === 'ask')) {
-        void engineApi.setSessionMode(item.id, 'build').catch(() => {})
-      }
       setActiveSession((current) => {
         if (current !== '' && normalized.some((s) => s.id === current)) return current
         return normalized[0]?.id ?? ''
@@ -78,17 +73,19 @@ export function useSessionList(options: {
   /** Selecciona sesión: reconcile (open) + historial persistente una vez. */
   const selectSession = useCallback(
     async (id: string): Promise<void> => {
+      const previous = activeSession
       setActiveSession(id)
       try {
         const opened = await engineApi.openSession(id)
         for (const warning of opened.warnings ?? []) toast.warning(warning)
       } catch (err) {
+        setActiveSession(previous)
         toast.error(commandMessage(err))
         return
       }
       await loadSessionHistory(id)
     },
-    [loadSessionHistory],
+    [activeSession, loadSessionHistory],
   )
 
   const createSession = useCallback(async (): Promise<string | null> => {
@@ -98,9 +95,10 @@ export function useSessionList(options: {
         mode: 'build',
         permission_profile: 'workspace',
       })
-      await refreshSessions()
+      setSessions((current) => [result.session, ...current.filter((item) => item.id !== result.session.id)])
       historyLoaded.current.add(result.session.id)
       setActiveSession(result.session.id)
+      void refreshSessions()
       return result.session.id
     } catch (err) {
       toast.error(commandMessage(err))
@@ -120,6 +118,36 @@ export function useSessionList(options: {
     },
     [refreshSessions],
   )
+
+  const renameSession = useCallback(async (id: string, title: string): Promise<void> => {
+    try {
+      await engineApi.renameSession(id, title)
+      await refreshSessions()
+    } catch (err) {
+      toast.error(commandMessage(err))
+    }
+  }, [refreshSessions])
+
+  const archiveSession = useCallback(async (id: string): Promise<void> => {
+    try {
+      await engineApi.archiveSession(id)
+      await refreshSessions()
+    } catch (err) {
+      toast.error(commandMessage(err))
+    }
+  }, [refreshSessions])
+
+  const forkSession = useCallback(async (id: string): Promise<string | null> => {
+    try {
+      const result = await engineApi.forkSession(id)
+      await refreshSessions()
+      setActiveSession(result.session.id)
+      return result.session.id
+    } catch (err) {
+      toast.error(commandMessage(err))
+      return null
+    }
+  }, [refreshSessions])
 
   /** Eliminación permanente con cascada explícita del engine. */
   const deleteSession = useCallback(
@@ -184,6 +212,9 @@ export function useSessionList(options: {
     selectSession,
     createSession,
     closeSession,
+    renameSession,
+    archiveSession,
+    forkSession,
     deleteSession,
     setMode,
     setPermission,

@@ -35,22 +35,18 @@ export function useEngineSession() {
   }, [sessions.refreshSessions])
 
   useEffect(() => {
-    if (connection.ready) void catalog.refreshCatalog()
+    if (connection.ready) void catalog.refreshCatalog(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connection.ready])
 
-  /**
-   * Git vivo de la sesión activa: se recarga cuando cambia la sesión o el
-   * listado (el listado se refresca en cada turn.completed). Solo PROJECT
-   * con project_root; el header decide qué pintar.
-   */
+  const activeRecord = sessions.sessions.find((session) => session.id === sessions.activeSession)
+  const activeProjectRoot =
+    activeRecord?.kind === 'PROJECT' ? (activeRecord.project_root ?? null) : null
+
+  /** Git vivo: una consulta deduplicada únicamente cuando cambia la raíz activa. */
   useEffect(() => {
-    if (!connection.ready) return
-    const active = sessions.sessions.find((session) => session.id === sessions.activeSession)
-    const root = active?.kind === 'PROJECT' ? (active.project_root ?? '') : ''
-    if (root) void projects.loadStatus(root)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connection.ready, sessions.sessions, sessions.activeSession])
+    if (connection.ready && activeProjectRoot) void projects.loadStatus(activeProjectRoot)
+  }, [activeProjectRoot, connection.ready, projects.loadStatus])
 
   async function startEngine(): Promise<void> {
     const next = await connection.start()
@@ -140,9 +136,6 @@ export function useEngineSession() {
   const messages =
     sessions.activeSession !== '' ? (runtime.threads[sessions.activeSession] ?? []) : []
   const busy = sessions.activeSession !== '' && runtime.busySessions.has(sessions.activeSession)
-  const activeRecord = sessions.sessions.find((session) => session.id === sessions.activeSession)
-  const activeProjectRoot =
-    activeRecord?.kind === 'PROJECT' ? (activeRecord.project_root ?? null) : null
   const activeGitStatus = activeProjectRoot ? (projects.statusByRoot[activeProjectRoot] ?? null) : null
   const activeGitError = activeProjectRoot
     ? (projects.statusErrorByRoot[activeProjectRoot] ?? null)
@@ -181,6 +174,7 @@ export function useEngineSession() {
       catalog.models.find((model) => model.active) ??
       null,
     refreshCatalog: catalog.refreshCatalog,
+    discoverCatalog: catalog.discoverCatalog,
     useModel,
     selectSession: sessions.selectSession,
     setMode: sessions.setMode,
@@ -190,11 +184,16 @@ export function useEngineSession() {
     historyInfo: sessions.historyInfo,
     closedSessions: sessions.closedSessions,
     closeSession: sessions.closeSession,
+    renameSession: sessions.renameSession,
+    archiveSession: sessions.archiveSession,
+    forkSession: sessions.forkSession,
     deleteSession: sessions.deleteSession,
     projects: projects.projects,
     projectsError: projects.projectsError,
     refreshProjects: projects.refreshProjects,
     openProject: projects.openProject,
+    updateProject: projects.updateProject,
+    removeProject: projects.removeProject,
     loadProjectStatus: projects.loadStatus,
     loadProjectIntelligence: projects.loadIntelligence,
     projectStatusByRoot: projects.statusByRoot,

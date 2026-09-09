@@ -35,7 +35,7 @@ pub(crate) fn engine_status(supervisor: State<'_, EngineSupervisor>) -> EngineSt
 }
 
 #[tauri::command]
-pub(crate) fn engine_start(
+pub(crate) async fn engine_start(
     app: AppHandle,
     supervisor: State<'_, EngineSupervisor>,
 ) -> Result<EngineStatus, CommandError> {
@@ -44,16 +44,21 @@ pub(crate) fn engine_start(
         let _ = forwarder.emit(FRONTEND_EVENT, &event);
     });
     supervisor.set_sink(sink);
-    start_supervised_engine(&app, &supervisor)
+    super::run_engine(supervisor, move |engine| {
+        start_supervised_engine(&app, &engine)
+    })
+    .await
 }
 
 #[tauri::command]
-pub(crate) fn engine_shutdown(supervisor: State<'_, EngineSupervisor>) -> EngineStatus {
-    supervisor.shutdown()
+pub(crate) async fn engine_shutdown(
+    supervisor: State<'_, EngineSupervisor>,
+) -> Result<EngineStatus, CommandError> {
+    super::run_engine(supervisor, |engine| Ok(engine.shutdown())).await
 }
 
 #[tauri::command]
-pub(crate) fn engine_restart(
+pub(crate) async fn engine_restart(
     app: AppHandle,
     supervisor: State<'_, EngineSupervisor>,
 ) -> Result<EngineStatus, CommandError> {
@@ -62,15 +67,18 @@ pub(crate) fn engine_restart(
         let _ = forwarder.emit(FRONTEND_EVENT, &event);
     });
     supervisor.set_sink(sink);
-    supervisor.shutdown();
-    start_supervised_engine(&app, &supervisor)
+    super::run_engine(supervisor, move |engine| {
+        engine.shutdown();
+        start_supervised_engine(&app, &engine)
+    })
+    .await
 }
 
 #[tauri::command]
-pub(crate) fn snapshot_get(
+pub(crate) async fn snapshot_get(
     supervisor: State<'_, EngineSupervisor>,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.snapshot_get()
+    super::run_engine(supervisor, |engine| engine.snapshot_get()).await
 }
 
 /// `rinari code [path] [--session id]` handoff: explicit args only.

@@ -1,25 +1,26 @@
 //! Soul commands: list/get/create/update/remove/activate (global scope).
 use tauri::State;
 
+use super::run_engine;
 use rinari_code_lib::engine::{CommandError, EngineSupervisor};
 
 #[tauri::command]
-pub(crate) fn soul_list(
+pub(crate) async fn soul_list(
     supervisor: State<'_, EngineSupervisor>,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.soul_list()
+    run_engine(supervisor, |engine| engine.soul_list()).await
 }
 
 #[tauri::command]
-pub(crate) fn soul_get(
+pub(crate) async fn soul_get(
     supervisor: State<'_, EngineSupervisor>,
     id: String,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.soul_get(&id)
+    run_engine(supervisor, move |engine| engine.soul_get(&id)).await
 }
 
 #[tauri::command]
-pub(crate) fn soul_create(
+pub(crate) async fn soul_create(
     supervisor: State<'_, EngineSupervisor>,
     id: String,
     name: String,
@@ -27,17 +28,20 @@ pub(crate) fn soul_create(
     description: Option<String>,
     version: Option<String>,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.soul_create(serde_json::json!({
-        "id": id,
-        "name": name,
-        "identity": identity,
-        "description": description,
-        "version": version,
-    }))
+    run_engine(supervisor, move |engine| {
+        engine.soul_create(serde_json::json!({
+            "id": id,
+            "name": name,
+            "identity": identity,
+            "description": description,
+            "version": version,
+        }))
+    })
+    .await
 }
 
 #[tauri::command]
-pub(crate) fn soul_update(
+pub(crate) async fn soul_update(
     supervisor: State<'_, EngineSupervisor>,
     id: String,
     name: Option<String>,
@@ -62,21 +66,24 @@ pub(crate) fn soul_update(
     if let Some(version) = version {
         params.insert("version".to_string(), serde_json::Value::String(version));
     }
-    supervisor.soul_update(serde_json::Value::Object(params))
+    run_engine(supervisor, move |engine| {
+        engine.soul_update(serde_json::Value::Object(params))
+    })
+    .await
 }
 
 #[tauri::command]
-pub(crate) fn soul_remove(
+pub(crate) async fn soul_remove(
     supervisor: State<'_, EngineSupervisor>,
     id: String,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.soul_remove(&id)
+    run_engine(supervisor, move |engine| engine.soul_remove(&id)).await
 }
 
 #[tauri::command]
-pub(crate) fn soul_activate(
+pub(crate) async fn soul_activate(
     supervisor: State<'_, EngineSupervisor>,
     id: String,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.soul_activate(&id)
+    run_engine(supervisor, move |engine| engine.soul_activate(&id)).await
 }

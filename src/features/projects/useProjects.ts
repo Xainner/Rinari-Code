@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   commandMessage,
@@ -20,6 +20,8 @@ export function useProjects(options: { engineReady: boolean }) {
   const [statusByRoot, setStatusByRoot] = useState<Record<string, ProjectStatus>>({})
   const [statusErrorByRoot, setStatusErrorByRoot] = useState<Record<string, string>>({})
   const [intelByRoot, setIntelByRoot] = useState<Record<string, ProjectIntelligence>>({})
+  const statusInFlight = useRef(new Map<string, Promise<void>>())
+  const statusLoadedAt = useRef(new Map<string, number>())
 
   const refreshProjects = useCallback(async (): Promise<void> => {
     try {
@@ -46,20 +48,63 @@ export function useProjects(options: { engineReady: boolean }) {
     }
   }, [])
 
-  const loadStatus = useCallback(async (root: string): Promise<void> => {
-    if (!root) return
+  const updateProject = useCallback(async (
+    projectId: string,
+    changes: { name?: string; description?: string; pinned?: boolean; archived?: boolean },
+  ): Promise<boolean> => {
     try {
-      const status = await engineApi.projectStatus(root)
-      setStatusByRoot((prev) => ({ ...prev, [root]: status }))
-      setStatusErrorByRoot((prev) => {
-        const next = { ...prev }
-        delete next[root]
-        return next
-      })
+      await engineApi.projectUpdate(projectId, changes)
+      await refreshProjects()
+      return true
     } catch (err) {
-      // Carpeta ausente o ilegible: se representa, no se esconde.
-      setStatusErrorByRoot((prev) => ({ ...prev, [root]: commandMessage(err) }))
+      toast.error(commandMessage(err))
+      return false
     }
+  }, [refreshProjects])
+
+  const removeProject = useCallback(async (
+    projectId: string,
+    sessionPolicy: 'keep' | 'archive' | 'delete' = 'archive',
+  ): Promise<boolean> => {
+    try {
+      await engineApi.projectRemove(projectId, sessionPolicy)
+      await refreshProjects()
+      return true
+    } catch (err) {
+      toast.error(commandMessage(err))
+      return false
+    }
+  }, [refreshProjects])
+
+  const loadStatus = useCallback((root: string, force = false): Promise<void> => {
+    if (!root) return Promise.resolve()
+    const pending = statusInFlight.current.get(root)
+    if (pending) return pending
+    const loadedAt = statusLoadedAt.current.get(root) ?? 0
+    if (!force && Date.now() - loadedAt < 3_000) return Promise.resolve()
+
+    const request = engineApi.projectStatus(root)
+      .then((status) => {
+        setStatusByRoot((prev) => ({ ...prev, [root]: status }))
+        const engineError = status.status.error?.message ?? null
+        setStatusErrorByRoot((prev) => {
+          const next = { ...prev }
+          if (engineError) next[root] = engineError
+          else delete next[root]
+          return next
+        })
+        statusLoadedAt.current.set(root, Date.now())
+      })
+      .catch((err) => {
+        // Carpeta ausente, Git agotado o motor caído son estados distintos;
+        // commandMessage conserva el código estructurado del puente.
+        setStatusErrorByRoot((prev) => ({ ...prev, [root]: commandMessage(err) }))
+      })
+      .finally(() => {
+        statusInFlight.current.delete(root)
+      })
+    statusInFlight.current.set(root, request)
+    return request
   }, [])
 
   const loadIntelligence = useCallback(async (root: string): Promise<void> => {
@@ -77,6 +122,8 @@ export function useProjects(options: { engineReady: boolean }) {
     projectsError,
     refreshProjects,
     openProject,
+    updateProject,
+    removeProject,
     statusByRoot,
     statusErrorByRoot,
     loadStatus,

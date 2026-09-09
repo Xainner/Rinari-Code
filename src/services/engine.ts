@@ -171,9 +171,14 @@ export interface SoulDetail extends SoulSummary {
 export interface ProjectSummary {
   id: string;
   root: string;
+  canonical_root?: string;
+  name?: string;
+  description?: string;
+  pinned?: boolean;
+  archived?: boolean;
   git_fingerprint: string | null;
-  last_opened_at: string;
-  active_session_id: string | null;
+  last_opened_at?: string;
+  active_session_id?: string | null;
 }
 
 export interface ProjectGitStatus {
@@ -182,10 +187,19 @@ export interface ProjectGitStatus {
   head: string | null;
   dirty: boolean;
   files: ChangedFile[];
+  detached: boolean;
+  ahead: number;
+  behind: number;
+  error: { code: string; message: string; retryable: boolean } | null;
 }
 
 export interface ProjectStatus {
+  project_id?: string | null;
   project: { root: string };
+  root?: string;
+  exists?: boolean;
+  git?: ProjectGitStatus & { is_repo?: boolean; changed_files?: number };
+  stale?: boolean;
   status: ProjectGitStatus;
   active_session_id: string | null;
 }
@@ -331,24 +345,35 @@ export const engineApi = {
   start: () => invoke<EngineStatus>("engine_start"),
   shutdown: () => invoke<EngineStatus>("engine_shutdown"),
   restart: () => invoke<EngineStatus>("engine_restart"),
-  sessions: (kind?: string, includeClosed?: boolean) =>
+  sessions: (kind?: string, includeClosed?: boolean, projectId?: string, state?: string) =>
     invoke<{ sessions: SessionSummary[] }>("session_list", {
       kind: kind ?? null,
       include_closed: includeClosed ?? null,
+      project_id: projectId ?? null,
+      state: state ?? null,
     }),
-  createSession: (options?: { cwd?: string; chat?: boolean; title?: string; mode?: string; permission_profile?: string }) =>
+  createSession: (options?: { cwd?: string; chat?: boolean; title?: string; mode?: string; permission_profile?: string; project_id?: string }) =>
     invoke<{ session: SessionSummary; created: boolean }>("session_create", {
       cwd: options?.cwd ?? null,
       chat: options?.chat ?? false,
       title: options?.title ?? null,
       mode: options?.mode ?? 'build',
       permission_profile: options?.permission_profile ?? 'workspace',
+      project_id: options?.project_id ?? null,
     }),
   openSession: (reference: string) =>
     invoke<{ session: SessionSummary; created: boolean; warnings: string[] }>(
       "session_open",
       { reference },
     ),
+  renameSession: (reference: string, title: string) =>
+    invoke<{ session: SessionSummary }>('session_rename', { reference, title }),
+  archiveSession: (reference: string) =>
+    invoke<{ session: SessionSummary }>('session_archive', { reference }),
+  restoreSession: (reference: string) =>
+    invoke<{ session: SessionSummary }>('session_restore', { reference }),
+  forkSession: (reference: string, title?: string) =>
+    invoke<{ session: SessionSummary }>('session_fork', { reference, title: title ?? null }),
   sessionHistory: (reference: string, limit?: number) =>
     invoke<{
       session_id: string;
@@ -570,6 +595,36 @@ export const engineApi = {
       "project_list_recent",
       limit === undefined ? {} : { limit },
     ),
+  projectList: (includeArchived = false) =>
+    invoke<{ projects: ProjectSummary[] }>('project_list', {
+      include_archived: includeArchived,
+    }),
+  projectGet: (projectId: string) =>
+    invoke<{ project: ProjectSummary }>('project_get', { project_id: projectId }),
+  projectAdd: (path: string, name?: string, description?: string) =>
+    invoke<{ project: ProjectSummary; created: boolean }>('project_add', {
+      path,
+      name: name ?? null,
+      description: description ?? null,
+    }),
+  projectUpdate: (
+    projectId: string,
+    patch: { name?: string; description?: string; pinned?: boolean; archived?: boolean },
+  ) =>
+    invoke<{ project: ProjectSummary }>('project_update', {
+      project_id: projectId,
+      name: patch.name ?? null,
+      description: patch.description ?? null,
+      pinned: patch.pinned ?? null,
+      archived: patch.archived ?? null,
+    }),
+  projectRemove: (projectId: string, sessionPolicy: 'keep' | 'archive' | 'delete' = 'archive') =>
+    invoke<{
+      project: ProjectSummary;
+      session_policy: string;
+      sessions_affected: number;
+      filesystem_deleted: false;
+    }>('project_remove', { project_id: projectId, session_policy: sessionPolicy }),
   projectOpen: (path: string) =>
     invoke<{ project: ProjectSummary; session: SessionSummary; created: boolean }>(
       "project_open",
@@ -680,6 +735,13 @@ export const engineApi = {
     invoke<{ providers: Record<string, DiscoveredModel[]> }>("model_discover", {
       provider: provider ?? null,
     }),
+  modelDiscoveryStart: (provider?: string) =>
+    invoke<{
+      job_id: string;
+      status: 'running' | 'completed';
+      cached: boolean;
+      providers?: Record<string, DiscoveredModel[]>;
+    }>('model_discovery_start', { provider: provider ?? null }),
   modelRefresh: (provider?: string) =>
     invoke<{
       providers: Record<

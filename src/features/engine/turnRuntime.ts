@@ -62,6 +62,7 @@ export type TurnRuntimeAction =
   | { type: 'turn/cancelled'; turnId: string; sessionId: string; now: number }
   | { type: 'turn/failed'; turnId: string; sessionId: string; error: string; now: number }
   | { type: 'turn/stopped'; turnId: string; sessionId: string; reason: TurnStopReason; now: number }
+  | { type: 'governor/progress'; turnId: string; sessionId: string; progress?: string; action?: string; recoveryAttempts?: number; usage?: Record<string, number> }
   | { type: 'approval/requested'; approval: PendingApproval }
   | { type: 'approval/resolving'; approvalId: string }
   | { type: 'approval/pending'; approvalId: string }
@@ -399,6 +400,20 @@ export function turnRuntimeReducer(
       }
     }
 
+    case 'governor/progress':
+      return {
+        ...state,
+        executions: withExecution(state.executions, action.turnId, action.sessionId, Date.now(), (current) => ({
+          ...current,
+          governor: {
+            progress: action.progress,
+            action: action.action,
+            recoveryAttempts: action.recoveryAttempts,
+            usage: action.usage,
+          },
+        })),
+      }
+
     case 'turn/message-sent':
       return {
         ...state,
@@ -495,6 +510,19 @@ function restoreFromSnapshot(
             : 'thinking',
       startedAt: typeof item.started_at === 'number' ? item.started_at * 1000 : now,
       preparationStage: typeof item.preparation_stage === 'string' ? item.preparation_stage : undefined,
+      governor: item.governor && typeof item.governor === 'object'
+        ? {
+            progress: typeof (item.governor as Record<string, unknown>).progress === 'string'
+              ? (item.governor as Record<string, unknown>).progress as string
+              : undefined,
+            action: typeof (item.governor as Record<string, unknown>).action === 'string'
+              ? (item.governor as Record<string, unknown>).action as string
+              : undefined,
+            recoveryAttempts: typeof (item.governor as Record<string, unknown>).recovery_attempts === 'number'
+              ? (item.governor as Record<string, unknown>).recovery_attempts as number
+              : undefined,
+          }
+        : undefined,
       tools,
     }
   }
@@ -615,6 +643,20 @@ export function engineEventToAction(event: EngineEventMsg, now: number = Date.no
         now,
       }
     }
+    case 'governor.progress':
+    case 'governor.nudge':
+    case 'governor.consolidate':
+    case 'governor.compact':
+    case 'governor.stop':
+      return {
+        type: 'governor/progress',
+        turnId: str(payload.turn_id),
+        sessionId: str(payload.session_id),
+        progress: str(payload.progress) || undefined,
+        action: str(payload.action ?? event.event.split('.')[1]) || undefined,
+        recoveryAttempts: typeof payload.recovery_attempts === 'number' ? payload.recovery_attempts : undefined,
+        usage: payload.usage && typeof payload.usage === 'object' ? payload.usage as Record<string, number> : undefined,
+      }
     case 'approval.requested':
       return {
         type: 'approval/requested',

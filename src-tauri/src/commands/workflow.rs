@@ -1,17 +1,18 @@
 //! Rinari profile bundles: full working-configuration presets.
 use tauri::State;
 
+use super::run_engine;
 use rinari_code_lib::engine::{CommandError, EngineSupervisor};
 
 #[tauri::command]
-pub(crate) fn bundle_list(
+pub(crate) async fn bundle_list(
     supervisor: State<'_, EngineSupervisor>,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.bundle_list()
+    run_engine(supervisor, |engine| engine.bundle_list()).await
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub(crate) fn bundle_create(
+pub(crate) async fn bundle_create(
     supervisor: State<'_, EngineSupervisor>,
     id: String,
     name: String,
@@ -38,22 +39,28 @@ pub(crate) fn bundle_create(
     if let Some(agents) = agents {
         params.insert("agents".to_string(), agents);
     }
-    supervisor.bundle_create(serde_json::Value::Object(params))
+    run_engine(supervisor, move |engine| {
+        engine.bundle_create(serde_json::Value::Object(params))
+    })
+    .await
 }
 
 #[tauri::command]
-pub(crate) fn bundle_remove(
+pub(crate) async fn bundle_remove(
     supervisor: State<'_, EngineSupervisor>,
     id: String,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.bundle_remove(&id)
+    run_engine(supervisor, move |engine| engine.bundle_remove(&id)).await
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub(crate) fn bundle_apply(
+pub(crate) async fn bundle_apply(
     supervisor: State<'_, EngineSupervisor>,
     id: String,
     session_ref: Option<String>,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.bundle_apply(&id, session_ref)
+    run_engine(supervisor, move |engine| {
+        engine.bundle_apply(&id, session_ref)
+    })
+    .await
 }

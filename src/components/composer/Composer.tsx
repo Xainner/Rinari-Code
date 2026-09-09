@@ -18,6 +18,7 @@ interface ComposerProps {
   models: ModelSummary[]
   activeAlias: string | null
   onUseModel: (model: ModelSummary) => void
+  onDiscoverModels: () => void
   onOpenProviders: () => void
   sessionMode: string | null
   onModeChange: (mode: string) => void
@@ -46,6 +47,7 @@ export default function Composer({
   models,
   activeAlias,
   onUseModel,
+  onDiscoverModels,
   onOpenProviders,
   sessionMode,
   onModeChange,
@@ -226,7 +228,7 @@ export default function Composer({
               )
             })}
           </div>
-          <Popover>
+          <Popover onOpenChange={(open) => { if (open) onDiscoverModels() }}>
             <PopoverTrigger asChild>
               <button
                 type="button"

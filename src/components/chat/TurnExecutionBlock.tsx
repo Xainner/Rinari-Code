@@ -96,6 +96,13 @@ export default function TurnExecutionBlock({ execution, approvals, onResolveAppr
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-medium text-[var(--text)]">{title}</span>
           <span className="mt-0.5 block font-mono text-[10px] text-[var(--text-subtle)]">{seconds(execution, now)}</span>
+          {execution.governor && (
+            <span className="mt-1 block font-mono text-[10px] text-[var(--text-subtle)]">
+              Progreso: {execution.governor.progress ?? execution.governor.action ?? 'activo'}
+              {execution.governor.usage?.model_calls != null ? ` · modelo ${execution.governor.usage.model_calls}` : ''}
+              {execution.governor.usage?.tool_calls != null ? ` · herramientas ${execution.governor.usage.tool_calls}` : ''}
+            </span>
+          )}
           {execution.error && <span className="mt-1 block text-[11px] font-normal text-rose-400">{execution.error}</span>}
         </span>
         <ChevronDown size={15} className={`mt-1 text-[var(--text-subtle)] transition-transform ${open ? 'rotate-180' : ''}`} />

@@ -20,6 +20,10 @@ import {
  */
 export function useTurnRuntime(options: { onSessionsChanged: () => void }) {
   const [state, dispatch] = useReducer(turnRuntimeReducer, undefined, createInitialTurnRuntime)
+  const stateRef = useRef(state)
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
 
   // El callback siempre fresco sin resuscribir el listener (StrictMode-safe).
   const changedRef = useRef(options.onSessionsChanged)
@@ -63,7 +67,13 @@ export function useTurnRuntime(options: { onSessionsChanged: () => void }) {
       // Sin terminal, reconciliar contra el snapshot en vez de inventar `cancelled`.
       window.setTimeout(() => {
         void restoreSnapshot()
-      }, 8000)
+      }, 2000)
+      window.setTimeout(() => {
+        if (stateRef.current.busySessions.has(sessionId)) {
+          toast.warning('El motor aún no confirma la cancelación. Puedes reiniciarlo desde Estado del motor.')
+          void restoreSnapshot()
+        }
+      }, 5000)
       try {
         await engineApi.cancelTurn(sessionId)
       } catch (err) {

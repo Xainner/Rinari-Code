@@ -155,6 +155,16 @@ impl EngineTransport {
 
     /// Send a request and wait for its response envelope.
     pub fn request(&self, method: &str, params: Option<Value>) -> Result<Value, TransportError> {
+        self.request_with_timeout(method, params, REQUEST_TIMEOUT)
+    }
+
+    /// Send a request with a deadline selected by the public operation.
+    pub fn request_with_timeout(
+        &self,
+        method: &str,
+        params: Option<Value>,
+        timeout: Duration,
+    ) -> Result<Value, TransportError> {
         let id = format!("req_{}", self.next_id.fetch_add(1, Ordering::SeqCst));
         let (reply_tx, reply_rx) = mpsc::channel::<Result<Value, EngineError>>();
         {
@@ -185,7 +195,7 @@ impl EngineTransport {
                 .map(|mut pending| pending.remove(&id));
             return Err(TransportError::Io(message));
         }
-        match reply_rx.recv_timeout(REQUEST_TIMEOUT) {
+        match reply_rx.recv_timeout(timeout) {
             Ok(Ok(result)) => Ok(result),
             Ok(Err(error)) => Err(TransportError::Engine(error)),
             Err(RecvTimeoutError::Timeout) => {

@@ -91,21 +91,22 @@ struct Inner {
     sink: Option<EventSink>,
 }
 
+#[derive(Clone)]
 pub struct EngineSupervisor {
-    inner: std::sync::Mutex<Inner>,
+    inner: Arc<std::sync::Mutex<Inner>>,
 }
 
 impl EngineSupervisor {
     pub fn new() -> Self {
         Self {
-            inner: std::sync::Mutex::new(Inner {
+            inner: Arc::new(std::sync::Mutex::new(Inner {
                 state: EngineState::Stopped,
                 transport: None,
                 hello: None,
                 detail: None,
                 pump: None,
                 sink: None,
-            }),
+            })),
         }
     }
 
@@ -295,8 +296,22 @@ impl EngineSupervisor {
 
     pub fn request(&self, method: Method, params: Option<Value>) -> Result<Value, CommandError> {
         let transport = self.current_transport()?;
+        let timeout = match method {
+            Method::ProjectStatus => Duration::from_secs(5),
+            Method::SessionList
+            | Method::SessionCreate
+            | Method::SessionOpen
+            | Method::SessionRename
+            | Method::SessionArchive
+            | Method::SessionRestore
+            | Method::SessionFork
+            | Method::SessionClose
+            | Method::SessionHistory => Duration::from_secs(10),
+            Method::SessionTurnStart | Method::ModelDiscoveryStart => Duration::from_secs(5),
+            _ => Duration::from_secs(60),
+        };
         transport
-            .request(method.as_str(), params)
+            .request_with_timeout(method.as_str(), params, timeout)
             .map_err(CommandError::from)
     }
 
@@ -311,6 +326,24 @@ impl EngineSupervisor {
         }
         params.insert("include_closed".to_string(), Value::Bool(include_closed));
         self.request(Method::SessionList, Some(Value::Object(params)))
+    }
+
+    pub fn session_list_filtered(
+        &self,
+        kind: Option<String>,
+        include_closed: bool,
+        project_id: Option<String>,
+        state: Option<String>,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            Method::SessionList,
+            Some(json!({
+                "kind": kind,
+                "include_closed": include_closed,
+                "project_id": project_id,
+                "state": state,
+            })),
+        )
     }
 
     pub fn session_create(
@@ -429,6 +462,21 @@ impl EngineSupervisor {
 
     pub fn session_open(&self, reference: &str) -> Result<Value, CommandError> {
         self.request(Method::SessionOpen, Some(json!({"ref": reference})))
+    }
+
+    pub fn session_rename(&self, reference: &str, title: &str) -> Result<Value, CommandError> {
+        self.request(
+            Method::SessionRename,
+            Some(json!({"ref": reference, "title": title})),
+        )
+    }
+
+    pub fn session_archive(&self, reference: &str) -> Result<Value, CommandError> {
+        self.request(Method::SessionArchive, Some(json!({"ref": reference})))
+    }
+
+    pub fn session_restore(&self, reference: &str) -> Result<Value, CommandError> {
+        self.request(Method::SessionRestore, Some(json!({"ref": reference})))
     }
 
     pub fn session_close(&self, reference: &str) -> Result<Value, CommandError> {
@@ -551,6 +599,36 @@ impl EngineSupervisor {
             params.insert("limit".to_string(), Value::Number(limit.into()));
         }
         self.request(Method::ProjectListRecent, Some(Value::Object(params)))
+    }
+
+    pub fn project_list(&self, include_archived: bool) -> Result<Value, CommandError> {
+        self.request(
+            Method::ProjectList,
+            Some(json!({"include_archived": include_archived})),
+        )
+    }
+
+    pub fn project_get(&self, project_id: &str) -> Result<Value, CommandError> {
+        self.request(Method::ProjectGet, Some(json!({"project_id": project_id})))
+    }
+
+    pub fn project_add(&self, params: Value) -> Result<Value, CommandError> {
+        self.request(Method::ProjectAdd, Some(params))
+    }
+
+    pub fn project_update(&self, params: Value) -> Result<Value, CommandError> {
+        self.request(Method::ProjectUpdate, Some(params))
+    }
+
+    pub fn project_remove(
+        &self,
+        project_id: &str,
+        session_policy: &str,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            Method::ProjectRemove,
+            Some(json!({"project_id": project_id, "session_policy": session_policy})),
+        )
     }
 
     pub fn project_open(&self, path: &str) -> Result<Value, CommandError> {
@@ -878,6 +956,13 @@ impl EngineSupervisor {
 
     pub fn model_discover(&self, provider: Option<String>) -> Result<Value, CommandError> {
         self.request(Method::ModelDiscover, Some(json!({ "provider": provider })))
+    }
+
+    pub fn model_discovery_start(&self, provider: Option<String>) -> Result<Value, CommandError> {
+        self.request(
+            Method::ModelDiscoveryStart,
+            Some(json!({"provider": provider})),
+        )
     }
 
     pub fn model_refresh(&self, provider: Option<String>) -> Result<Value, CommandError> {

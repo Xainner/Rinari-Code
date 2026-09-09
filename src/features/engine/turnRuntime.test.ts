@@ -21,6 +21,24 @@ function liveTurn(): TurnRuntimeState {
 }
 
 describe('turn lifecycle', () => {
+  it('conserva progreso y consumo observable del gobernador', () => {
+    const initial = reduce(createInitialTurnRuntime(), [
+      { type: 'turn/started', turnId: 't1', sessionId: 's1', now: NOW },
+    ])
+    const action = engineEventToAction({
+      type: 'event',
+      event: 'governor.progress',
+      payload: {
+        turn_id: 't1', session_id: 's1', progress: 'healthy', action: 'continue',
+        recovery_attempts: 0, usage: { model_calls: 101, tool_calls: 240 },
+      },
+    }, NOW)
+    expect(action).not.toBeNull()
+    const state = turnRuntimeReducer(initial, action!)
+    expect(state.executions.t1.governor?.usage?.model_calls).toBe(101)
+    expect(state.executions.t1.governor?.progress).toBe('healthy')
+  })
+
   it('started → delta → completed es determinista', () => {
     const state = reduce(liveTurn(), [
       { type: 'turn/completed', turnId: 't1', sessionId: 's1', content: '', now: NOW + 2 },

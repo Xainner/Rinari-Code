@@ -22,6 +22,7 @@ interface ChatViewProps {
   models: ModelSummary[]
   activeAlias: string | null
   onUseModel: (model: ModelSummary) => void
+  onDiscoverModels: () => void
   executions: Record<string, TurnExecution>
   approvals: PendingApproval[]
   onResolveApproval: (id: string, decision: string) => void
@@ -53,6 +54,7 @@ export default function ChatView({
   models,
   activeAlias,
   onUseModel,
+  onDiscoverModels,
   executions,
   approvals,
   onResolveApproval,
@@ -110,6 +112,7 @@ export default function ChatView({
       models={models}
       activeAlias={activeAlias}
       onUseModel={onUseModel}
+      onDiscoverModels={onDiscoverModels}
       sessionMode={sessionMode}
       onModeChange={onModeChange}
       reasoningEffort={reasoningEffort}

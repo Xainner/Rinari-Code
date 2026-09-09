@@ -1,8 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   commandMessage,
   engineApi,
+  onEngineEvent,
+  type DiscoveredModel,
   type ModelSummary,
   type ProviderSummary,
 } from '../../services/engine'
@@ -16,43 +18,74 @@ export function useCatalog() {
   const [models, setModels] = useState<ModelSummary[]>([])
   const [catalogLoaded, setCatalogLoaded] = useState(false)
   const [catalogError, setCatalogError] = useState<string | null>(null)
+  const providersRef = useRef<ProviderSummary[]>([])
 
-  const refreshCatalog = useCallback(async (): Promise<void> => {
+  const mergeDiscovered = useCallback((found: Record<string, DiscoveredModel[]>) => {
+    setModels((current) => {
+      const saved = current.filter((model) => model.saved !== false)
+      const savedKeys = new Set(saved.map((model) => `${model.provider_id}\0${model.provider_model_id}`))
+      const discovered = providersRef.current.flatMap((provider) =>
+        (found[provider.alias] ?? []).map<ModelSummary>((model) => ({
+          id: `catalog:${provider.id}:${model.provider_model_id}`,
+          alias: model.provider_model_id,
+          provider_id: provider.id,
+          provider: provider.alias,
+          provider_model_id: model.provider_model_id,
+          capabilities: model.capabilities,
+          availability: model.availability,
+          settings: {},
+          active: false,
+          saved: false,
+        })),
+      )
+      const retained = current.filter(
+        (model) => model.saved === false && !(model.provider && found[model.provider]),
+      )
+      return [
+        ...saved,
+        ...retained,
+        ...discovered.filter(
+          (model) => !savedKeys.has(`${model.provider_id}\0${model.provider_model_id}`),
+        ),
+      ]
+    })
+  }, [])
+
+  useEffect(() => {
+    let disposed = false
+    let unlisten: (() => void) | undefined
+    void onEngineEvent((event) => {
+      if (event.event === 'model.discovery.completed' && event.payload.providers) {
+        mergeDiscovered(event.payload.providers as Record<string, DiscoveredModel[]>)
+      }
+      if (event.event === 'model.discovery.failed') {
+        const error = event.payload.error as { message?: string } | undefined
+        setCatalogError(error?.message ?? 'Model discovery failed')
+      }
+    }).then((stop) => {
+      if (disposed) stop()
+      else unlisten = stop
+    })
+    return () => {
+      disposed = true
+      unlisten?.()
+    }
+  }, [mergeDiscovered])
+
+  const refreshCatalog = useCallback(async (discover = true): Promise<void> => {
     try {
       const [p, m] = await Promise.all([engineApi.providerList(), engineApi.modelList()])
-      // El picker primario es un catálogo de provider, no solo lo guardado
-      // en SQLite. Los fallos de discovery quedan acotados a ese provider
-      // para que una credencial rancia no oculte todos los demás modelos.
-      const discovered = await Promise.all(
-        p.providers.map(async (provider) => {
-          try {
-            const result = await engineApi.modelDiscover(provider.alias)
-            return (result.providers[provider.alias] ?? []).map<ModelSummary>((model) => ({
-              id: `catalog:${provider.id}:${model.provider_model_id}`,
-              alias: model.provider_model_id,
-              provider_id: provider.id,
-              provider: provider.alias,
-              provider_model_id: model.provider_model_id,
-              capabilities: model.capabilities,
-              availability: model.availability,
-              settings: {},
-              active: false,
-              saved: false,
-            }))
-          } catch {
-            return []
-          }
-        }),
-      )
-      const savedKeys = new Set(
-        m.models.map((model) => `${model.provider_id}\0${model.provider_model_id}`),
-      )
-      const catalogModels = discovered
-        .flat()
-        .filter((model) => !savedKeys.has(`${model.provider_id}\0${model.provider_model_id}`))
+      providersRef.current = p.providers
       setProviders(p.providers)
-      setModels([...m.models.map((model) => ({ ...model, saved: true })), ...catalogModels])
+      setModels(m.models.map((model) => ({ ...model, saved: true })))
       setCatalogError(null)
+      if (discover) {
+        for (const provider of p.providers) {
+          void engineApi.modelDiscoveryStart(provider.alias).then((job) => {
+            if (job.providers) mergeDiscovered(job.providers)
+          }).catch((err: unknown) => setCatalogError(commandMessage(err)))
+        }
+      }
     } catch (err) {
       // Catálogo degradado, nunca bloqueo del shell: el engine sigue usable
       // y la sección se puede reintentar de forma independiente.
@@ -61,7 +94,7 @@ export function useCatalog() {
     } finally {
       setCatalogLoaded(true)
     }
-  }, [])
+  }, [mergeDiscovered])
 
   return {
     providers,
@@ -69,6 +102,7 @@ export function useCatalog() {
     catalogLoaded,
     catalogError,
     refreshCatalog,
+    discoverCatalog: () => refreshCatalog(true),
   }
 }
 

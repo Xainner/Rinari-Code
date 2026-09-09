@@ -105,20 +105,20 @@ export default function ProjectHome({
 
       <section aria-label="Git" className="rounded-xl border border-[var(--border)] px-3 py-2.5">
         {statusError !== null && (
-          <p className="text-xs text-amber-500" title={statusError}>
-            {t('project.gitMissing')}
-          </p>
+          <p className="text-xs text-amber-500">{statusError}</p>
         )}
         {statusError === null && git === null && (
           <p className="text-xs text-[var(--text-subtle)]">…</p>
         )}
-        {git && !git.available && (
-          <p className="text-xs text-[var(--text-subtle)]">{t('workspace.noGit')}</p>
+        {git && !git.available && statusError === null && (
+          <p className="text-xs text-[var(--text-subtle)]">
+            {git.error?.message ?? t('workspace.noGit')}
+          </p>
         )}
         {git?.available && (
           <p className="flex flex-wrap items-center gap-x-2 text-xs text-[var(--text)]">
             <span title={git.head ?? ''} className="font-mono font-semibold">
-              {git.branch ?? '—'}
+              {git.detached ? `detached · ${git.head?.slice(0, 8) ?? '—'}` : (git.branch ?? '—')}
             </span>
             {git.dirty ? (
               <span className="text-amber-500">
@@ -127,6 +127,8 @@ export default function ProjectHome({
             ) : (
               <span className="text-emerald-500">{t('workspace.clean')}</span>
             )}
+            {(git.ahead ?? 0) > 0 && <span className="text-[var(--text-subtle)]">↑{git.ahead}</span>}
+            {(git.behind ?? 0) > 0 && <span className="text-[var(--text-subtle)]">↓{git.behind}</span>}
           </p>
         )}
       </section>

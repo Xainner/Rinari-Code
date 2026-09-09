@@ -289,6 +289,7 @@ function App() {
             models={session.models}
             activeAlias={session.activeModel?.alias ?? null}
             onUseModel={(model) => void session.useModel(model)}
+            onDiscoverModels={() => void session.discoverCatalog()}
             sessionMode={activeRecord?.mode ?? null}
             onModeChange={(mode) => void session.setMode(mode)}
             reasoningEffort={session.reasoningEffort}
@@ -330,7 +331,12 @@ function App() {
             }}
             onNewSession={() =>
               void engineApi
-                .createSession({ cwd: projectRoot })
+                .createSession({
+                  project_id: session.projects.find((p) => p.root === projectRoot)?.id,
+                  cwd: projectRoot,
+                  mode: 'build',
+                  permission_profile: 'workspace',
+                })
                 .then(async (created) => {
                   await session.refreshSessions()
                   await session.selectSession(created.session.id)

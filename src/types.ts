@@ -54,6 +54,12 @@ export interface TurnExecution {
   error?: string
   /** Solo en `stopped`: safeguard de emergencia, terminal pero no fallo. */
   stopReason?: TurnStopReason
+  governor?: {
+    progress?: string
+    action?: string
+    recoveryAttempts?: number
+    usage?: { model_calls?: number; tool_calls?: number; wall_time_s?: number }
+  }
   tools: ToolActivity[]
 }
 
