@@ -438,6 +438,13 @@ export const en: Record<I18nKey, string> = {
   'settings.admin.unreachable': 'No response',
   'settings.about.body': 'Rinari Code: desktop for Rinari.',
   'settings.about.repo': 'Repository',
+  'update.check': 'Check for updates',
+  'update.checking': 'Checking for updates…',
+  'update.available': 'New version available: {v}',
+  'update.none': 'You are on the latest version.',
+  'update.install': 'Install and restart',
+  'update.installing': 'Installing update…',
+  'update.failed': 'Update failed: {detail}',
 
   /* Rinari Code */
   'app.name': 'Rinari Code',

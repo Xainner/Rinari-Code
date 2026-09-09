@@ -419,27 +419,45 @@ fn usage_get(
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 fn queue_add(
     supervisor: State<'_, EngineSupervisor>,
-    session_id: String,
+    session_id: Option<String>,
+    sessionId: Option<String>,
     message: String,
 ) -> Result<serde_json::Value, CommandError> {
+    let session_id = session_id
+        .or(sessionId)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "queue_add requires session_id".to_string())?;
     supervisor.queue_add(&session_id, &message)
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 fn queue_list(
     supervisor: State<'_, EngineSupervisor>,
-    session_id: String,
+    session_id: Option<String>,
+    sessionId: Option<String>,
 ) -> Result<serde_json::Value, CommandError> {
+    let session_id = session_id
+        .or(sessionId)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "queue_list requires session_id".to_string())?;
     supervisor.queue_list(&session_id)
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 fn queue_clear(
     supervisor: State<'_, EngineSupervisor>,
-    session_id: String,
+    session_id: Option<String>,
+    sessionId: Option<String>,
 ) -> Result<serde_json::Value, CommandError> {
+    let session_id = session_id
+        .or(sessionId)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "queue_clear requires session_id".to_string())?;
     supervisor.queue_clear(&session_id)
 }
 
@@ -563,19 +581,33 @@ fn session_create(
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 fn turn_start(
     supervisor: State<'_, EngineSupervisor>,
-    session_id: String,
+    session_id: Option<String>,
+    sessionId: Option<String>,
     message: String,
 ) -> Result<serde_json::Value, CommandError> {
+    // Acepta snake_case y camelCase: instaladores viejos (misma versión)
+    // pueden traer un frontend con la otra convención.
+    let session_id = session_id
+        .or(sessionId)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "turn_start requires session_id".to_string())?;
     supervisor.turn_start(&session_id, &message)
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 fn turn_cancel(
     supervisor: State<'_, EngineSupervisor>,
-    session_id: String,
+    session_id: Option<String>,
+    sessionId: Option<String>,
 ) -> Result<serde_json::Value, CommandError> {
+    let session_id = session_id
+        .or(sessionId)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "turn_cancel requires session_id".to_string())?;
     supervisor.turn_cancel(&session_id)
 }
 
@@ -604,10 +636,12 @@ fn provider_list(
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
+#[allow(non_snake_case)]
 fn provider_create(
     supervisor: State<'_, EngineSupervisor>,
     alias: String,
-    provider_type: String,
+    provider_type: Option<String>,
+    providerType: Option<String>,
     auth_method: Option<String>,
     endpoint: Option<String>,
     account_hint: Option<String>,
@@ -617,6 +651,10 @@ fn provider_create(
 ) -> Result<serde_json::Value, CommandError> {
     // Secrets travel only in memory to the local engine child, which stores
     // them via its credential backend. They never touch frontend storage.
+    let provider_type = provider_type
+        .or(providerType)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "provider_create requires provider_type".to_string())?;
     supervisor.provider_create(serde_json::json!({
         "alias": alias,
         "type": provider_type,
@@ -796,6 +834,8 @@ fn model_test(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_log::Builder::default().build())
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             if let Some(window) = app.get_webview_window("main") {

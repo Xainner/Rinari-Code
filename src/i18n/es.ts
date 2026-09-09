@@ -456,6 +456,13 @@ export const es = {
   'settings.admin.unreachable': 'Sin respuesta',
   'settings.about.body': 'Rinari Code: escritorio para Rinari.',
   'settings.about.repo': 'Repositorio',
+  'update.check': 'Buscar actualizaciones',
+  'update.checking': 'Buscando actualizaciones…',
+  'update.available': 'Nueva versión disponible: {v}',
+  'update.none': 'Ya tienes la última versión.',
+  'update.install': 'Instalar y reiniciar',
+  'update.installing': 'Instalando actualización…',
+  'update.failed': 'Falló la actualización: {detail}',
 
   /* Rinari Code */
   'app.name': 'Rinari Code',

@@ -1,0 +1,56 @@
+name: release
+
+# Publica instaladores + artefactos del updater estilo Hermes:
+# tag v* -> build Windows -> release (draft) con latest.json firmado.
+# La app instalada detecta el release y se auto-actualiza sola.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout engine (Rinari-CLI)
+        uses: actions/checkout@v4
+        with:
+          repository: Xainner/Rinari-CLI
+          ref: main
+          path: Rinari-CLI
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Tag matches package version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart("v")
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($tag -ne $pkg) { throw "tag v$tag != package.json $pkg" }
+
+      - run: npm ci
+
+      - name: Package engine sidecar
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File scripts/package-engine.ps1 `
+            -CliRepo "${{ github.workspace }}/Rinari-CLI"
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Rinari Code ${{ github.ref_name }}'
+          releaseDraft: true
+          includeUpdaterJson: true

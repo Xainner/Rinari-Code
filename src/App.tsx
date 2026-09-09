@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { toast } from 'sonner'
-import { I18nProvider } from './i18n'
+import { I18nProvider, translate, type I18nKey } from './i18n'
 import { engineApi } from './services/engine'
+import { checkForUpdates, installUpdateAndRelaunch } from './services/updates'
 import { useUIStore } from './stores/ui'
 import { useEngineSession } from './features/engine/useEngineSession'
 import AppShell from './components/app-shell/AppShell'
@@ -15,7 +16,7 @@ import SettingsView from './features/settings/SettingsView'
 import WorkspaceView from './features/workspace/WorkspaceView'
 import ProviderWizard from './features/providers/ProviderWizard'
 
-const APP_VERSION = '0.1.0'
+const APP_VERSION = '0.1.1'
 
 function App() {
   const view = useUIStore((s) => s.view)
@@ -88,6 +89,30 @@ function App() {
     if (!autoStarted.current) {
       autoStarted.current = true
       void session.startEngine()
+      // Auto-update silencioso estilo Hermes: solo avisa si hay versión.
+      // App vive fuera del I18nProvider: se usa translate() con el idioma actual.
+      const tr = (key: I18nKey, vars?: Record<string, string | number>) =>
+        translate(lang, key, vars)
+      void checkForUpdates()
+        .then((found) => {
+          if (!found) return
+          toast(tr('update.available', { v: found.version }), {
+            action: {
+              label: tr('update.install'),
+              onClick: () => {
+                toast.loading(tr('update.installing'))
+                void installUpdateAndRelaunch().catch((err: unknown) =>
+                  toast.error(
+                    tr('update.failed', {
+                      detail: err instanceof Error ? err.message : String(err),
+                    }),
+                  ),
+                )
+              },
+            },
+          })
+        })
+        .catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
