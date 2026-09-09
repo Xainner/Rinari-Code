@@ -26,7 +26,17 @@ $tag = $PythonVersion -replace "\.", ""
 $embedUrl = "https://www.python.org/ftp/python/$PythonVersion/python-$PythonVersion-embed-amd64.zip"
 $getPipUrl = "https://bootstrap.pypa.io/get-pip.py"
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "rinari-engine-pkg"
-New-Item -ItemType Directory -Force -Path $tmp, $OutDir | Out-Null
+$repoRoot = [System.IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
+$resolvedOut = [System.IO.Path]::GetFullPath($OutDir)
+$expectedRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot "src-tauri"))
+if (-not $resolvedOut.StartsWith($expectedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+  throw "OutDir debe permanecer dentro de $expectedRoot"
+}
+if (Test-Path -LiteralPath $resolvedOut) {
+  Remove-Item -LiteralPath $resolvedOut -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $tmp, $resolvedOut | Out-Null
+$OutDir = $resolvedOut
 
 Write-Host "--> wheel del engine"
 $manifest = Get-Content (Join-Path $PSScriptRoot "..\engine-manifest.json") -Raw | ConvertFrom-Json

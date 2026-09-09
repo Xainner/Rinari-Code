@@ -1,6 +1,8 @@
 //! Engine lifecycle + runtime snapshot + `rinari code` handoff parsing.
 use std::sync::Arc;
 
+#[cfg(not(debug_assertions))]
+use tauri::Manager;
 use tauri::{AppHandle, Emitter, State};
 
 use rinari_code_lib::engine::{

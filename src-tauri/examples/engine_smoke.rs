@@ -1,91 +1,124 @@
-// Manual roundtrip smoke: desktop EngineSupervisor against a real engine.
-// Run with env pointing at a checkout, e.g. (git-bash):
-//   RINARI_ENGINE_BIN=uv RINARI_ENGINE_ARGS="run rinari" \
-//   RINARI_ENGINE_CWD=C:/Users/Xainner/Documents/DEV/Rinari-CLI \
-//   RINARI_HOME=$LOCALAPPDATA/Temp/rinari-desktop-smoke \
-//   cargo run --example engine_smoke
-// Turn execution needs a configured provider; without one the engine must
-// answer turn.start with a clean error envelope (also asserted here).
-use std::sync::Arc;
-use std::time::Duration;
+//! Manual desktop-supervisor smoke against a real Engine Protocol process.
+//!
+//! Set `RINARI_ENGINE_BIN` and optionally `RINARI_ENGINE_ARGS` / cwd. When
+//! `RINARI_REQUIRE_REAL_TURN=1`, a configured provider and completed model
+//! response are mandatory. Output is deliberately credential-safe.
+
+use std::sync::{mpsc, Arc};
+use std::time::{Duration, Instant};
 
 use rinari_code_lib::engine::{methods::Method, protocol::EngineEvent, EngineSupervisor};
-use serde_json::json;
 
-fn show(label: &str, value: &serde_json::Value) {
-    println!("{label} {value}");
+fn count(result: &serde_json::Value, key: &str) -> usize {
+    result
+        .get(key)
+        .and_then(serde_json::Value::as_array)
+        .map_or(0, Vec::len)
 }
 
 fn main() {
+    let require_real = std::env::var("RINARI_REQUIRE_REAL_TURN").as_deref() == Ok("1");
+    let (event_tx, event_rx) = mpsc::channel::<EngineEvent>();
     let supervisor = EngineSupervisor::new();
-    supervisor.set_sink(Arc::new(|event: EngineEvent| {
-        match serde_json::to_string(&event) {
-            Ok(line) => println!("EVT {line}"),
-            Err(error) => println!("EVT <unserializable: {error}>"),
-        }
+    supervisor.set_sink(Arc::new(move |event| {
+        let _ = event_tx.send(event);
     }));
 
     let status = supervisor.start().expect("engine start");
-    println!(
-        "STATUS state={:?} engine={:?} protocol={:?} detail={:?}",
-        status.state, status.engine_version, status.protocol_version, status.detail
-    );
     assert_eq!(format!("{:?}", status.state), "Ready");
+    let providers = supervisor
+        .request(Method::ProviderList, None)
+        .expect("provider.list");
+    let models = supervisor
+        .request(Method::ModelList, None)
+        .expect("model.list");
+    let provider_count = count(&providers, "providers");
+    let model_count = count(&models, "models");
+    let active_provider = providers
+        .get("active_alias")
+        .and_then(serde_json::Value::as_str)
+        .is_some();
+    let active_model = models
+        .get("models")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|items| {
+            items
+                .iter()
+                .any(|item| item.get("active") == Some(&true.into()))
+        });
 
-    let info = supervisor
-        .request(Method::EngineInfo, None)
-        .expect("engine.info");
-    show("INFO", &info);
-
-    let sessions = supervisor.session_list(None, false).expect("session.list");
-    show("SESSIONS", &sessions);
-
-    // The engine refuses session.create without a configured provider/model.
-    // That config gate is correct behavior; assert its machine code and stop
-    // the smoke there. Full turn streaming runs in CLI pytest with injected
-    // fake models until provider CRUD lands (Phase 3).
-    let session_id = match supervisor.session_create(None, true, Some("desktop smoke".to_string()))
-    {
-        Ok(created) => {
-            show("CREATED", &created);
-            created
-                .get("session_id")
-                .and_then(|v| v.as_str())
-                .expect("created.session_id")
-                .to_string()
-        }
-        Err(error) => {
-            assert_eq!(error.code, "AUTHENTICATION_REQUIRED", "unexpected gate");
-            println!(
-                "CONFIG-GATE-OK code={} message={}",
-                error.code, error.message
-            );
-            let status = supervisor.shutdown();
-            println!("SHUTDOWN state={:?}", status.state);
-            println!("SMOKE-OK (config gate)");
-            return;
-        }
-    };
-
-    let snapshot = supervisor.snapshot_get().expect("runtime.snapshot.get");
-    show(
-        "SNAPSHOT-KEYS",
-        &json!(snapshot
-            .as_object()
-            .map(|o| o.keys().cloned().collect::<Vec<_>>())
-            .unwrap_or_default()),
-    );
-
-    // No provider in the smoke home: expect a clean error, not a hang.
-    match supervisor.turn_start(&session_id, "di hola") {
-        Ok(accept) => {
-            show("TURN-ACCEPT", &accept);
-            std::thread::sleep(Duration::from_secs(5));
-        }
-        Err(error) => println!("TURN-ERROR code={} message={}", error.code, error.message),
+    if !(active_provider && active_model) {
+        assert!(
+            !require_real,
+            "real turn required but no active provider/model exists"
+        );
+        println!(
+            "SMOKE-OK handshake=true providers={provider_count} models={model_count} real_turn=skipped"
+        );
+        supervisor.shutdown();
+        return;
     }
 
-    let status = supervisor.shutdown();
-    println!("SHUTDOWN state={:?}", status.state);
-    println!("SMOKE-OK");
+    let created = supervisor
+        .session_create_with_options(
+            None,
+            true,
+            Some("Desktop supervisor smoke".to_string()),
+            Some("build".to_string()),
+            Some("workspace".to_string()),
+        )
+        .expect("session.create");
+    let session_id = created
+        .pointer("/session/id")
+        .and_then(serde_json::Value::as_str)
+        .expect("session.create result.session.id");
+    let accepted = supervisor
+        .turn_start(session_id, "Respond exactly with OK. Do not call tools.")
+        .expect("session.turn.start");
+    let turn_id = accepted
+        .get("turn_id")
+        .and_then(serde_json::Value::as_str)
+        .expect("turn id");
+
+    let started = Instant::now();
+    let deadline = started + Duration::from_secs(120);
+    let terminal = loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        let event = event_rx
+            .recv_timeout(remaining)
+            .expect("terminal turn event before timeout");
+        if event
+            .payload
+            .get("turn_id")
+            .and_then(serde_json::Value::as_str)
+            != Some(turn_id)
+        {
+            continue;
+        }
+        if matches!(
+            event.event.as_str(),
+            "turn.completed" | "turn.failed" | "turn.cancelled" | "turn.stopped"
+        ) {
+            let code = event
+                .payload
+                .pointer("/error/code")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string);
+            break (event.event, code);
+        }
+    };
+    supervisor
+        .session_delete(session_id, true)
+        .expect("delete smoke session");
+    assert_eq!(
+        terminal.0, "turn.completed",
+        "real provider turn did not complete (code={:?})",
+        terminal.1
+    );
+    println!(
+        "SMOKE-OK handshake=true providers={provider_count} models={model_count} terminal={} elapsed_ms={}",
+        terminal.0,
+        started.elapsed().as_millis()
+    );
+    supervisor.shutdown();
 }
