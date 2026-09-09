@@ -29,6 +29,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - name: Prepare optional engine resource directory
+        shell: bash
+        run: mkdir -p src-tauri/engine-dist
       - name: Install Tauri system dependencies
         if: runner.os == 'Linux'
         run: |
