@@ -147,6 +147,7 @@ export const es = {
   'thinking.descHigh': 'Mayor presupuesto para problemas complejos.',
   'chat.emptySubtitle': 'Pregunta, crea, analiza o adjunta algo.',
   'chat.connecting': 'Conectando con Rinari…',
+  'chat.noSession': 'Sin sesión activa. Crea un chat primero.',
   'chat.saveRegenerate': 'Guardar y regenerar',
   'reasoning.thinking': 'Pensando…',
   'reasoning.title': 'Razonamiento',

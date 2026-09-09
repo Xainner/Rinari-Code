@@ -144,6 +144,7 @@ export const en: Record<I18nKey, string> = {
   'thinking.descHigh': 'Larger budget for complex problems.',
   'chat.emptySubtitle': 'Ask, create, analyze or attach something.',
   'chat.connecting': 'Connecting to Rinari…',
+  'chat.noSession': 'No active session. Start a chat first.',
   'chat.saveRegenerate': 'Save and regenerate',
   'reasoning.thinking': 'Thinking…',
   'reasoning.title': 'Reasoning',

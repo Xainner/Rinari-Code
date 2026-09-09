@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { useI18n } from '../../i18n'
 import {
   commandMessage,
   engineApi,
@@ -41,6 +42,7 @@ function historyToMessages(rows: HistoryMessage[]): ChatMessage[] {
  * de herramientas, aprobaciones y streaming de deltas.
  */
 export function useEngineSession() {
+  const { t } = useI18n()
   const [status, setStatus] = useState<EngineStatus | null>(null)
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [activeSession, setActiveSession] = useState<string>('')
@@ -300,6 +302,10 @@ export function useEngineSession() {
       const created = await createSession()
       if (!created) return false
       sessionId = created
+    }
+    if (!sessionId) {
+      toast.error(t('chat.noSession'))
+      return false
     }
     appendMessage(sessionId, {
       id: nextMsgId(),
