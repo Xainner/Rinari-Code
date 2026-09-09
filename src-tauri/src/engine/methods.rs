@@ -98,6 +98,7 @@ define_methods! {
     ProjectOpen => "project.open",
     ProjectStatus => "project.status",
     ProjectIntelligence => "project.intelligence",
+    ProjectTrust => "project.trust",
     ArtifactList => "artifact.list",
     ArtifactRead => "artifact.read",
     ContextGet => "context.get",

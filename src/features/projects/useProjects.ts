@@ -117,6 +117,19 @@ export function useProjects(options: { engineReady: boolean }) {
     }
   }, [])
 
+  const trustProject = useCallback(async (root: string): Promise<boolean> => {
+    try {
+      await engineApi.projectTrust(root)
+      const intel = await engineApi.projectIntelligence(root)
+      setIntelByRoot((prev) => ({ ...prev, [root]: intel }))
+      toast.success('Proyecto marcado como confiable.')
+      return true
+    } catch (err) {
+      toast.error(commandMessage(err))
+      return false
+    }
+  }, [])
+
   return {
     projects,
     projectsError,
@@ -129,6 +142,7 @@ export function useProjects(options: { engineReady: boolean }) {
     loadStatus,
     intelByRoot,
     loadIntelligence,
+    trustProject,
   }
 }
 

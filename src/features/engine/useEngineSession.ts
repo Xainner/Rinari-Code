@@ -196,6 +196,7 @@ export function useEngineSession() {
     removeProject: projects.removeProject,
     loadProjectStatus: projects.loadStatus,
     loadProjectIntelligence: projects.loadIntelligence,
+    trustProject: projects.trustProject,
     projectStatusByRoot: projects.statusByRoot,
     projectStatusErrorByRoot: projects.statusErrorByRoot,
     projectIntelByRoot: projects.intelByRoot,

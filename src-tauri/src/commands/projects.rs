@@ -96,3 +96,11 @@ pub(crate) async fn project_intelligence(
 ) -> Result<serde_json::Value, CommandError> {
     super::run_engine(supervisor, move |engine| engine.project_intelligence(&path)).await
 }
+
+#[tauri::command]
+pub(crate) async fn project_trust(
+    supervisor: State<'_, EngineSupervisor>,
+    path: String,
+) -> Result<serde_json::Value, CommandError> {
+    super::run_engine(supervisor, move |engine| engine.project_trust(&path)).await
+}

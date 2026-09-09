@@ -643,6 +643,10 @@ impl EngineSupervisor {
         self.request(Method::ProjectIntelligence, Some(json!({"path": path})))
     }
 
+    pub fn project_trust(&self, path: &str) -> Result<Value, CommandError> {
+        self.request(Method::ProjectTrust, Some(json!({"path": path})))
+    }
+
     pub fn agent_list(&self) -> Result<Value, CommandError> {
         self.request(Method::AgentList, None)
     }

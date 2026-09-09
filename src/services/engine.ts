@@ -634,6 +634,11 @@ export const engineApi = {
     invoke<ProjectStatus>("project_status", { path }),
   projectIntelligence: (path: string) =>
     invoke<ProjectIntelligence>("project_intelligence", { path }),
+  projectTrust: (path: string) =>
+    invoke<{
+      project: { root: string };
+      trust: { state: string; canonical_path: string; fingerprint: string | null; trusted_at: string };
+    }>("project_trust", { path }),
   closeSession: (reference: string) =>
     invoke<{ session: SessionSummary }>("session_close", { reference }),
   deleteSession: (reference: string, cascade?: boolean) =>

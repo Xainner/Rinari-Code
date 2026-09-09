@@ -112,6 +112,7 @@ pub fn run() {
             commands::projects::project_open,
             commands::projects::project_status,
             commands::projects::project_intelligence,
+            commands::projects::project_trust,
             commands::providers::provider_list,
             commands::providers::provider_create,
             commands::providers::provider_get,

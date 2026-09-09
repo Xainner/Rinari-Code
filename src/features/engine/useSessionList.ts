@@ -77,7 +77,18 @@ export function useSessionList(options: {
       setActiveSession(id)
       try {
         const opened = await engineApi.openSession(id)
-        for (const warning of opened.warnings ?? []) toast.warning(warning)
+        for (const warning of opened.warnings ?? []) {
+          // Working-tree drift is normal project state and already appears in
+          // the Git surface. Do not present it as an application error.
+          if (warning.startsWith('[working-tree]')) continue
+          if (warning.startsWith('[trust]')) {
+            toast.warning('Proyecto no confiado: las instrucciones locales están desactivadas.', {
+              id: `project-trust-${opened.session.project_id ?? opened.session.project_root ?? id}`,
+            })
+            continue
+          }
+          toast.warning(warning)
+        }
       } catch (err) {
         setActiveSession(previous)
         toast.error(commandMessage(err))

@@ -352,6 +352,11 @@ function App() {
                 void session.loadProjectIntelligence(projectRoot)
               }
             }}
+            onTrust={() => {
+              if (window.confirm(translate(lang, 'project.trustConfirm'))) {
+                void session.trustProject(projectRoot)
+              }
+            }}
           />
         )}
         {view === 'settings' && (

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { ArrowLeft, Copy, FolderGit2, MessageSquare, Plus } from 'lucide-react'
+import { ArrowLeft, Copy, FolderGit2, MessageSquare, Plus, ShieldCheck } from 'lucide-react'
 import type {
   ProjectIntelligence,
   ProjectStatus,
@@ -22,6 +22,7 @@ export interface ProjectHomeProps {
   onNewSession: () => void
   /** Carga perezosa: estado git (siempre) e inteligencia (solo si falta). */
   onEnsure: () => void
+  onTrust: () => void
 }
 
 /**
@@ -41,6 +42,7 @@ export default function ProjectHome({
   onSelectSession,
   onNewSession,
   onEnsure,
+  onTrust,
 }: ProjectHomeProps) {
   const { t } = useI18n()
 
@@ -192,7 +194,17 @@ export default function ProjectHome({
               {intel.instructions.trusted ? (
                 <span>{intel.instructions.scopes.length}</span>
               ) : (
-                <span className="text-amber-500">{t('project.untrusted')}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-amber-500">{t('project.untrusted')}</span>
+                  <button
+                    type="button"
+                    onClick={onTrust}
+                    className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-amber-500/30 px-1.5 py-0.5 font-semibold text-amber-500 transition-colors hover:bg-amber-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+                  >
+                    <ShieldCheck size={12} aria-hidden="true" />
+                    {t('project.trust')}
+                  </button>
+                </span>
               )}
             </p>
           </div>

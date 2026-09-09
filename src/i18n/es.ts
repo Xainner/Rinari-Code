@@ -96,6 +96,8 @@ export const es = {
   'project.commands': 'Comandos',
   'project.instructions': 'Instrucciones',
   'project.untrusted': 'No confiado',
+  'project.trust': 'Confiar',
+  'project.trustConfirm': '¿Confiar en este proyecto y permitir que Rinari use sus instrucciones locales?',
   'project.copyPath': 'Copiar ruta',
   'header.openProject': 'Abrir proyecto',
   'header.noGit': 'sin git',

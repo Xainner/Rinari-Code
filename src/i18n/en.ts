@@ -93,6 +93,8 @@ export const en: Record<I18nKey, string> = {
   'project.commands': 'Commands',
   'project.instructions': 'Instructions',
   'project.untrusted': 'Untrusted',
+  'project.trust': 'Trust',
+  'project.trustConfirm': 'Trust this project and allow Rinari to use its local instructions?',
   'project.copyPath': 'Copy path',
   'header.openProject': 'Open project',
   'header.noGit': 'no git',
