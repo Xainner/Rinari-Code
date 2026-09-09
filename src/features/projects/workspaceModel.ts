@@ -26,6 +26,7 @@ export function projectDisplayName(root: string): string {
 export function buildWorkspaceModel(
   sessions: SessionSummary[],
   projects: ProjectSummary[],
+  query = '',
 ): WorkspaceModel {
   const byId = new Map(projects.map((p) => [p.id, p] as const))
   const byRoot = new Map(projects.map((p) => [p.root, p] as const))
@@ -48,11 +49,36 @@ export function buildWorkspaceModel(
     }
   }
 
-  return {
-    sections: projects.map((project) => ({
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const sections = projects.map((project) => ({
       project,
       sessions: buckets.get(project.id) ?? [],
-    })),
-    chats,
+    }))
+  if (!normalizedQuery) return { sections, chats }
+  const includes = (value: string | null | undefined) =>
+    value?.toLocaleLowerCase().includes(normalizedQuery) ?? false
+  return {
+    sections: sections
+      .map((section) => {
+        const projectMatches = includes(section.project.name)
+          || includes(section.project.description)
+          || includes(section.project.root)
+        const matchingSessions = section.sessions.filter((session) => includes(session.title))
+        return projectMatches ? section : { ...section, sessions: matchingSessions }
+      })
+      .filter((section) =>
+        includes(section.project.name)
+        || includes(section.project.description)
+        || includes(section.project.root)
+        || section.sessions.length > 0,
+      ),
+    chats: chats.filter((session) => includes(session.title)),
   }
+}
+
+export function sortProjects(projects: ProjectSummary[]): ProjectSummary[] {
+  return [...projects].sort((left, right) =>
+    Number(Boolean(right.pinned)) - Number(Boolean(left.pinned))
+    || (right.last_opened_at ?? '').localeCompare(left.last_opened_at ?? ''),
+  )
 }

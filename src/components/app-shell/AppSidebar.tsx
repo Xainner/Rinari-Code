@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
+  Archive,
+  ArchiveRestore,
   ChevronDown,
   Cpu,
   FolderGit2,
@@ -9,6 +11,9 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  GitFork,
+  Pencil,
+  Pin,
   Search,
   Settings2,
 } from 'lucide-react'
@@ -49,13 +54,21 @@ export interface AppSidebarProps {
   onOpenFolder: () => void
   sessions: SessionSummary[]
   closedSessions: SessionSummary[]
+  archivedSessions: SessionSummary[]
   projects: ProjectSummary[]
+  archivedProjects: ProjectSummary[]
   activeId: string
   onSelectSession: (id: string) => void
   /** Ir al home del proyecto (vista workspace). */
   onOpenProject: (root: string) => void
   onCloseSession: (id: string) => void
+  onRenameSession: (id: string, title: string) => void
+  onArchiveSession: (id: string) => void
+  onRestoreSession: (id: string) => void
+  onForkSession: (id: string) => void
   onDeleteSession: (id: string, cascade: boolean) => void
+  onUpdateProject: (id: string, changes: { pinned?: boolean; archived?: boolean }) => void
+  onArchiveProject: (id: string) => void
   approvals: PendingApproval[]
 }
 
@@ -96,12 +109,20 @@ export function AppSidebar({
   onOpenFolder,
   sessions,
   closedSessions,
+  archivedSessions,
   projects,
+  archivedProjects,
   activeId,
   onSelectSession,
   onOpenProject,
   onCloseSession,
+  onRenameSession,
+  onArchiveSession,
+  onRestoreSession,
+  onForkSession,
   onDeleteSession,
+  onUpdateProject,
+  onArchiveProject,
   approvals,
 }: AppSidebarProps) {
   const { t } = useI18n()
@@ -110,10 +131,28 @@ export function AppSidebar({
   const mobileOpen = useUIStore((s) => s.sidebarOpen)
   const rail = collapsed && !mobileOpen
   const [showClosed, setShowClosed] = useState(false)
+  const [showArchivedProjects, setShowArchivedProjects] = useState(false)
+  const [showArchivedSessions, setShowArchivedSessions] = useState(false)
+  const [query, setQuery] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<SessionSummary | null>(null)
+  const [renameTarget, setRenameTarget] = useState<SessionSummary | null>(null)
+  const [renameTitle, setRenameTitle] = useState('')
   const [cascade, setCascade] = useState(false)
 
-  const model = useMemo(() => buildWorkspaceModel(sessions, projects), [sessions, projects])
+  const model = useMemo(() => buildWorkspaceModel(sessions, projects, query), [sessions, projects, query])
+  const archivedProjectResults = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase()
+    if (!needle) return archivedProjects
+    return archivedProjects.filter((project) =>
+      [project.name, project.description, project.root]
+        .some((value) => value?.toLocaleLowerCase().includes(needle)),
+    )
+  }, [archivedProjects, query])
+  const archivedSessionResults = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase()
+    if (!needle) return archivedSessions
+    return archivedSessions.filter((session) => session.title?.toLocaleLowerCase().includes(needle))
+  }, [archivedSessions, query])
 
   const confirmDelete = () => {
     if (!deleteTarget) return
@@ -157,34 +196,52 @@ export function AppSidebar({
               {sessionLabel(session, t('sidebar.newChat'))}
             </span>
           </button>
-          {!opts?.closed && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={t('sidebar.sessionOptions')}
-                  onClick={(e) => e.stopPropagation()}
-                  className="rounded-md p-1 text-[var(--text-subtle)] opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 hover:bg-[var(--bg-active)] hover:text-[var(--text)]"
-                >
-                  <MoreHorizontal size={14} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onSelect={() => onCloseSession(session.id)}>
-                  {t('sidebar.close')}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('sidebar.sessionOptions')}
+                onClick={(e) => e.stopPropagation()}
+                className="rounded-md p-1 text-[var(--text-subtle)] opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 hover:bg-[var(--bg-active)] hover:text-[var(--text)]"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {opts?.closed ? (
+                <DropdownMenuItem onSelect={() => onRestoreSession(session.id)}>
+                  <ArchiveRestore size={13} /> {t('sidebar.restore')}
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setCascade(false)
-                    setDeleteTarget(session)
-                  }}
-                  className="text-red-500 focus:text-red-500"
-                >
-                  {t('sidebar.delete')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+              ) : (
+                <>
+                  <DropdownMenuItem onSelect={() => {
+                    setRenameTitle(sessionLabel(session, t('sidebar.newChat')))
+                    setRenameTarget(session)
+                  }}>
+                    <Pencil size={13} /> {t('sidebar.rename')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => onForkSession(session.id)}>
+                    <GitFork size={13} /> {t('sidebar.fork')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => onArchiveSession(session.id)}>
+                    <Archive size={13} /> {t('sidebar.archive')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => onCloseSession(session.id)}>
+                    {t('sidebar.close')}
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuItem
+                onSelect={() => {
+                  setCascade(false)
+                  setDeleteTarget(session)
+                }}
+                className="text-red-500 focus:text-red-500"
+              >
+                {t('sidebar.delete')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </li>
     )
@@ -241,6 +298,15 @@ export function AppSidebar({
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-0.5">
+        <label className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-[var(--accent)]/40">
+          <Search size={13} aria-hidden="true" className="text-[var(--text-subtle)]" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t('sidebar.searchWorkspace')}
+            className="min-w-0 flex-1 border-0 bg-transparent text-xs text-[var(--text)] outline-none"
+          />
+        </label>
         <section aria-label={t('sidebar.projects')}>
           <div className="mb-1 flex items-center justify-between pl-2">
             <p className="text-[11px] font-semibold tracking-widest text-[var(--text-subtle)] uppercase">
@@ -261,7 +327,8 @@ export function AppSidebar({
           )}
           <ul className="space-y-2.5">
             {model.sections.map(({ project, sessions: items }) => (
-              <li key={project.id}>
+              <li key={project.id} className="group/project">
+                <div className="flex items-center">
                 <button
                   type="button"
                   onClick={() => onOpenProject(project.root)}
@@ -270,7 +337,7 @@ export function AppSidebar({
                 >
                   <FolderGit2 size={13} aria-hidden="true" className="shrink-0 text-[var(--text-subtle)]" />
                   <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text)]">
-                    {projectDisplayName(project.root)}
+                    {project.name || projectDisplayName(project.root)}
                   </span>
                   {items.length > 0 && (
                     <span className="shrink-0 rounded-md border border-[var(--border)] px-1 font-mono text-[10px] text-[var(--text-subtle)]">
@@ -278,6 +345,25 @@ export function AppSidebar({
                     </span>
                   )}
                 </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button type="button" aria-label={t('project.options')} className="rounded-md p-1 text-[var(--text-subtle)] opacity-0 group-hover/project:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100">
+                      <MoreHorizontal size={13} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => onUpdateProject(project.id, { pinned: !project.pinned })}>
+                      <Pin size={13} /> {project.pinned ? t('project.unpin') : t('project.pin')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onOpenProject(project.root)}>
+                      <Pencil size={13} /> {t('project.edit')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onArchiveProject(project.id)}>
+                      <Archive size={13} /> {t('project.archive')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                </div>
                 {items.length > 0 && (
                   <ul className="mt-0.5 ml-3.5 space-y-0.5 border-l border-[var(--border)] pl-1">
                     {items.map((session) => row(session))}
@@ -287,6 +373,28 @@ export function AppSidebar({
             ))}
           </ul>
         </section>
+
+        {archivedProjectResults.length > 0 && (
+          <section aria-label={t('project.archived')}>
+            <button type="button" onClick={() => setShowArchivedProjects((value) => !value)} aria-expanded={showArchivedProjects} className="flex w-full items-center gap-1.5 px-2 text-[11px] font-semibold tracking-widest text-[var(--text-subtle)] uppercase">
+              <ChevronDown size={12} className={cn('transition-transform', !showArchivedProjects && '-rotate-90')} />
+              {t('project.archived')} · {archivedProjectResults.length}
+            </button>
+            {showArchivedProjects && (
+              <ul className="mt-1 space-y-0.5">
+                {archivedProjectResults.map((project) => (
+                  <li key={project.id} className="flex items-center gap-1 rounded-lg px-2 py-1.5">
+                    <FolderGit2 size={13} className="text-[var(--text-subtle)]" />
+                    <span className="min-w-0 flex-1 truncate text-xs text-[var(--text-muted)]">{project.name}</span>
+                    <button type="button" onClick={() => onUpdateProject(project.id, { archived: false })} className="rounded-md p-1 text-[var(--text-subtle)] hover:bg-[var(--bg-hover)]" aria-label={t('project.restore')} title={t('project.restore')}>
+                      <ArchiveRestore size={13} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
         <section aria-label={t('sidebar.chats')}>
           <p className="mb-1 px-2 text-[11px] font-semibold tracking-widest text-[var(--text-subtle)] uppercase">
@@ -299,6 +407,29 @@ export function AppSidebar({
             )}
           </ul>
         </section>
+
+        {archivedSessionResults.length > 0 && (
+          <section aria-label={t('sidebar.archivedSessions')}>
+            <button
+              type="button"
+              onClick={() => setShowArchivedSessions((value) => !value)}
+              aria-expanded={showArchivedSessions}
+              className="flex w-full items-center gap-1.5 px-2 text-[11px] font-semibold tracking-widest text-[var(--text-subtle)] uppercase transition-colors hover:text-[var(--text-muted)]"
+            >
+              <ChevronDown
+                size={12}
+                aria-hidden="true"
+                className={cn('transition-transform', !showArchivedSessions && '-rotate-90')}
+              />
+              {t('sidebar.archivedSessions')} · {archivedSessionResults.length}
+            </button>
+            {showArchivedSessions && (
+              <ul className="mt-1 space-y-0.5">
+                {archivedSessionResults.map((session) => row(session, { closed: true }))}
+              </ul>
+            )}
+          </section>
+        )}
 
         {closedSessions.length > 0 && (
           <section aria-label={t('sidebar.closed')}>
@@ -355,6 +486,29 @@ export function AppSidebar({
             >
               {t('sidebar.deleteConfirm')}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={renameTarget !== null} onOpenChange={(open) => !open && setRenameTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('sidebar.rename')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('sidebar.renameDesc')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <input
+            autoFocus
+            aria-label={t('sidebar.rename')}
+            value={renameTitle}
+            onChange={(event) => setRenameTitle(event.target.value)}
+            className="rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (renameTarget && renameTitle.trim()) onRenameSession(renameTarget.id, renameTitle.trim())
+              setRenameTarget(null)
+            }}>{t('project.save')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

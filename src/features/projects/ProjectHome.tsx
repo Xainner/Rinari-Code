@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { ArrowLeft, Copy, FolderGit2, MessageSquare, Plus, ShieldCheck } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Archive, ArrowLeft, Copy, FolderGit2, MessageSquare, Pin, Plus, ShieldCheck } from 'lucide-react'
 import type {
   ProjectIntelligence,
   ProjectStatus,
@@ -23,12 +23,14 @@ export interface ProjectHomeProps {
   /** Carga perezosa: estado git (siempre) e inteligencia (solo si falta). */
   onEnsure: () => void
   onTrust: () => void
+  onUpdate: (changes: { name?: string; description?: string; pinned?: boolean }) => Promise<boolean>
+  onArchive: () => void
 }
 
 /**
  * Home del proyecto: identidad engine-owned (nombre/root), Git vivo,
- * sesiones del proyecto e inteligencia. Nada se edita aquí: los cambios
- * ocurren en el chat o en el workspace existente.
+ * sesiones del proyecto, metadata editable e inteligencia. La metadata
+ * pertenece al engine; nunca se escriben archivos dentro del proyecto.
  */
 export default function ProjectHome({
   root,
@@ -43,8 +45,17 @@ export default function ProjectHome({
   onNewSession,
   onEnsure,
   onTrust,
+  onUpdate,
+  onArchive,
 }: ProjectHomeProps) {
   const { t } = useI18n()
+  const [name, setName] = useState(project?.name ?? projectDisplayName(root))
+  const [description, setDescription] = useState(project?.description ?? '')
+
+  useEffect(() => {
+    setName(project?.name ?? projectDisplayName(root))
+    setDescription(project?.description ?? '')
+  }, [project, root])
 
   useEffect(() => {
     onEnsure()
@@ -78,7 +89,7 @@ export default function ProjectHome({
         </button>
         <FolderGit2 size={16} aria-hidden="true" className="shrink-0 text-[var(--text-subtle)]" />
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text)]">
-          {project ? projectDisplayName(project.root) : projectDisplayName(root)}
+          {project?.name || projectDisplayName(root)}
         </h2>
         <button
           type="button"
@@ -89,6 +100,30 @@ export default function ProjectHome({
           {t('project.newSession')}
         </button>
       </div>
+
+      {project && (
+        <section aria-label={t('project.details')} className="space-y-2 rounded-xl border border-[var(--border)] p-3">
+          <label className="block text-[11px] font-semibold text-[var(--text-subtle)]">
+            {t('project.name')}
+            <input value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-transparent px-2.5 py-2 text-sm font-normal text-[var(--text)] outline-none focus:ring-2 focus:ring-[var(--accent)]/40" />
+          </label>
+          <label className="block text-[11px] font-semibold text-[var(--text-subtle)]">
+            {t('project.description')}
+            <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={2} className="mt-1 w-full resize-none rounded-lg border border-[var(--border)] bg-transparent px-2.5 py-2 text-sm font-normal text-[var(--text)] outline-none focus:ring-2 focus:ring-[var(--accent)]/40" />
+          </label>
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button type="button" disabled={!name.trim()} onClick={() => void onUpdate({ name: name.trim(), description: description.trim() })} className="rounded-lg bg-[var(--bg-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--text)] hover:bg-[var(--bg-active)] disabled:opacity-40">
+              {t('project.save')}
+            </button>
+            <button type="button" onClick={() => void onUpdate({ pinned: !project.pinned })} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)]">
+              <Pin size={13} /> {project.pinned ? t('project.unpin') : t('project.pin')}
+            </button>
+            <button type="button" onClick={onArchive} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-500/10">
+              <Archive size={13} /> {t('project.archive')}
+            </button>
+          </div>
+        </section>
+      )}
 
       <div className="flex items-center gap-2">
         <p title={root} className="min-w-0 flex-1 truncate font-mono text-[11px] text-[var(--text-subtle)]">

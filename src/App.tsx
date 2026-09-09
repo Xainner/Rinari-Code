@@ -44,6 +44,9 @@ function App() {
   const activeRecord =
     session.sessions.find((s) => s.id === session.activeSession) ?? null
   const activeTitle = activeRecord?.title ?? null
+  const activeProject = activeRecord?.project_id
+    ? session.projects.find((project) => project.id === activeRecord.project_id) ?? null
+    : session.projects.find((project) => project.root === activeRecord?.project_root) ?? null
 
   // Handoff `rinari code [path] [--session]`: misma sesión/proyecto.
   // Con path: project.open registra/deduplica y devuelve la sesión
@@ -234,7 +237,9 @@ function App() {
             }
             sessions={session.sessions}
             closedSessions={session.closedSessions}
+            archivedSessions={session.archivedSessions}
             projects={session.projects}
+            archivedProjects={session.archivedProjects}
             activeId={session.activeSession}
             onSelectSession={(id) => {
               void session.selectSession(id)
@@ -242,7 +247,17 @@ function App() {
             }}
             onOpenProject={(root) => goProject(root)}
             onCloseSession={(id) => void session.closeSession(id)}
+            onRenameSession={(id, title) => void session.renameSession(id, title)}
+            onArchiveSession={(id) => void session.archiveSession(id)}
+            onRestoreSession={(id) => void session.restoreSession(id).then(() => goChat())}
+            onForkSession={(id) => void session.forkSession(id).then((created) => created && goChat())}
             onDeleteSession={(id, cascade) => void handleDeleteSession(id, cascade)}
+            onUpdateProject={(id, changes) => void session.updateProject(id, changes)}
+            onArchiveProject={(id) => {
+              if (window.confirm(translate(lang, 'project.archiveConfirm'))) {
+                void session.removeProject(id, 'archive')
+              }
+            }}
             approvals={session.approvals}
           />
         }
@@ -253,7 +268,7 @@ function App() {
               kind={activeRecord?.kind ?? null}
               mode={activeRecord?.mode ?? null}
               projectRoot={session.activeProjectRoot}
-              projectName={session.activeProjectRoot}
+              projectName={activeProject?.name ?? session.activeProjectRoot}
               git={
                 session.activeGitStatus?.status.available
                   ? {
@@ -355,6 +370,16 @@ function App() {
             onTrust={() => {
               if (window.confirm(translate(lang, 'project.trustConfirm'))) {
                 void session.trustProject(projectRoot)
+              }
+            }}
+            onUpdate={(changes) => {
+              const project = session.projects.find((item) => item.root === projectRoot)
+              return project ? session.updateProject(project.id, changes) : Promise.resolve(false)
+            }}
+            onArchive={() => {
+              const project = session.projects.find((item) => item.root === projectRoot)
+              if (project && window.confirm(translate(lang, 'project.archiveConfirm'))) {
+                void session.removeProject(project.id, 'archive').then((ok) => ok && goChat())
               }
             }}
           />

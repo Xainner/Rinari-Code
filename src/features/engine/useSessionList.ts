@@ -20,6 +20,8 @@ export function useSessionList(options: {
   const [sessionsError, setSessionsError] = useState<string | null>(null)
   /** Cerradas: ocultas del listado; abrir una la restaura. */
   const [closedSessions, setClosedSessions] = useState<SessionSummary[]>([])
+  /** Archivadas: ciclo de vida explícito, separado de "cerrar". */
+  const [archivedSessions, setArchivedSessions] = useState<SessionSummary[]>([])
   /** Total/has_more del historial cargado por sesión. */
   const [historyInfo, setHistoryInfo] = useState<Record<string, { total: number; hasMore: boolean }>>({})
   /** Sesiones con historial ya cargado o hilo vivo (no recargar encima). */
@@ -30,7 +32,8 @@ export function useSessionList(options: {
       const result = await engineApi.sessions(undefined, true)
       const normalized = result.sessions.filter((item) => item.state === 'active')
       setSessions(normalized)
-      setClosedSessions(result.sessions.filter((item) => item.state !== 'active'))
+      setClosedSessions(result.sessions.filter((item) => item.state === 'closed'))
+      setArchivedSessions(result.sessions.filter((item) => item.state === 'archived'))
       setSessionsError(null)
       setActiveSession((current) => {
         if (current !== '' && normalized.some((s) => s.id === current)) return current
@@ -148,6 +151,16 @@ export function useSessionList(options: {
     }
   }, [refreshSessions])
 
+  const restoreSession = useCallback(async (id: string): Promise<void> => {
+    try {
+      const result = await engineApi.restoreSession(id)
+      await refreshSessions()
+      setActiveSession(result.session.id)
+    } catch (err) {
+      toast.error(commandMessage(err))
+    }
+  }, [refreshSessions])
+
   const forkSession = useCallback(async (id: string): Promise<string | null> => {
     try {
       const result = await engineApi.forkSession(id)
@@ -218,6 +231,7 @@ export function useSessionList(options: {
     sessionsError,
     historyInfo,
     closedSessions,
+    archivedSessions,
     refreshSessions,
     loadSessionHistory,
     selectSession,
@@ -225,6 +239,7 @@ export function useSessionList(options: {
     closeSession,
     renameSession,
     archiveSession,
+    restoreSession,
     forkSession,
     deleteSession,
     setMode,

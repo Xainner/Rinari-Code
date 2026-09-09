@@ -7,6 +7,7 @@ import {
   type ProjectStatus,
   type ProjectSummary,
 } from '../../services/engine'
+import { sortProjects } from './workspaceModel'
 
 /**
  * Projects: proyectos recientes del engine, apertura, estado Git vivo e
@@ -16,6 +17,7 @@ import {
 export function useProjects(options: { engineReady: boolean }) {
   const { engineReady } = options
   const [projects, setProjects] = useState<ProjectSummary[]>([])
+  const [archivedProjects, setArchivedProjects] = useState<ProjectSummary[]>([])
   const [projectsError, setProjectsError] = useState<string | null>(null)
   const [statusByRoot, setStatusByRoot] = useState<Record<string, ProjectStatus>>({})
   const [statusErrorByRoot, setStatusErrorByRoot] = useState<Record<string, string>>({})
@@ -25,8 +27,17 @@ export function useProjects(options: { engineReady: boolean }) {
 
   const refreshProjects = useCallback(async (): Promise<void> => {
     try {
-      const result = await engineApi.projectRecents()
-      setProjects(result.projects)
+      const [recent, all] = await Promise.all([
+        engineApi.projectRecents(),
+        engineApi.projectList(true),
+      ])
+      const byRecent = new Map(recent.projects.map((project) => [project.id, project] as const))
+      const active = sortProjects(all.projects
+        .filter((project) => !project.archived)
+        .map((project) => ({ ...project, ...byRecent.get(project.id) }))
+      )
+      setProjects(active)
+      setArchivedProjects(all.projects.filter((project) => project.archived))
       setProjectsError(null)
     } catch (err) {
       setProjectsError(commandMessage(err))
@@ -132,6 +143,7 @@ export function useProjects(options: { engineReady: boolean }) {
 
   return {
     projects,
+    archivedProjects,
     projectsError,
     refreshProjects,
     openProject,

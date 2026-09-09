@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ProjectSummary, SessionSummary } from '../../services/engine'
-import { buildWorkspaceModel, projectDisplayName } from './workspaceModel'
+import { buildWorkspaceModel, projectDisplayName, sortProjects } from './workspaceModel'
 
 function session(partial: Partial<SessionSummary> & { id: string }): SessionSummary {
   return {
@@ -24,7 +24,14 @@ function session(partial: Partial<SessionSummary> & { id: string }): SessionSumm
 
 function project(partial: Partial<ProjectSummary> & { id: string; root: string }): ProjectSummary {
   return {
+    canonical_root: partial.root,
+    name: projectDisplayName(partial.root),
+    description: '',
+    pinned: false,
+    archived: false,
     git_fingerprint: null,
+    created_at: '2026-09-09T00:00:00Z',
+    updated_at: '2026-09-09T00:00:00Z',
     last_opened_at: '2026-09-09T00:00:00Z',
     active_session_id: null,
     ...partial,
@@ -80,5 +87,32 @@ describe('buildWorkspaceModel', () => {
     ]
     const model = buildWorkspaceModel(sessions, projects)
     expect(model.sections[0].sessions.map((s) => s.id)).toEqual(['s2', 's1'])
+  })
+
+  it('busca proyecto por nombre, descripción y ruta, y sesiones por título', () => {
+    const projects = [
+      project({ id: 'p1', root: '/r/cli', name: 'Rinari CLI', description: 'Harness' }),
+      project({ id: 'p2', root: '/r/code', name: 'Desktop', description: 'Tauri app' }),
+    ]
+    const sessions = [
+      session({ id: 's1', kind: 'PROJECT', project_id: 'p1', title: 'Governor' }),
+      session({ id: 's2', kind: 'PROJECT', project_id: 'p2', title: 'Timeline' }),
+      session({ id: 's3', title: 'Independent research' }),
+    ]
+    expect(buildWorkspaceModel(sessions, projects, 'harness').sections.map((item) => item.project.id)).toEqual(['p1'])
+    expect(buildWorkspaceModel(sessions, projects, '/code').sections.map((item) => item.project.id)).toEqual(['p2'])
+    expect(buildWorkspaceModel(sessions, projects, 'timeline').sections[0].sessions[0].id).toBe('s2')
+    expect(buildWorkspaceModel(sessions, projects, 'research').chats[0].id).toBe('s3')
+  })
+})
+
+describe('sortProjects', () => {
+  it('puts pinned projects first, then most recently opened', () => {
+    const projects = [
+      project({ id: 'old', root: '/old', last_opened_at: '2026-01-01T00:00:00Z' }),
+      project({ id: 'new', root: '/new', last_opened_at: '2026-09-09T00:00:00Z' }),
+      project({ id: 'pin', root: '/pin', pinned: true, last_opened_at: '2025-01-01T00:00:00Z' }),
+    ]
+    expect(sortProjects(projects).map((item) => item.id)).toEqual(['pin', 'new', 'old'])
   })
 })
