@@ -36,10 +36,12 @@ instalador trae Code + engine empaquetado; un update trae ambos).
   (requiere repo público).
 - Sin releases publicados, `check()` falla en silencio: la app sigue
   normal, sin toasts.
+- Firmar en local solo funciona en terminal en primer plano: el runner en
+  fondo no propaga `export` al build (los bundles salen igual, pero sin
+  `.sig`). Para releases, firmar siempre en CI.
 - Matriz actual: solo Windows. Ampliar a macOS/Linux cuando se necesite
   (el sidecar Python empaquetado es por plataforma).
-- `v0.1.1`: primera versión con updater + blindaje snake/camel en
-  `turn_start/turn_cancel/queue_*/provider_create` (instaladores 0.1.0
-  con la misma versión no siempre reemplazaban archivos en MSI, de ahí
-  los errores `missing required key sessionId/providerType` con frontend
-  viejo).
+- `v0.1.1`: primera versión con updater. Incluye guards de sesión vacía
+  con versión en el mensaje + fail-fast en el frontend para separar bugs
+  de UI de bugs del puente (nota: se probó aceptar snake+camel en Rust y
+  se revirtió: dos params casi idénticos confunden al parser de Tauri).
