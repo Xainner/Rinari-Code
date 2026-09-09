@@ -7,6 +7,8 @@
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::{
     atomic::{AtomicU64, Ordering},
@@ -84,6 +86,11 @@ impl EngineTransport {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        // Sin ventana de consola propia en Windows: el engine es un hijo
+        // invisible (su stderr se drena al log). El exe ya es windowed en
+        // release vía windows_subsystem; esto cubre al python hijo.
+        #[cfg(windows)]
+        command.creation_flags(0x08000000);
         let mut child = command
             .spawn()
             .map_err(|e| TransportError::Spawn(e.to_string()))?;
