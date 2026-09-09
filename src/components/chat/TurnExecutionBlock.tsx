@@ -18,6 +18,9 @@ function seconds(execution: TurnExecution, now: number): string {
 }
 
 function statusLabel(execution: TurnExecution): string {
+  if (execution.governor?.action === 'compact' && !terminalStatuses.has(execution.status)) {
+    return 'Compactando contexto…'
+  }
   if (execution.status === 'thinking' && execution.preparationStage) {
     return {
       runtime: 'Preparando turno…',
@@ -101,6 +104,7 @@ export default function TurnExecutionBlock({ execution, approvals, onResolveAppr
               Progreso: {execution.governor.progress ?? execution.governor.action ?? 'activo'}
               {execution.governor.usage?.model_calls != null ? ` · modelo ${execution.governor.usage.model_calls}` : ''}
               {execution.governor.usage?.tool_calls != null ? ` · herramientas ${execution.governor.usage.tool_calls}` : ''}
+              {execution.governor.compactions != null ? ` · compactaciones ${execution.governor.compactions}` : ''}
             </span>
           )}
           {execution.error && <span className="mt-1 block text-[11px] font-normal text-rose-400">{execution.error}</span>}

@@ -39,6 +39,24 @@ describe('turn lifecycle', () => {
     expect(state.executions.t1.governor?.progress).toBe('healthy')
   })
 
+  it('reconstruye compactación y la deduplica como estado del mismo turno', () => {
+    const initial = reduce(createInitialTurnRuntime(), [
+      { type: 'turn/started', turnId: 't1', sessionId: 's1', now: NOW },
+    ])
+    const action = engineEventToAction({
+      type: 'event',
+      event: 'governor.compact',
+      payload: {
+        turn_id: 't1', session_id: 's1', status: 'completed', pressure: 0.84,
+        governor: { execution: 'automatic', compactions: 1, recovery_attempts: 0 },
+      },
+    }, NOW)
+    const state = turnRuntimeReducer(initial, action!)
+    expect(state.executions.t1.governor?.action).toBe('compact')
+    expect(state.executions.t1.governor?.compactions).toBe(1)
+    expect(state.executions.t1.governor?.contextPressure).toBe(0.84)
+  })
+
   it('started → delta → completed es determinista', () => {
     const state = reduce(liveTurn(), [
       { type: 'turn/completed', turnId: 't1', sessionId: 's1', content: '', now: NOW + 2 },

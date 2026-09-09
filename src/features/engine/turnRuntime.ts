@@ -62,7 +62,7 @@ export type TurnRuntimeAction =
   | { type: 'turn/cancelled'; turnId: string; sessionId: string; now: number }
   | { type: 'turn/failed'; turnId: string; sessionId: string; error: string; now: number }
   | { type: 'turn/stopped'; turnId: string; sessionId: string; reason: TurnStopReason; now: number }
-  | { type: 'governor/progress'; turnId: string; sessionId: string; progress?: string; action?: string; recoveryAttempts?: number; usage?: Record<string, number> }
+  | { type: 'governor/progress'; turnId: string; sessionId: string; progress?: string; action?: string; recoveryAttempts?: number; compactions?: number; contextPressure?: number; usage?: Record<string, number> }
   | { type: 'approval/requested'; approval: PendingApproval }
   | { type: 'approval/resolving'; approvalId: string }
   | { type: 'approval/pending'; approvalId: string }
@@ -406,10 +406,13 @@ export function turnRuntimeReducer(
         executions: withExecution(state.executions, action.turnId, action.sessionId, Date.now(), (current) => ({
           ...current,
           governor: {
-            progress: action.progress,
-            action: action.action,
-            recoveryAttempts: action.recoveryAttempts,
-            usage: action.usage,
+            ...current.governor,
+            progress: action.progress ?? current.governor?.progress,
+            action: action.action ?? current.governor?.action,
+            recoveryAttempts: action.recoveryAttempts ?? current.governor?.recoveryAttempts,
+            compactions: action.compactions ?? current.governor?.compactions,
+            contextPressure: action.contextPressure ?? current.governor?.contextPressure,
+            usage: action.usage ?? current.governor?.usage,
           },
         })),
       }
@@ -514,12 +517,22 @@ function restoreFromSnapshot(
         ? {
             progress: typeof (item.governor as Record<string, unknown>).progress === 'string'
               ? (item.governor as Record<string, unknown>).progress as string
-              : undefined,
+              : typeof ((item.governor as Record<string, unknown>).progress as Record<string, unknown> | undefined)?.kind === 'string'
+                ? ((item.governor as Record<string, unknown>).progress as Record<string, unknown>).kind as string
+                : undefined,
             action: typeof (item.governor as Record<string, unknown>).action === 'string'
               ? (item.governor as Record<string, unknown>).action as string
-              : undefined,
+              : typeof (item.governor as Record<string, unknown>).event === 'string'
+                ? ((item.governor as Record<string, unknown>).event as string).split('.')[1]
+                : undefined,
             recoveryAttempts: typeof (item.governor as Record<string, unknown>).recovery_attempts === 'number'
               ? (item.governor as Record<string, unknown>).recovery_attempts as number
+              : undefined,
+            compactions: typeof (item.governor as Record<string, unknown>).compactions === 'number'
+              ? (item.governor as Record<string, unknown>).compactions as number
+              : undefined,
+            contextPressure: typeof (item.governor as Record<string, unknown>).context_pressure === 'number'
+              ? (item.governor as Record<string, unknown>).context_pressure as number
               : undefined,
           }
         : undefined,
@@ -648,14 +661,21 @@ export function engineEventToAction(event: EngineEventMsg, now: number = Date.no
     case 'governor.consolidate':
     case 'governor.compact':
     case 'governor.stop':
+      {
+      const governor = payload.governor && typeof payload.governor === 'object'
+        ? payload.governor as Record<string, unknown>
+        : {}
       return {
         type: 'governor/progress',
         turnId: str(payload.turn_id),
         sessionId: str(payload.session_id),
-        progress: str(payload.progress) || undefined,
+        progress: str(payload.progress ?? (governor.progress as Record<string, unknown> | undefined)?.kind) || undefined,
         action: str(payload.action ?? event.event.split('.')[1]) || undefined,
-        recoveryAttempts: typeof payload.recovery_attempts === 'number' ? payload.recovery_attempts : undefined,
+        recoveryAttempts: typeof payload.recovery_attempts === 'number' ? payload.recovery_attempts : typeof governor.recovery_attempts === 'number' ? governor.recovery_attempts : undefined,
+        compactions: typeof payload.compactions === 'number' ? payload.compactions : typeof governor.compactions === 'number' ? governor.compactions : undefined,
+        contextPressure: typeof payload.pressure === 'number' ? payload.pressure : typeof governor.context_pressure === 'number' ? governor.context_pressure : undefined,
         usage: payload.usage && typeof payload.usage === 'object' ? payload.usage as Record<string, number> : undefined,
+      }
       }
     case 'approval.requested':
       return {

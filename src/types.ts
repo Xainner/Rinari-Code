@@ -58,6 +58,8 @@ export interface TurnExecution {
     progress?: string
     action?: string
     recoveryAttempts?: number
+    compactions?: number
+    contextPressure?: number
     usage?: { model_calls?: number; tool_calls?: number; wall_time_s?: number }
   }
   tools: ToolActivity[]

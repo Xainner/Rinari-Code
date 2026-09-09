@@ -1,5 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type {
+  Attachment as ProtocolAttachment,
+  ProjectSummary as ProtocolProjectSummary,
+  SessionSummary as ProtocolSessionSummary,
+} from '../types/protocol.generated'
 
 export type EngineState =
   | "stopped"
@@ -29,32 +34,8 @@ export interface EngineEventMsg {
   payload: Record<string, any>;
 }
 
-export interface SessionSummary {
-  id: string;
-  kind: string;
-  title: string | null;
-  mode: string;
-  state: string;
-  updated_at: string;
-  project_id: string | null;
-  project_root: string | null;
-  current_cwd: string | null;
-  git_branch: string | null;
-  last_active_at: string;
-  provider_id: string;
-  model_id: string;
-  permission_profile: 'read-only' | 'workspace' | 'full-access';
-  effective_permission_profile: 'read-only' | 'workspace' | 'full-access';
-}
-
-export interface AttachmentInput {
-  id: string;
-  path: string;
-  name: string;
-  mime_type?: string;
-  size?: number;
-  source: 'native' | 'workspace';
-}
+export type SessionSummary = ProtocolSessionSummary
+export type AttachmentInput = ProtocolAttachment
 
 export interface HistoryMessage {
   id: string;
@@ -168,18 +149,7 @@ export interface SoulDetail extends SoulSummary {
 }
 
 /** Proyecto registrado en el engine (project.list_recent). */
-export interface ProjectSummary {
-  id: string;
-  root: string;
-  canonical_root?: string;
-  name?: string;
-  description?: string;
-  pinned?: boolean;
-  archived?: boolean;
-  git_fingerprint: string | null;
-  last_opened_at?: string;
-  active_session_id?: string | null;
-}
+export type ProjectSummary = ProtocolProjectSummary
 
 export interface ProjectGitStatus {
   available: boolean;

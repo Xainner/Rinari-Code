@@ -17,6 +17,39 @@ import ModelCatalog from './ModelCatalog'
 import { PROVIDER_PRESETS } from './presets'
 
 type Step = 'preset' | 'fields' | 'testing' | 'models' | 'done'
+const WIZARD_DRAFT_KEY = 'rinari.provider-wizard.v1'
+
+interface WizardDraft {
+  step: Step
+  form: ProviderFormData
+  createdAlias: string | null
+  createdType: string | null
+  createdAuth: string | null
+}
+
+export function loadWizardDraft(storage: Pick<Storage, 'getItem'> = localStorage): WizardDraft | null {
+  try {
+    const raw = storage.getItem(WIZARD_DRAFT_KEY)
+    if (!raw) return null
+    const draft = JSON.parse(raw) as WizardDraft
+    if (!['preset', 'fields', 'testing', 'models'].includes(draft.step) || !draft.form) return null
+    return { ...draft, form: { ...draft.form, secret: '' } }
+  } catch {
+    return null
+  }
+}
+
+export function saveWizardDraft(
+  draft: WizardDraft,
+  storage: Pick<Storage, 'setItem'> = localStorage,
+): void {
+  const safe = { ...draft, form: { ...draft.form, secret: '' } }
+  storage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(safe))
+}
+
+export function clearWizardDraft(storage: Pick<Storage, 'removeItem'> = localStorage): void {
+  storage.removeItem(WIZARD_DRAFT_KEY)
+}
 
 /**
  * Alta guiada de proveedor (primer arranque y botón Agregar).
@@ -31,16 +64,18 @@ export default function ProviderWizard({
   onClose: (finished: boolean) => void
 }) {
   const { t } = useI18n()
-  const [step, setStep] = useState<Step>('preset')
-  const [form, setForm] = useState<ProviderFormData>(() => initialForm())
-  const [createdAlias, setCreatedAlias] = useState<string | null>(null)
-  const [createdType, setCreatedType] = useState<string | null>(null)
-  const [createdAuth, setCreatedAuth] = useState<string | null>(null)
+  const [draft] = useState(() => loadWizardDraft())
+  const [step, setStep] = useState<Step>(draft?.step ?? 'preset')
+  const [form, setForm] = useState<ProviderFormData>(() => draft?.form ?? initialForm())
+  const [createdAlias, setCreatedAlias] = useState<string | null>(draft?.createdAlias ?? null)
+  const [createdType, setCreatedType] = useState<string | null>(draft?.createdType ?? null)
+  const [createdAuth, setCreatedAuth] = useState<string | null>(draft?.createdAuth ?? null)
   const [health, setHealth] = useState<ProviderHealth | null>(null)
   const [error, setError] = useState('')
   const [working, setWorking] = useState(false)
 
   function reset() {
+    clearWizardDraft()
     setStep('preset')
     setForm(initialForm())
     setCreatedAlias(null)
@@ -50,6 +85,11 @@ export default function ProviderWizard({
     setError('')
     setWorking(false)
   }
+
+  useEffect(() => {
+    if (step === 'done') return
+    saveWizardDraft({ step, form, createdAlias, createdType, createdAuth })
+  }, [step, form, createdAlias, createdType, createdAuth])
 
   function trackPersisted(alias: string) {
     setCreatedAlias(alias)
@@ -227,7 +267,7 @@ export default function ProviderWizard({
   }
 
   function close(finished: boolean) {
-    reset()
+    if (finished) reset()
     onClose(finished)
   }
 
