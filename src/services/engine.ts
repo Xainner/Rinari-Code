@@ -38,6 +38,19 @@ export interface SessionSummary {
   updated_at: string;
   project_root: string | null;
   current_cwd: string | null;
+  provider_id: string;
+  model_id: string;
+  permission_profile: 'read-only' | 'workspace' | 'full-access';
+  effective_permission_profile: 'read-only' | 'workspace' | 'full-access';
+}
+
+export interface AttachmentInput {
+  id: string;
+  path: string;
+  name: string;
+  mime_type?: string;
+  size?: number;
+  source: 'native' | 'workspace';
 }
 
 export interface HistoryMessage {
@@ -77,6 +90,8 @@ export interface ModelSummary {
   availability: string;
   settings: Record<string, unknown>;
   active: boolean;
+  /** False for a live provider-catalog entry not persisted locally yet. */
+  saved?: boolean;
 }
 
 export interface DiscoveredModel {
@@ -262,11 +277,13 @@ export const engineApi = {
   restart: () => invoke<EngineStatus>("engine_restart"),
   sessions: (kind?: string) =>
     invoke<{ sessions: SessionSummary[] }>("session_list", { kind: kind ?? null }),
-  createSession: (options?: { cwd?: string; chat?: boolean; title?: string }) =>
+  createSession: (options?: { cwd?: string; chat?: boolean; title?: string; mode?: string; permission_profile?: string }) =>
     invoke<{ session: SessionSummary; created: boolean }>("session_create", {
       cwd: options?.cwd ?? null,
       chat: options?.chat ?? false,
       title: options?.title ?? null,
+      mode: options?.mode ?? 'build',
+      permission_profile: options?.permission_profile ?? 'workspace',
     }),
   openSession: (reference: string) =>
     invoke<{ session: SessionSummary; created: boolean; warnings: string[] }>(
@@ -282,6 +299,24 @@ export const engineApi = {
     }>("session_history", { reference, limit: limit ?? null }),
   setSessionMode: (reference: string, mode: string) =>
     invoke<{ session: SessionSummary }>("session_mode_set", { reference, mode }),
+  setSessionModel: (reference: string, model: string, provider?: string) =>
+    invoke<{ session: SessionSummary; model: ModelSummary }>("session_model_set", {
+      reference,
+      model,
+      provider: provider ?? null,
+    }),
+  setSessionPermission: (reference: string, permissionProfile: string) =>
+    invoke<{ session: SessionSummary }>("session_permission_set", {
+      reference,
+      permission_profile: permissionProfile,
+    }),
+  getSessionPermission: (reference: string) =>
+    invoke<{ session: SessionSummary }>("session_permission_get", { reference }),
+  searchWorkspaceFiles: (sessionId: string, query: string, limit = 30) =>
+    invoke<{ root: string; files: Array<{ path: string; relative_path: string; name: string }> }>(
+      "workspace_file_search",
+      { session_id: sessionId, query, limit },
+    ),
   taskTree: (path: string) =>
     invoke<{ tasks: TaskItem[]; depths: Record<string, number> }>("task_tree", {
       path,
@@ -446,7 +481,7 @@ export const engineApi = {
     }),
   initialOpenRequest: () =>
     invoke<{ project: string | null; session: string | null }>("initial_open_request"),
-  startTurn: (sessionId: string, message: string) => {
+  startTurn: (sessionId: string, message: string, reasoningEffort?: string | null, attachments: AttachmentInput[] = []) => {
     // Fail-fast con texto inconfundible: si esto salta, el bug está en la
     // UI (nunca debería invocar sin sesión); si salta el mensaje del
     // backend "(app 0.1.1)", el bug está en el puente Tauri.
@@ -456,6 +491,8 @@ export const engineApi = {
     return invoke<{ status: string; turn_id: string; session_id: string }>("turn_start", {
       session_id: sessionId,
       message,
+      reasoning_effort: reasoningEffort ?? null,
+      attachments,
     })
   },
   cancelTurn: (sessionId: string) =>

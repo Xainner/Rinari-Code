@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '../../i18n'
-import { commandMessage, onEngineEvent, type EngineEventMsg } from '../../services/engine'
+import { commandMessage, engineApi, onEngineEvent, type EngineEventMsg } from '../../services/engine'
 import { Section } from '../../components/settings/parts'
 import type { EngineSession } from './useEngineSession'
 
@@ -51,6 +52,27 @@ export default function EngineConsole({ session }: { session: EngineSession }) {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight })
   }, [lines])
 
+  /** Sonda autoinformante: invoca turn_start con sesión vacía a propósito.
+   * El backend actual la rechaza con su guard (mensaje con versión); si
+   * responde otra cosa, el binario en ejecución no es el código actual. */
+  async function diagnose() {
+    const push = (text: string, kind: LogLine['kind']) =>
+      setLines((prev) => [...prev.slice(-199), { key: lineKey++, text, kind }])
+    push('diag: turn_start(session_id="") …', 'info')
+    try {
+      const raw = await invoke('turn_start', { session_id: '', message: 'ping' })
+      push(`diag: turn_start OK inesperado: ${JSON.stringify(raw)}`, 'error')
+    } catch (err) {
+      push(`diag: turn_start → ${commandMessage(err)}`, 'error')
+    }
+    try {
+      const listed = await engineApi.providerList()
+      push(`diag: providers=${listed.providers.length}`, 'info')
+    } catch (err) {
+      push(`diag: providerList → ${commandMessage(err)}`, 'error')
+    }
+  }
+
   return (
     <div className="mx-auto h-full max-w-3xl space-y-4 overflow-y-auto px-4 py-6">
       <Section title={t('engine.title')}>
@@ -84,6 +106,13 @@ export default function EngineConsole({ session }: { session: EngineSession }) {
             className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--bg-hover)]"
           >
             {t('engine.restart')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void diagnose()}
+            className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--bg-hover)]"
+          >
+            {t('engine.diag')}
           </button>
         </div>
       </Section>

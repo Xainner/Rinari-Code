@@ -19,7 +19,6 @@ interface AppSidebarProps {
   onOpenSettings: () => void
   onOpenEngine: () => void
   onOpenWorkspace: () => void
-  onResolveApproval: (id: string, decision: string) => void
 }
 
 function RailButton({
@@ -48,26 +47,7 @@ function RailButton({
   )
 }
 
-const DOT: Record<string, string> = {
-  ready: 'bg-emerald-400',
-  degraded: 'bg-amber-400',
-  failed: 'bg-red-400',
-  starting: 'bg-sky-400 animate-pulse',
-  handshaking: 'bg-sky-400 animate-pulse',
-  restarting: 'bg-sky-400 animate-pulse',
-  stopped: 'bg-[var(--text-subtle)]',
-}
-
-function EngineDot({ state }: { state: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn('size-2 shrink-0 rounded-full', DOT[state] ?? DOT.stopped)}
-    />
-  )
-}
-
-/** Sidebar: sesiones del engine, aprobaciones pendientes y estado del motor. Sin cuentas: no hay login. */
+/** Sidebar: sesiones del engine y aprobaciones pendientes. Sin cuentas: no hay login. */
 export default function AppSidebar({
   sessions,
   activeId,
@@ -81,11 +61,9 @@ export default function AppSidebar({
   onOpenSettings,
   onOpenEngine,
   onOpenWorkspace,
-  onResolveApproval,
 }: AppSidebarProps) {
   const { t } = useI18n()
   const engineState = engine?.state ?? 'stopped'
-  const engineLabel = t(`engine.${engineState}` as 'engine.ready')
 
   if (collapsed) {
     return (
@@ -255,56 +233,13 @@ export default function AppSidebar({
             <p className="mb-1 px-2 text-[11px] font-semibold tracking-widest text-[var(--text-subtle)] uppercase">
               {t('sidebar.approvals')} · {approvals.length}
             </p>
-            {approvals.map((approval) => (
-              <div
-                key={approval.approval_id}
-                className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--bg-subtle)] p-2.5"
-              >
-                <p className="truncate font-mono text-xs text-[var(--text)]">
-                  {approval.capability}
-                </p>
-                {approval.target && (
-                  <p className="truncate text-[11px] text-[var(--text-subtle)]">
-                    {approval.target}
-                  </p>
-                )}
-                <div className="mt-1.5 flex gap-1">
-                  {(['deny', 'allow_once', 'allow_session'] as const).map((decision) => (
-                    <button
-                      key={decision}
-                      type="button"
-                      onClick={() => onResolveApproval(approval.approval_id, decision)}
-                      className="rounded-lg border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text)]"
-                    >
-                      {decision === 'deny' ? '✕' : decision === 'allow_once' ? '1×' : '∞'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <p className="px-2 text-[11px] leading-relaxed text-[var(--text-subtle)]">
+              Responde la solicitud dentro del turno activo.
+            </p>
           </div>
         )}
       </div>
 
-      <div className="border-t border-[var(--border)] p-3">
-        <button
-          type="button"
-          onClick={onOpenEngine}
-          title={engine?.detail ?? undefined}
-          className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-[var(--bg-hover)]"
-        >
-          <EngineDot state={engineState} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-[var(--text)]">
-              {t('engine.title')}
-            </span>
-            <span className="block text-[11px] text-[var(--text-subtle)]">
-              {engineLabel}
-              {engine?.engine_version ? ` · v${engine.engine_version}` : ''}
-            </span>
-          </span>
-        </button>
-      </div>
     </div>
   )
 }

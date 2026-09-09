@@ -32,6 +32,7 @@ CAPABILITIES = {
     "artifacts": True,
     "checkpoints": True,
     "terminal": True,
+    "desktop_turn_runtime_v3": True,
 }
 
 DECISIONS = ["allow_once", "allow_session", "deny"]
@@ -92,7 +93,9 @@ class FakeEngine:
         record = {"id": session_id,
                   "kind": kind,
                   "title": params.get("title") or "fake",
-                  "mode": "build",
+                  "mode": params.get("mode") or "build",
+                  "permission_profile": params.get("permission_profile") or "workspace",
+                  "effective_permission_profile": params.get("permission_profile") or "workspace",
                   "state": "active",
                   "project_root": None,
                   "current_cwd": "/fake/work",
@@ -125,6 +128,49 @@ class FakeEngine:
         record["mode"] = mode
         respond(req_id, result={"session": record})
         emit("session.mode.changed", {"session_id": session_id, "mode": mode})
+
+    def session_permission_set(self, req_id, params):
+        params = params or {}
+        session_id = params.get("ref", "")
+        record = self.sessions.get(session_id)
+        if record is None:
+            fail(req_id, "NOT_FOUND", f"Session {session_id} not found.")
+            return
+        profile = params.get("permission_profile", "")
+        if profile not in ("read-only", "workspace", "full-access"):
+            fail(req_id, "INVALID_USAGE", f"Unknown permission profile: {profile!r}.")
+            return
+        record["permission_profile"] = profile
+        record["effective_permission_profile"] = (
+            profile if record["mode"] == "build" else "read-only"
+        )
+        respond(req_id, result={"session": record})
+
+    def session_permission_get(self, req_id, params):
+        session_id = (params or {}).get("ref", "")
+        record = self.sessions.get(session_id)
+        if record is None:
+            fail(req_id, "NOT_FOUND", f"Session {session_id} not found.")
+            return
+        respond(req_id, result={"session": record})
+
+    def session_model_set(self, req_id, params):
+        params = params or {}
+        record = self.sessions.get(params.get("ref", ""))
+        model = next((item for item in self.models if item["id"] == params.get("model")), None)
+        if record is None or model is None:
+            fail(req_id, "NOT_FOUND", "Session or model not found.")
+            return
+        record["provider_id"] = model["provider_id"]
+        record["model_id"] = model["id"]
+        respond(req_id, result={"session": record, "model": self._model_view(model)})
+
+    def workspace_file_search(self, req_id, params):
+        query = (params or {}).get("query", "")
+        respond(req_id, result={"root": "/fake/work", "files": [
+            {"path": "/fake/work/src/main.ts", "relative_path": "src/main.ts",
+             "name": "main.ts"}
+        ] if "main" in query else []})
 
     # -- workspace reads (Phase 6): canned, path-echoing shapes -------------
 
@@ -602,7 +648,9 @@ class FakeEngine:
         with self.lock:
             self.pending_turns[turn_id] = (session_id, params.get("message", ""))
         respond(req_id, result={"status": "started", "turn_id": turn_id,
-                               "session_id": session_id})
+                               "session_id": session_id,
+                               "reasoning_effort": params.get("reasoning_effort"),
+                               "attachments": params.get("attachments", [])})
         worker = threading.Thread(target=self._run_scenario,
                                   args=(turn_id, session_id), daemon=True)
         worker.start()
@@ -962,6 +1010,10 @@ class FakeEngine:
             "session.create": self.session_create,
             "session.open": self.session_open,
             "session.mode.set": self.session_mode_set,
+            "session.model.set": self.session_model_set,
+            "session.permission.get": self.session_permission_get,
+            "session.permission.set": self.session_permission_set,
+            "workspace.file.search": self.workspace_file_search,
             "task.tree": self.task_tree,
             "task.get": self.task_get,
             "verification.latest": self.verification_latest,

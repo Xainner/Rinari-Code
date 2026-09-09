@@ -56,7 +56,7 @@ export default function QueueBar({
     }
   }
 
-  if (!sessionId) return null
+  if (!sessionId || (!refreshKey && queue.length === 0)) return null
 
   return (
     <div className="px-4 pb-1">

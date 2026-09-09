@@ -88,7 +88,7 @@ export default function CommandPalette({
       className="fixed top-1/2 left-1/2 z-[100] max-h-[70vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] shadow-[0_8px_30px_rgba(0,0,0,0.24)] outline-none"
       overlayClassName="fixed inset-0 z-[99] bg-black/60 backdrop-blur-sm"
     >
-      <div className="flex items-center gap-2 border-b border-[var(--border)] px-3">
+      <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 transition-colors focus-within:border-[var(--accent-2)]/60 focus-within:ring-1 focus-within:ring-inset focus-within:ring-[var(--accent-2)]/25">
         {page !== 'root' && (
           <button
             type="button"
@@ -103,7 +103,7 @@ export default function CommandPalette({
           value={query}
           onValueChange={setQuery}
           placeholder={t('cmd.placeholder')}
-          className="h-12 w-full bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-subtle)]"
+          className="command-search-input h-12 w-full border-0 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-subtle)] focus:outline-none focus-visible:outline-none"
         />
       </div>
       <Command.List className="max-h-[50vh] overflow-y-auto p-1.5">

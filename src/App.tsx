@@ -15,6 +15,7 @@ import EngineConsole from './features/engine/EngineConsole'
 import SettingsView from './features/settings/SettingsView'
 import WorkspaceView from './features/workspace/WorkspaceView'
 import ProviderWizard from './features/providers/ProviderWizard'
+import StartupSplash from './components/StartupSplash'
 
 const APP_VERSION = '0.1.1'
 
@@ -121,10 +122,15 @@ function App() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardSnoozed, setWizardSnoozed] = useState(false)
   useEffect(() => {
-    if (session.ready && session.providers.length === 0 && !wizardSnoozed) {
+    if (
+      session.ready &&
+      session.catalogLoaded &&
+      session.providers.length === 0 &&
+      !wizardSnoozed
+    ) {
       setWizardOpen(true)
     }
-  }, [session.ready, session.providers.length, wizardSnoozed])
+  }, [session.ready, session.catalogLoaded, session.providers.length, wizardSnoozed])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -141,6 +147,19 @@ function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [togglePalette, goSettings])
+
+  const startupReady = session.ready && session.sessionsLoaded && session.catalogLoaded
+  if (!startupReady) {
+    return (
+      <I18nProvider lang={lang}>
+        <StartupSplash
+          failed={session.status?.state === 'failed' || session.status?.state === 'degraded'}
+          detail={session.status?.detail}
+          onRetry={() => void session.restartEngine()}
+        />
+      </I18nProvider>
+    )
+  }
 
   return (
     <I18nProvider lang={lang}>
@@ -162,7 +181,6 @@ function App() {
             onOpenSettings={() => goSettings()}
             onOpenEngine={goEngine}
             onOpenWorkspace={goWorkspace}
-            onResolveApproval={(id, decision) => void session.resolveApproval(id, decision)}
           />
         }
         header={
@@ -182,7 +200,6 @@ function App() {
       >
         {view === 'chat' && (
           <ChatView
-            sessionId={session.activeSession || null}
             messages={session.messages}
             isStreaming={session.busy}
             engineReady={session.ready}
@@ -191,14 +208,18 @@ function App() {
             onOpenProviders={() => goSettings('providers')}
             models={session.models}
             activeAlias={session.activeModel?.alias ?? null}
-            onUseModel={(alias) => void session.useModel(alias)}
+            onUseModel={(model) => void session.useModel(model)}
             sessionMode={activeRecord?.mode ?? null}
             onModeChange={(mode) => void session.setMode(mode)}
-            activity={
-              session.activeSession !== ''
-                ? (session.activity[session.activeSession] ?? [])
-                : []
-            }
+            reasoningEffort={session.reasoningEffort}
+            onReasoningChange={session.setReasoningEffort}
+            executions={session.executions}
+            approvals={session.approvals}
+            onResolveApproval={(id, decision) => void session.resolveApproval(id, decision)}
+            permissionProfile={activeRecord?.permission_profile ?? 'workspace'}
+            effectivePermissionProfile={activeRecord?.effective_permission_profile ?? 'workspace'}
+            onPermissionChange={(profile) => void session.setPermission(profile)}
+            onSearchFiles={session.searchFiles}
             historyNote={
               session.activeSession !== ''
                 ? (session.historyInfo[session.activeSession] ?? null)

@@ -621,6 +621,70 @@ fn streams_turn_to_completion_in_order() {
 }
 
 #[test]
+fn turn_start_forwards_reasoning_effort() {
+    let harness = start_fake("stream");
+    let session_id = create_session(&harness);
+
+    let accept = harness
+        .supervisor
+        .turn_start_with_effort(&session_id, "hola", Some("high"))
+        .expect("turn accepted");
+    assert_eq!(accept["reasoning_effort"].as_str(), Some("high"));
+
+    let _ = wait_for(&harness, Duration::from_secs(15), is("turn.completed"));
+    harness.supervisor.shutdown();
+}
+
+#[test]
+fn desktop_session_permissions_files_and_attachments_roundtrip() {
+    let harness = start_fake("stream");
+    let created = harness
+        .supervisor
+        .session_create_with_options(
+            None,
+            true,
+            Some("desktop".into()),
+            Some("build".into()),
+            Some("workspace".into()),
+        )
+        .expect("session created");
+    let session_id = created["session"]["id"].as_str().expect("session id");
+    assert_eq!(created["session"]["mode"], "build");
+    assert_eq!(created["session"]["permission_profile"], "workspace");
+
+    let changed = harness
+        .supervisor
+        .session_permission_set(session_id, "full-access")
+        .expect("permission changed");
+    assert_eq!(changed["session"]["permission_profile"], "full-access");
+    let persisted = harness
+        .supervisor
+        .session_permission_get(session_id)
+        .expect("permission read");
+    assert_eq!(persisted["session"]["permission_profile"], "full-access");
+
+    let files = harness
+        .supervisor
+        .workspace_file_search(session_id, "main", 30)
+        .expect("files searched");
+    assert_eq!(files["files"][0]["relative_path"], "src/main.ts");
+
+    let attachments = serde_json::json!([{
+        "id": "att_1",
+        "path": "/fake/work/src/main.ts",
+        "name": "main.ts",
+        "source": "workspace"
+    }]);
+    let accept = harness
+        .supervisor
+        .turn_start_with_options(session_id, "revisa", Some("low"), Some(attachments))
+        .expect("turn accepted");
+    assert_eq!(accept["attachments"][0]["name"], "main.ts");
+    let _ = wait_for(&harness, Duration::from_secs(15), is("turn.completed"));
+    harness.supervisor.shutdown();
+}
+
+#[test]
 fn cancel_ends_slow_turn_without_completion() {
     let harness = start_fake("slow");
     let session_id = create_session(&harness);

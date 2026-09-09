@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Virtualizer, type VirtualizerHandle } from 'virtua'
-import type { ChatMessage, ToolActivity } from '../types'
+import type { AttachmentRef, ChatMessage, PendingApproval, TurnExecution } from '../types'
 import type { ModelSummary } from '../services/engine'
 import { useI18n, type I18nKey } from '../i18n'
 import { useComposerStore } from '../stores/composer'
@@ -9,24 +9,31 @@ import { useUIStore } from '../stores/ui'
 import Composer from './composer/Composer'
 import Logo from './Logo'
 import MessageBubble from './MessageBubble'
-import QueueBar from './chat/QueueBar'
 import ScrollToBottom from './chat/ScrollToBottom'
+import TurnExecutionBlock from './chat/TurnExecutionBlock'
 
 interface ChatViewProps {
-  sessionId: string | null
   messages: ChatMessage[]
   isStreaming: boolean
   engineReady: boolean
-  onSend: (text: string) => Promise<boolean>
+  onSend: (text: string, attachments?: AttachmentRef[]) => Promise<boolean>
   onStop: () => void
   onOpenProviders: () => void
   models: ModelSummary[]
   activeAlias: string | null
-  onUseModel: (alias: string) => void
-  activity: ToolActivity[]
+  onUseModel: (model: ModelSummary) => void
+  executions: Record<string, TurnExecution>
+  approvals: PendingApproval[]
+  onResolveApproval: (id: string, decision: string) => void
   historyNote: { total: number; hasMore: boolean } | null
   sessionMode: string | null
   onModeChange: (mode: string) => void
+  reasoningEffort: 'off' | 'low' | 'medium' | 'high'
+  onReasoningChange: (effort: 'off' | 'low' | 'medium' | 'high') => void
+  permissionProfile: 'read-only' | 'workspace' | 'full-access'
+  effectivePermissionProfile: 'read-only' | 'workspace' | 'full-access'
+  onPermissionChange: (profile: string) => void
+  onSearchFiles: (query: string) => Promise<{ root: string; files: Array<{ path: string; relative_path: string; name: string }> }>
 }
 
 const SUGGESTIONS: I18nKey[] = [
@@ -37,7 +44,6 @@ const SUGGESTIONS: I18nKey[] = [
 ]
 
 export default function ChatView({
-  sessionId,
   messages,
   isStreaming,
   engineReady,
@@ -47,10 +53,18 @@ export default function ChatView({
   models,
   activeAlias,
   onUseModel,
-  activity,
+  executions,
+  approvals,
+  onResolveApproval,
   historyNote,
   sessionMode,
   onModeChange,
+  reasoningEffort,
+  onReasoningChange,
+  permissionProfile,
+  effectivePermissionProfile,
+  onPermissionChange,
+  onSearchFiles,
 }: ChatViewProps) {
   const { t } = useI18n()
   const autoFollow = useUIStore((s) => s.autoFollow)
@@ -61,6 +75,10 @@ export default function ChatView({
   const hasDraft = useComposerStore((s) => s.text.trim().length > 0)
 
   const empty = messages.length === 0
+  // `turn.started` creates the assistant placeholder linked to its execution.
+  // A second UI-only placeholder produced duplicate "Pensando" rows and could
+  // outlive a terminal event, so the protocol-backed message is the sole source.
+  const visibleMessages: ChatMessage[] = messages
 
   function handleScroll() {
     const el = scrollRef.current
@@ -71,10 +89,10 @@ export default function ChatView({
   useEffect(() => {
     // Autoscroll inteligente: solo sigue si el usuario ya estaba abajo
     // y la preferencia está activa.
-    if (autoFollow && atBottom && messages.length > 0) {
-      virtRef.current?.scrollToIndex(messages.length - 1, { align: 'end' })
+    if (autoFollow && atBottom && visibleMessages.length > 0) {
+      virtRef.current?.scrollToIndex(visibleMessages.length - 1, { align: 'end' })
     }
-  }, [messages, isStreaming, atBottom, autoFollow])
+  }, [messages, isStreaming, atBottom, autoFollow, visibleMessages.length])
 
   const composer = (
     <Composer
@@ -87,7 +105,13 @@ export default function ChatView({
       onUseModel={onUseModel}
       sessionMode={sessionMode}
       onModeChange={onModeChange}
+      reasoningEffort={reasoningEffort}
+      onReasoningChange={onReasoningChange}
       onOpenProviders={onOpenProviders}
+      permissionProfile={permissionProfile}
+      effectivePermissionProfile={effectivePermissionProfile}
+      onPermissionChange={onPermissionChange}
+      onSearchFiles={onSearchFiles}
     />
   )
 
@@ -151,13 +175,28 @@ export default function ChatView({
                 {t('history.hasMore', { n: historyNote.total })}
               </p>
             )}
-            <Virtualizer ref={virtRef} scrollRef={scrollRef} data={messages} bufferSize={800}>
+            <Virtualizer ref={virtRef} scrollRef={scrollRef} data={visibleMessages} bufferSize={800}>
               {(m, index) => (
                 <div
                   key={m.id}
                   className={`mx-auto max-w-3xl px-4 ${index === 0 ? 'pt-6' : 'pt-3'} pb-3`}
                 >
-                  <MessageBubble message={m} />
+                  {m.turnId && executions[m.turnId] && (
+                    <TurnExecutionBlock
+                      execution={executions[m.turnId]}
+                      approvals={approvals}
+                      onResolveApproval={onResolveApproval}
+                    />
+                  )}
+                  {(m.content !== '' || !m.turnId || !executions[m.turnId]) && (
+                    <MessageBubble
+                      message={
+                        m.turnId && executions[m.turnId]
+                          ? { ...m, pending: false }
+                          : m
+                      }
+                    />
+                  )}
                 </div>
               )}
             </Virtualizer>
@@ -169,31 +208,6 @@ export default function ChatView({
               transition={{ duration: 0.22, ease: 'easeOut' }}
               className="mx-auto max-w-3xl"
             >
-              {activity.length > 0 && (
-                <details className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-1.5">
-                  <summary className="cursor-pointer text-xs text-[var(--text-muted)]">
-                    {t('activity.title')} · {activity.filter((a) => a.status === 'running').length > 0
-                      ? t('activity.running')
-                      : t('activity.done')}{' '}
-                    ({activity.length})
-                  </summary>
-                  <ul className="mt-1.5 space-y-1 pb-1">
-                    {activity.map((a, i) => (
-                      <li
-                        key={`${a.tool}-${i}`}
-                        className="flex items-center gap-2 font-mono text-[11px] text-[var(--text-subtle)]"
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={`size-1.5 rounded-full ${a.status === 'running' ? 'animate-pulse bg-[var(--accent-2)]' : 'bg-emerald-500/70'}`}
-                        />
-                        <span className="truncate">{a.tool}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-              <QueueBar sessionId={sessionId} refreshKey={isStreaming} />
               {composer}
             </motion.div>
           </div>
@@ -201,9 +215,9 @@ export default function ChatView({
             visible={!atBottom && messages.length > 0}
             onClick={() => {
               setAtBottom(true)
-              if (messages.length > 0) {
+              if (visibleMessages.length > 0) {
                 requestAnimationFrame(() => {
-                  virtRef.current?.scrollToIndex(messages.length - 1, { align: 'end' })
+                  virtRef.current?.scrollToIndex(visibleMessages.length - 1, { align: 'end' })
                 })
               }
             }}

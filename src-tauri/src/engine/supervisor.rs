@@ -175,6 +175,19 @@ impl EngineSupervisor {
             let cwd = std::env::var(ENV_ENGINE_CWD).ok().map(PathBuf::from);
             return Ok((bin, args, cwd));
         }
+        #[cfg(debug_assertions)]
+        if let Some(cwd) = dev_engine_checkout(std::path::Path::new(env!("CARGO_MANIFEST_DIR"))) {
+            return Ok((
+                "uv".to_string(),
+                vec![
+                    "run".to_string(),
+                    "rinari".to_string(),
+                    "engine".to_string(),
+                    "--stdio".to_string(),
+                ],
+                Some(cwd),
+            ));
+        }
         Ok((
             "rinari".to_string(),
             vec!["engine".to_string(), "--stdio".to_string()],
@@ -211,6 +224,16 @@ impl EngineSupervisor {
             self.set_state(EngineState::Failed, Some(error.to_string()));
             CommandError::from(error)
         })?;
+        if hello.capabilities.get("desktop_turn_runtime_v3") != Some(&true) {
+            transport.shutdown();
+            let message = concat!(
+                "The active Rinari Engine is outdated and does not support the desktop turn ",
+                "runtime required by this app. Rebuild the packaged engine or use the current ",
+                "Rinari-CLI checkout."
+            );
+            self.set_state(EngineState::Failed, Some(message.to_string()));
+            return Err(CommandError::new("ENGINE_INCOMPATIBLE", message));
+        }
         let transport = Arc::new(transport);
         if let Ok(mut inner) = self.inner.lock() {
             inner.transport = Some(Arc::clone(&transport));
@@ -290,6 +313,17 @@ impl EngineSupervisor {
         chat: bool,
         title: Option<String>,
     ) -> Result<Value, CommandError> {
+        self.session_create_with_options(cwd, chat, title, None, None)
+    }
+
+    pub fn session_create_with_options(
+        &self,
+        cwd: Option<String>,
+        chat: bool,
+        title: Option<String>,
+        mode: Option<String>,
+        permission_profile: Option<String>,
+    ) -> Result<Value, CommandError> {
         let mut params = serde_json::Map::new();
         if let Some(cwd) = cwd {
             params.insert("cwd".to_string(), Value::String(cwd));
@@ -298,13 +332,82 @@ impl EngineSupervisor {
         if let Some(title) = title {
             params.insert("title".to_string(), Value::String(title));
         }
+        if let Some(mode) = mode {
+            params.insert("mode".to_string(), Value::String(mode));
+        }
+        if let Some(profile) = permission_profile {
+            params.insert("permission_profile".to_string(), Value::String(profile));
+        }
         self.request("session.create", Some(Value::Object(params)))
     }
 
     pub fn turn_start(&self, session_id: &str, message: &str) -> Result<Value, CommandError> {
+        self.turn_start_with_options(session_id, message, None, None)
+    }
+
+    pub fn turn_start_with_effort(
+        &self,
+        session_id: &str,
+        message: &str,
+        reasoning_effort: Option<&str>,
+    ) -> Result<Value, CommandError> {
+        self.turn_start_with_options(session_id, message, reasoning_effort, None)
+    }
+
+    pub fn turn_start_with_options(
+        &self,
+        session_id: &str,
+        message: &str,
+        reasoning_effort: Option<&str>,
+        attachments: Option<Value>,
+    ) -> Result<Value, CommandError> {
         self.request(
             "session.turn.start",
-            Some(json!({"session_id": session_id, "message": message})),
+            Some(json!({
+                "session_id": session_id,
+                "message": message,
+                "reasoning_effort": reasoning_effort,
+                "attachments": attachments.unwrap_or_else(|| Value::Array(vec![])),
+            })),
+        )
+    }
+
+    pub fn session_permission_set(
+        &self,
+        reference: &str,
+        profile: &str,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            "session.permission.set",
+            Some(json!({"ref": reference, "permission_profile": profile})),
+        )
+    }
+
+    pub fn session_permission_get(&self, reference: &str) -> Result<Value, CommandError> {
+        self.request("session.permission.get", Some(json!({"ref": reference})))
+    }
+
+    pub fn session_model_set(
+        &self,
+        reference: &str,
+        model: &str,
+        provider: Option<&str>,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            "session.model.set",
+            Some(json!({"ref": reference, "model": model, "provider": provider})),
+        )
+    }
+
+    pub fn workspace_file_search(
+        &self,
+        session_id: &str,
+        query: &str,
+        limit: u32,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            "workspace.file.search",
+            Some(json!({"session_id": session_id, "query": query, "limit": limit})),
         )
     }
 
@@ -801,6 +904,22 @@ impl EngineSupervisor {
             inner.pump = Some(pump);
         }
     }
+}
+
+#[cfg(debug_assertions)]
+fn dev_engine_checkout(manifest_dir: &std::path::Path) -> Option<PathBuf> {
+    let app_root = manifest_dir.parent()?;
+    let candidates = [
+        app_root.join("..").join("Rinari-CLI"),
+        app_root.join("..").join("..").join("Rinari-CLI"),
+    ];
+    candidates.into_iter().find_map(|candidate| {
+        let resolved = candidate.canonicalize().ok()?;
+        resolved
+            .join("pyproject.toml")
+            .is_file()
+            .then_some(resolved)
+    })
 }
 
 impl Default for EngineSupervisor {

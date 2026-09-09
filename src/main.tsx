@@ -10,3 +10,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <Toaster position="bottom-right" />
   </React.StrictMode>,
 );
+
+// Ventana dev distinguible de la instalada (mismo identificador/app).
+if (import.meta.env.DEV) {
+  document.title = 'Rinari Code (DEV)'
+}

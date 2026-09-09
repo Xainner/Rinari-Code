@@ -9,6 +9,9 @@ export interface ChatMessage {
   role: Role
   content: string
   createdAt: number
+  /** Fallback waiting state when no protocol-backed execution is available. */
+  pending?: boolean
+  turnId?: string
 }
 
 export type SessionKind = 'chat' | 'project'
@@ -16,14 +19,39 @@ export type SessionKind = 'chat' | 'project'
 export interface PendingApproval {
   approval_id: string
   session_id: string | null
+  turn_id: string | null
   capability: string
   target: string | null
   risk: string
   description: string
+  status?: 'pending' | 'resolving' | 'expired'
 }
 
-/** Actividad observable de herramientas por sesión (eventos tool.*). */
 export interface ToolActivity {
+  id: string
   tool: string
-  status: 'running' | 'done'
+  status: 'requested' | 'running' | 'done' | 'failed' | 'cancelled'
+  detail?: string
+  durationMs?: number
+  error?: string
+}
+
+export interface TurnExecution {
+  turnId: string
+  sessionId: string
+  status: 'thinking' | 'executing' | 'approval' | 'cancelling' | 'completed' | 'cancelled' | 'failed'
+  startedAt: number
+  completedAt?: number
+  preparationStage?: string
+  error?: string
+  tools: ToolActivity[]
+}
+
+export interface AttachmentRef {
+  id: string
+  path: string
+  name: string
+  mime_type?: string
+  size?: number
+  source: 'native' | 'workspace'
 }

@@ -17,6 +17,25 @@ use rinari_code_lib::engine::{
 /// Frontend event channel carrying every async engine event.
 const FRONTEND_EVENT: &str = "rinari-engine-event";
 
+fn start_supervised_engine(
+    _app: &AppHandle,
+    supervisor: &EngineSupervisor,
+) -> Result<EngineStatus, CommandError> {
+    // A development build must use the live checkout selected by
+    // EngineSupervisor::locate(), never a possibly stale packaged sidecar.
+    // The supervised Python process imports that checkout once per launch;
+    // Restarting the Tauri host picks up engine and process-probe changes made during dev.
+    #[cfg(not(debug_assertions))]
+    if std::env::var("RINARI_ENGINE_BIN").is_err() {
+        if let Ok(resource_dir) = _app.path().resource_dir() {
+            if let Some(result) = supervisor.start_with_sidecar(&resource_dir) {
+                return result;
+            }
+        }
+    }
+    supervisor.start()
+}
+
 #[tauri::command]
 fn engine_status(supervisor: State<'_, EngineSupervisor>) -> EngineStatus {
     supervisor.status()
@@ -32,16 +51,7 @@ fn engine_start(
         let _ = forwarder.emit(FRONTEND_EVENT, &event);
     });
     supervisor.set_sink(sink);
-    // Production: bundled sidecar wins; dev override (RINARI_ENGINE_BIN)
-    // and PATH stay as fallback via supervisor.start().
-    if std::env::var("RINARI_ENGINE_BIN").is_err() {
-        if let Ok(resource_dir) = app.path().resource_dir() {
-            if let Some(result) = supervisor.start_with_sidecar(&resource_dir) {
-                return result;
-            }
-        }
-    }
-    supervisor.start()
+    start_supervised_engine(&app, &supervisor)
 }
 
 #[tauri::command]
@@ -59,7 +69,8 @@ fn engine_restart(
         let _ = forwarder.emit(FRONTEND_EVENT, &event);
     });
     supervisor.set_sink(sink);
-    supervisor.restart()
+    supervisor.shutdown();
+    start_supervised_engine(&app, &supervisor)
 }
 
 #[tauri::command]
@@ -104,7 +115,7 @@ fn task_tree(
     supervisor.task_tree(&path)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn task_get(
     supervisor: State<'_, EngineSupervisor>,
     path: String,
@@ -123,7 +134,7 @@ fn verification_latest(
     supervisor.verification_latest(&path, kinds, limit)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn verification_plan(
     supervisor: State<'_, EngineSupervisor>,
     path: String,
@@ -140,7 +151,7 @@ fn checkpoint_list(
     supervisor.checkpoint_list(path)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn checkpoint_show(
     supervisor: State<'_, EngineSupervisor>,
     checkpoint_id: String,
@@ -148,7 +159,7 @@ fn checkpoint_show(
     supervisor.checkpoint_show(&checkpoint_id)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn checkpoint_restore(
     supervisor: State<'_, EngineSupervisor>,
     path: String,
@@ -172,7 +183,7 @@ fn project_changes(
     supervisor.project_changes(&path)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn project_diff(
     supervisor: State<'_, EngineSupervisor>,
     path: String,
@@ -213,7 +224,7 @@ fn agent_config_set(
     }))
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn session_events(
     supervisor: State<'_, EngineSupervisor>,
     reference: String,
@@ -385,7 +396,7 @@ fn policy_get(supervisor: State<'_, EngineSupervisor>) -> Result<serde_json::Val
     supervisor.policy_get()
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn artifact_list(
     supervisor: State<'_, EngineSupervisor>,
     session_id: Option<String>,
@@ -393,7 +404,7 @@ fn artifact_list(
     supervisor.artifact_list(session_id)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn artifact_read(
     supervisor: State<'_, EngineSupervisor>,
     uri: String,
@@ -418,7 +429,7 @@ fn usage_get(
     supervisor.usage_get(reference)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn queue_add(
     supervisor: State<'_, EngineSupervisor>,
     session_id: String,
@@ -432,7 +443,7 @@ fn queue_add(
     supervisor.queue_add(&session_id, &message)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn queue_list(
     supervisor: State<'_, EngineSupervisor>,
     session_id: String,
@@ -445,7 +456,7 @@ fn queue_list(
     supervisor.queue_list(&session_id)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn queue_clear(
     supervisor: State<'_, EngineSupervisor>,
     session_id: String,
@@ -463,7 +474,7 @@ fn bundle_list(supervisor: State<'_, EngineSupervisor>) -> Result<serde_json::Va
     supervisor.bundle_list()
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn bundle_create(
     supervisor: State<'_, EngineSupervisor>,
     id: String,
@@ -502,7 +513,7 @@ fn bundle_remove(
     supervisor.bundle_remove(&id)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn bundle_apply(
     supervisor: State<'_, EngineSupervisor>,
     id: String,
@@ -573,15 +584,62 @@ fn session_create(
     cwd: Option<String>,
     chat: Option<bool>,
     title: Option<String>,
+    mode: Option<String>,
+    permission_profile: Option<String>,
 ) -> Result<serde_json::Value, CommandError> {
-    supervisor.session_create(cwd, chat.unwrap_or(false), title)
+    supervisor.session_create_with_options(
+        cwd,
+        chat.unwrap_or(false),
+        title,
+        mode,
+        permission_profile,
+    )
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
+fn session_permission_set(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    permission_profile: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.session_permission_set(&reference, &permission_profile)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn session_permission_get(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.session_permission_get(&reference)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn session_model_set(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    model: String,
+    provider: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.session_model_set(&reference, &model, provider.as_deref())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn workspace_file_search(
+    supervisor: State<'_, EngineSupervisor>,
+    session_id: String,
+    query: String,
+    limit: Option<u32>,
+) -> Result<serde_json::Value, CommandError> {
+    supervisor.workspace_file_search(&session_id, &query, limit.unwrap_or(30))
+}
+
+#[tauri::command(rename_all = "snake_case")]
 fn turn_start(
     supervisor: State<'_, EngineSupervisor>,
     session_id: String,
     message: String,
+    reasoning_effort: Option<String>,
+    attachments: Option<serde_json::Value>,
 ) -> Result<serde_json::Value, CommandError> {
     // Un solo nombre canónico: el frontend siempre manda snake_case.
     // (Se probó aceptar también camelCase, pero dos params que solo se
@@ -591,10 +649,15 @@ fn turn_start(
             .to_string()
             .into());
     }
-    supervisor.turn_start(&session_id, &message)
+    supervisor.turn_start_with_options(
+        &session_id,
+        &message,
+        reasoning_effort.as_deref(),
+        attachments,
+    )
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn turn_cancel(
     supervisor: State<'_, EngineSupervisor>,
     session_id: String,
@@ -607,7 +670,7 @@ fn turn_cancel(
     supervisor.turn_cancel(&session_id)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn approval_resolve(
     supervisor: State<'_, EngineSupervisor>,
     approval_id: String,
@@ -630,7 +693,7 @@ fn provider_list(
     supervisor.provider_list()
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 #[allow(clippy::too_many_arguments)]
 fn provider_create(
     supervisor: State<'_, EngineSupervisor>,
@@ -670,7 +733,7 @@ fn provider_get(
     supervisor.provider_get(&reference)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 #[allow(clippy::too_many_arguments)]
 fn provider_update(
     supervisor: State<'_, EngineSupervisor>,
@@ -705,7 +768,7 @@ fn provider_update(
     supervisor.provider_update(serde_json::Value::Object(params))
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn provider_remove(
     supervisor: State<'_, EngineSupervisor>,
     reference: String,
@@ -755,7 +818,7 @@ fn model_get(
     supervisor.model_get(&reference, provider)
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn model_add(
     supervisor: State<'_, EngineSupervisor>,
     provider: String,
@@ -773,7 +836,7 @@ fn model_add(
     }))
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 fn model_alias(
     supervisor: State<'_, EngineSupervisor>,
     reference: String,
@@ -830,6 +893,7 @@ fn model_test(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_log::Builder::default().build())
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
@@ -898,6 +962,10 @@ pub fn run() {
             bundle_apply,
             initial_open_request,
             session_create,
+            session_model_set,
+            session_permission_get,
+            session_permission_set,
+            workspace_file_search,
             turn_start,
             turn_cancel,
             approval_resolve,
