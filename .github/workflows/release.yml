@@ -13,11 +13,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Read pinned engine SHA
+        id: engine-pin
+        shell: pwsh
+        run: |
+          $manifest = Get-Content engine-manifest.json -Raw | ConvertFrom-Json
+          "sha=$($manifest.engine_git_sha)" >> $env:GITHUB_OUTPUT
+
       - name: Checkout engine (Rinari-CLI)
         uses: actions/checkout@v4
         with:
           repository: Xainner/Rinari-CLI
-          ref: main
+          ref: ${{ steps.engine-pin.outputs.sha }}
           path: Rinari-CLI
 
       - uses: actions/setup-node@v4

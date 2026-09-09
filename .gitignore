@@ -27,3 +27,6 @@ src-tauri/target
 # Packaged engine (build output, see scripts/package-engine.ps1)
 src-tauri/engine-dist/
 src-tauri/2
+
+# Local review/fix notes (never commit)
+fixes/

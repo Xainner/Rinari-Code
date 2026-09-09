@@ -10,12 +10,16 @@ instalador trae Code + engine empaquetado; un update trae ambos).
    - `src-tauri/tauri.conf.json` → `version`
    - `src-tauri/Cargo.toml` → `version`
    - `src/App.tsx` → `APP_VERSION`
-2. Commit + push a `main`.
-3. Tag y push del tag: `git tag v0.1.1 && git push origin v0.1.1`
+2. Engine pineado: el release empaqueta el SHA de `engine-manifest.json`
+   (repo `Xainner/Rinari-CLI`). Para adoptar un engine nuevo, actualizar
+   `engine_git_sha` (+ `engine_version` si cambió) en ese archivo; el
+   workflow y `scripts/package-engine.ps1` fallan si no coinciden.
+3. Commit + push a `main`.
+4. Tag y push del tag: `git tag v0.1.1 && git push origin v0.1.1`
    (el workflow valida que el tag coincida con `package.json`).
-4. GitHub Actions construye el instalador Windows + `latest.json`
+5. GitHub Actions construye el instalador Windows + `latest.json`
    firmado y deja el release en **draft**.
-5. Revisar el draft, publicar. A partir de ahí las apps instaladas
+6. Revisar el draft, publicar. A partir de ahí las apps instaladas
    avisan solas (toast al abrir + botón en Ajustes → Acerca de).
 
 ## Claves de firma (updater)

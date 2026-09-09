@@ -36,8 +36,11 @@ export interface SessionSummary {
   mode: string;
   state: string;
   updated_at: string;
+  project_id: string | null;
   project_root: string | null;
   current_cwd: string | null;
+  git_branch: string | null;
+  last_active_at: string;
   provider_id: string;
   model_id: string;
   permission_profile: 'read-only' | 'workspace' | 'full-access';
@@ -164,6 +167,59 @@ export interface SoulDetail extends SoulSummary {
   identity: string;
 }
 
+/** Proyecto registrado en el engine (project.list_recent). */
+export interface ProjectSummary {
+  id: string;
+  root: string;
+  git_fingerprint: string | null;
+  last_opened_at: string;
+  active_session_id: string | null;
+}
+
+export interface ProjectGitStatus {
+  available: boolean;
+  branch: string | null;
+  head: string | null;
+  dirty: boolean;
+  files: ChangedFile[];
+}
+
+export interface ProjectStatus {
+  project: { root: string };
+  status: ProjectGitStatus;
+  active_session_id: string | null;
+}
+
+export interface ProjectIntelligence {
+  project: { root: string };
+  repository: {
+    languages: string[];
+    frameworks: string[];
+    package_managers: string[];
+    build_command: string | null;
+    test_command: string | null;
+    lint_command: string | null;
+    typecheck_command: string | null;
+    scanned_files: number;
+  };
+  index: Record<string, unknown>;
+  instructions: {
+    trusted: boolean;
+    scopes: Array<{ scope: string; provenance: string; kind: string }>;
+  };
+}
+
+export interface SessionDeleteResult {
+  deleted: { id: string };
+  cascade: {
+    queue_dropped: number;
+    checkpoints_removed: number;
+    checkpoints_kept: number;
+    artifacts_removed: number;
+    artifacts_kept: number;
+  };
+}
+
 export interface McpServer {
   name: string;
   transport: string;
@@ -275,8 +331,11 @@ export const engineApi = {
   start: () => invoke<EngineStatus>("engine_start"),
   shutdown: () => invoke<EngineStatus>("engine_shutdown"),
   restart: () => invoke<EngineStatus>("engine_restart"),
-  sessions: (kind?: string) =>
-    invoke<{ sessions: SessionSummary[] }>("session_list", { kind: kind ?? null }),
+  sessions: (kind?: string, includeClosed?: boolean) =>
+    invoke<{ sessions: SessionSummary[] }>("session_list", {
+      kind: kind ?? null,
+      include_closed: includeClosed ?? null,
+    }),
   createSession: (options?: { cwd?: string; chat?: boolean; title?: string; mode?: string; permission_profile?: string }) =>
     invoke<{ session: SessionSummary; created: boolean }>("session_create", {
       cwd: options?.cwd ?? null,
@@ -505,6 +564,28 @@ export const engineApi = {
       decision,
     }),
   snapshot: () => invoke<{ snapshot: unknown }>("snapshot_get"),
+
+  projectRecents: (limit?: number) =>
+    invoke<{ projects: ProjectSummary[] }>(
+      "project_list_recent",
+      limit === undefined ? {} : { limit },
+    ),
+  projectOpen: (path: string) =>
+    invoke<{ project: ProjectSummary; session: SessionSummary; created: boolean }>(
+      "project_open",
+      { path },
+    ),
+  projectStatus: (path: string) =>
+    invoke<ProjectStatus>("project_status", { path }),
+  projectIntelligence: (path: string) =>
+    invoke<ProjectIntelligence>("project_intelligence", { path }),
+  closeSession: (reference: string) =>
+    invoke<{ session: SessionSummary }>("session_close", { reference }),
+  deleteSession: (reference: string, cascade?: boolean) =>
+    invoke<SessionDeleteResult>("session_delete", {
+      reference,
+      cascade: cascade ?? null,
+    }),
 
   providerList: () =>
     invoke<{ providers: ProviderSummary[]; active_alias: string | null }>(

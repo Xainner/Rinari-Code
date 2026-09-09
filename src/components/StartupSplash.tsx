@@ -6,10 +6,12 @@ import Logo from './Logo'
 export default function StartupSplash({
   failed,
   detail,
+  state,
   onRetry,
 }: {
   failed: boolean
   detail?: string | null
+  state?: string | null
   onRetry: () => void
 }) {
   const { t } = useI18n()
@@ -42,6 +44,16 @@ export default function StartupSplash({
               <RotateCcw size={14} aria-hidden="true" />
               {t('startup.retry')}
             </button>
+            <details className="mt-4 w-full max-w-sm text-left text-xs text-[var(--text-muted)]">
+              <summary className="cursor-pointer hover:text-[var(--text)]">
+                {t('startup.details')}
+              </summary>
+              <pre className="mt-2 overflow-auto rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-3 font-mono whitespace-pre-wrap">
+                {[state ? `state: ${state}` : null, detail ? `detail: ${detail}` : null]
+                  .filter(Boolean)
+                  .join('\n') || '—'}
+              </pre>
+            </details>
           </>
         ) : (
           <div role="status" aria-live="polite" className="mt-2 flex items-center gap-2 text-sm text-[var(--text-muted)]">

@@ -2,6 +2,7 @@
 // Owns the engine process lifecycle only: locate, spawn, handshake,
 // route requests, forward events, restart. Harness logic lives in Python.
 
+pub mod methods;
 pub mod protocol;
 pub mod supervisor;
 pub mod transport;

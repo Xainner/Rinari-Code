@@ -36,14 +36,24 @@ export interface ToolActivity {
   error?: string
 }
 
+export interface TurnStopReason {
+  code: string
+  message: string
+  modelCalls?: number
+  toolCalls?: number
+  wallTimeS?: number
+}
+
 export interface TurnExecution {
   turnId: string
   sessionId: string
-  status: 'thinking' | 'executing' | 'approval' | 'cancelling' | 'completed' | 'cancelled' | 'failed'
+  status: 'thinking' | 'executing' | 'approval' | 'cancelling' | 'completed' | 'cancelled' | 'failed' | 'stopped'
   startedAt: number
   completedAt?: number
   preparationStage?: string
   error?: string
+  /** Solo en `stopped`: safeguard de emergencia, terminal pero no fallo. */
+  stopReason?: TurnStopReason
   tools: ToolActivity[]
 }
 

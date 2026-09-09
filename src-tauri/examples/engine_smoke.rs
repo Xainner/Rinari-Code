@@ -9,7 +9,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use rinari_code_lib::engine::{protocol::EngineEvent, EngineSupervisor};
+use rinari_code_lib::engine::{methods::Method, protocol::EngineEvent, EngineSupervisor};
 use serde_json::json;
 
 fn show(label: &str, value: &serde_json::Value) {
@@ -33,11 +33,11 @@ fn main() {
     assert_eq!(format!("{:?}", status.state), "Ready");
 
     let info = supervisor
-        .request("engine.info", None)
+        .request(Method::EngineInfo, None)
         .expect("engine.info");
     show("INFO", &info);
 
-    let sessions = supervisor.session_list(None).expect("session.list");
+    let sessions = supervisor.session_list(None, false).expect("session.list");
     show("SESSIONS", &sessions);
 
     // The engine refuses session.create without a configured provider/model.

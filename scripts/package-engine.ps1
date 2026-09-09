@@ -29,8 +29,13 @@ $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "rinari-engine-pkg"
 New-Item -ItemType Directory -Force -Path $tmp, $OutDir | Out-Null
 
 Write-Host "--> wheel del engine"
+$manifest = Get-Content (Join-Path $PSScriptRoot "..\engine-manifest.json") -Raw | ConvertFrom-Json
 Push-Location $CliRepo
 try {
+  $fullSha = (git rev-parse HEAD).Trim()
+  if ($fullSha -ne $manifest.engine_git_sha) {
+    throw "CLI en $fullSha no coincide con engine-manifest.json ($($manifest.engine_git_sha)). Actualiza el pin o el checkout."
+  }
   uv build --wheel
   if ($LASTEXITCODE -ne 0) { throw "uv build falló" }
   $wheel = Get-ChildItem dist/*.whl | Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -68,5 +73,6 @@ $hello = @{ id = "pkg-smoke"; method = "engine.info"; params = @{} } | ConvertTo
 $out = $hello | & (Join-Path $OutDir "python.exe") -m rinari engine --stdio 2>$null | Select-Object -First 2
 $out | ForEach-Object { Write-Host $_ }
 if (-not ($out -match '"ok":\s*true')) { throw "el engine empaquetado no responde engine.info" }
+if (-not ($out -match 'desktop_turn_runtime_v3')) { throw "el engine empaquetado no expone desktop_turn_runtime_v3" }
 
 Write-Host "OK: $OutDir"

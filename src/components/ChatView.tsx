@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Virtualizer, type VirtualizerHandle } from 'virtua'
 import type { AttachmentRef, ChatMessage, PendingApproval, TurnExecution } from '../types'
@@ -73,6 +73,13 @@ export default function ChatView({
   const virtRef = useRef<VirtualizerHandle>(null)
   const [atBottom, setAtBottom] = useState(true)
   const hasDraft = useComposerStore((s) => s.text.trim().length > 0)
+  const setDraft = useComposerStore((s) => s.setText)
+
+  // Continuar tras un stop de emergencia: turno nuevo en la misma sesión.
+  // Solo pre-rellena el borrador; el usuario decide y envía.
+  const handleContinue = useCallback(() => {
+    setDraft(t('turn.continueDraft'))
+  }, [setDraft, t])
 
   const empty = messages.length === 0
   // `turn.started` creates the assistant placeholder linked to its execution.
@@ -186,6 +193,7 @@ export default function ChatView({
                       execution={executions[m.turnId]}
                       approvals={approvals}
                       onResolveApproval={onResolveApproval}
+                      onContinue={handleContinue}
                     />
                   )}
                   {(m.content !== '' || !m.turnId || !executions[m.turnId]) && (

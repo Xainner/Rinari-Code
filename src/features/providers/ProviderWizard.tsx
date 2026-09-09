@@ -34,6 +34,8 @@ export default function ProviderWizard({
   const [step, setStep] = useState<Step>('preset')
   const [form, setForm] = useState<ProviderFormData>(() => initialForm())
   const [createdAlias, setCreatedAlias] = useState<string | null>(null)
+  const [createdType, setCreatedType] = useState<string | null>(null)
+  const [createdAuth, setCreatedAuth] = useState<string | null>(null)
   const [health, setHealth] = useState<ProviderHealth | null>(null)
   const [error, setError] = useState('')
   const [working, setWorking] = useState(false)
@@ -42,39 +44,125 @@ export default function ProviderWizard({
     setStep('preset')
     setForm(initialForm())
     setCreatedAlias(null)
+    setCreatedType(null)
+    setCreatedAuth(null)
     setHealth(null)
     setError('')
     setWorking(false)
   }
 
-  // Secuencia crear → probar al entrar al paso testing.
+  function trackPersisted(alias: string) {
+    setCreatedAlias(alias)
+    setCreatedType(form.preset?.provider_type ?? null)
+    setCreatedAuth(form.auth)
+  }
+
+  async function createProvider(): Promise<string | null> {
+    const alias = form.alias.trim()
+    const preset = form.preset
+    if (!preset?.provider_type) {
+      setError(t('providers.noType'))
+      return null
+    }
+    try {
+      await engineApi.providerCreate({
+        alias,
+        provider_type: preset.provider_type,
+        auth_method: form.auth,
+        endpoint: form.endpoint.trim() === '' ? undefined : form.endpoint.trim(),
+        account_hint:
+          form.account_hint.trim() === '' ? undefined : form.account_hint.trim(),
+        secret: form.secret === '' ? undefined : form.secret,
+        secret_env: form.secret_env === '' ? undefined : form.secret_env,
+      })
+    } catch (err) {
+      // Adoptar en conflicto: otra corrida (StrictMode) o un huérfano ganó
+      // la carrera por el alias. Solo se muestra error si nadie lo tiene.
+      const list = await engineApi.providerList().catch(() => null)
+      if (!list?.providers.some((p) => p.alias === alias)) {
+        setError(commandMessage(err))
+        return null
+      }
+    }
+    trackPersisted(alias)
+    toast.success(t('wizard.saved'))
+    return alias
+  }
+
+  async function updateProvider(reference: string): Promise<string | null> {
+    const alias = form.alias.trim()
+    try {
+      await engineApi.providerUpdate(reference, {
+        alias: alias === reference ? undefined : alias,
+        endpoint: form.endpoint.trim() === '' ? undefined : form.endpoint.trim(),
+        account_hint:
+          form.account_hint.trim() === '' ? undefined : form.account_hint.trim(),
+        secret: form.secret === '' ? undefined : form.secret,
+        secret_env: form.secret_env === '' ? undefined : form.secret_env,
+      })
+    } catch (err) {
+      setError(commandMessage(err))
+      return null
+    }
+    if (alias !== reference) setCreatedAlias(alias)
+    return alias
+  }
+
+  async function removeProvider(reference: string): Promise<void> {
+    try {
+      const list = await engineApi.providerList()
+      const target = list.providers.find((p) => p.alias === reference)
+      if (target) {
+        const other = list.providers.find((p) => p.alias !== reference)
+        await engineApi.providerRemove(reference, target.active ? other?.alias : undefined)
+      }
+    } catch (err) {
+      toast.error(commandMessage(err))
+    }
+  }
+
+  /**
+   * draft → persisted → test. Una vez persistido, re-entrar a testing
+   * actualiza (nunca duplica): tipo/auth incompatibles recrean, el resto
+   * usa provider.update; un alias preexistente se adopta.
+   */
+  async function persist(): Promise<string | null> {
+    const alias = form.alias.trim()
+    const preset = form.preset
+    if (!preset?.provider_type) {
+      setError(t('providers.noType'))
+      return null
+    }
+    if (createdAlias) {
+      if (preset.provider_type === createdType && form.auth === createdAuth) {
+        return updateProvider(createdAlias)
+      }
+      await removeProvider(createdAlias)
+      setCreatedAlias(null)
+      setCreatedType(null)
+      setCreatedAuth(null)
+    }
+    const list = await engineApi.providerList().catch(() => null)
+    if (list?.providers.some((p) => p.alias === alias)) {
+      trackPersisted(alias)
+      toast.success(t('wizard.saved'))
+      return updateProvider(alias)
+    }
+    return createProvider()
+  }
+
+  // Secuencia persistir → probar al entrar al paso testing.
   useEffect(() => {
-    if (!open || step !== 'testing' || createdAlias) return
+    if (!open || step !== 'testing') return
     let cancelled = false
     async function run() {
       setWorking(true)
       setError('')
       try {
-        if (!form.preset?.provider_type) {
-          setError(t('providers.noType'))
-          setWorking(false)
-          return
-        }
-        const alias = form.alias.trim()
-        await engineApi.providerCreate({
-          alias,
-          provider_type: form.preset.provider_type,
-          auth_method: form.auth,
-          endpoint: form.endpoint.trim() === '' ? undefined : form.endpoint.trim(),
-          account_hint:
-            form.account_hint.trim() === '' ? undefined : form.account_hint.trim(),
-          secret: form.secret === '' ? undefined : form.secret,
-          secret_env: form.secret_env === '' ? undefined : form.secret_env,
-        })
+        const persisted = await persist()
         if (cancelled) return
-        setCreatedAlias(alias)
-        toast.success(t('wizard.saved'))
-        const result = await engineApi.providerTest(alias)
+        if (!persisted) return
+        const result = await engineApi.providerTest(persisted)
         if (cancelled) return
         setHealth(result)
         if (result.connected) {
@@ -113,24 +201,12 @@ export default function ProviderWizard({
   }
 
   async function deleteAndBack() {
-    if (!createdAlias) {
-      setStep('fields')
-      return
-    }
-    try {
-      const list = await engineApi.providerList()
-      const target = list.providers.find((p) => p.alias === createdAlias)
-      if (target) {
-        const other = list.providers.find((p) => p.alias !== createdAlias)
-        await engineApi.providerRemove(
-          createdAlias,
-          target.active ? other?.alias : undefined,
-        )
-      }
-    } catch (err) {
-      toast.error(commandMessage(err))
+    if (createdAlias) {
+      await removeProvider(createdAlias)
     }
     setCreatedAlias(null)
+    setCreatedType(null)
+    setCreatedAuth(null)
     setHealth(null)
     setStep('fields')
   }
@@ -233,7 +309,8 @@ export default function ProviderWizard({
                     toast.error(t('providers.noCredential'))
                     return
                   }
-                  setCreatedAlias(null)
+                  // No se limpia createdAlias: re-entrar a testing actualiza
+                  // el provider persistido en vez de duplicarlo.
                   setHealth(null)
                   setStep('testing')
                 }}

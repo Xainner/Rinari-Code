@@ -5,6 +5,7 @@ import { useI18n } from '../../i18n'
 import { engineApi, type EngineStatus } from '../../services/engine'
 import { checkForUpdates, installUpdateAndRelaunch } from '../../services/updates'
 import { Section } from './parts'
+import engineManifest from '../../../engine-manifest.json'
 
 /** Settings > Acerca de: identidad y versiones visibles (Code/engine/protocolo). */
 export default function AboutSettings({ version }: { version: string }) {
@@ -83,6 +84,10 @@ export default function AboutSettings({ version }: { version: string }) {
           <div className="flex items-center justify-between">
             <span>rinari-engine-protocol</span>
             <span>{status?.protocol_version ?? '—'}</span>
+          </div>
+          <div className="flex items-center justify-between" title={engineManifest.engine_git_sha}>
+            <span>engine-pin</span>
+            <span>{engineManifest.engine_git_sha.slice(0, 7)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span>bundled soul</span>

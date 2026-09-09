@@ -7,13 +7,14 @@ interface AppShellProps {
   sidebar: ReactNode
   header: ReactNode
   children: ReactNode
+  banner?: ReactNode
 }
 
 /**
  * Shell: sidebar 260px desktop / rail 72px colapsado / Sheet móvil,
  * header contextual de 52px y contenido centrado.
  */
-export default function AppShell({ sidebar, header, children }: AppShellProps) {
+export default function AppShell({ sidebar, header, children, banner }: AppShellProps) {
   const mobileOpen = useUIStore((s) => s.sidebarOpen)
   const setMobileOpen = useUIStore((s) => s.setSidebarOpen)
   const collapsed = useUIStore((s) => s.sidebarCollapsed)
@@ -44,6 +45,7 @@ export default function AppShell({ sidebar, header, children }: AppShellProps) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {header}
+        {banner}
         <main className="relative min-h-0 flex-1 overflow-hidden">{children}</main>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
+import { open as openFolderDialog } from '@tauri-apps/plugin-dialog'
 import { toast } from 'sonner'
 import { I18nProvider, translate, type I18nKey } from './i18n'
 import { engineApi } from './services/engine'
@@ -14,6 +15,7 @@ import CommandPalette from './components/CommandPalette'
 import EngineConsole from './features/engine/EngineConsole'
 import SettingsView from './features/settings/SettingsView'
 import WorkspaceView from './features/workspace/WorkspaceView'
+import ProjectHome from './features/projects/ProjectHome'
 import ProviderWizard from './features/providers/ProviderWizard'
 import StartupSplash from './components/StartupSplash'
 
@@ -31,6 +33,8 @@ function App() {
   const goChat = useUIStore((s) => s.goChat)
   const goEngine = useUIStore((s) => s.goEngine)
   const goWorkspace = useUIStore((s) => s.goWorkspace)
+  const goProject = useUIStore((s) => s.goProject)
+  const projectRoot = useUIStore((s) => s.projectRoot)
   const goSettings = useUIStore((s) => s.goSettings)
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
   const toggleSidebarCollapsed = useUIStore((s) => s.toggleSidebarCollapsed)
@@ -42,6 +46,35 @@ function App() {
   const activeTitle = activeRecord?.title ?? null
 
   // Handoff `rinari code [path] [--session]`: misma sesión/proyecto.
+  // Con path: project.open registra/deduplica y devuelve la sesión
+  // recomendada del engine (nunca se inventa una paralela en Code).
+  async function handleOpenProjectPath(path: string): Promise<boolean> {
+    const opened = await session.openProject(path)
+    if (!opened) return false
+    await session.refreshSessions()
+    await session.refreshProjects()
+    await session.selectSession(opened.session.id)
+    return true
+  }
+
+  async function handleDeleteSession(id: string, cascade: boolean): Promise<void> {
+    const result = await session.deleteSession(id, cascade)
+    if (!result) return
+    const c = result.cascade
+    if (cascade && c.queue_dropped + c.checkpoints_removed + c.artifacts_removed > 0) {
+      toast.success(
+        translate(lang, 'sidebar.deletedCascade', {
+          queue: c.queue_dropped,
+          checkpoints: c.checkpoints_removed,
+          artifacts: c.artifacts_removed,
+        }),
+      )
+    } else {
+      toast.success(translate(lang, 'sidebar.deleted'))
+    }
+    void session.refreshProjects()
+  }
+
   useEffect(() => {
     async function handleOpen(request: { project: string | null; session: string | null }) {
       try {
@@ -51,16 +84,7 @@ function App() {
           return
         }
         if (request.project) {
-          const match = session.sessions.find(
-            (s) => s.project_root === request.project || s.current_cwd === request.project,
-          )
-          if (match) {
-            await session.selectSession(match.id)
-          } else {
-            const created = await engineApi.createSession({ cwd: request.project ?? undefined })
-            await session.selectSession(created.session.id)
-          }
-          goChat()
+          if (await handleOpenProjectPath(request.project)) goChat()
         }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : String(err))
@@ -118,19 +142,20 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Alta guiada: motor listo y sin proveedores → abrir el wizard una vez.
+  // Alta guiada: motor listo, catálogo sano y sin proveedores → wizard una vez.
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardSnoozed, setWizardSnoozed] = useState(false)
   useEffect(() => {
     if (
       session.ready &&
       session.catalogLoaded &&
+      !session.catalogError &&
       session.providers.length === 0 &&
       !wizardSnoozed
     ) {
       setWizardOpen(true)
     }
-  }, [session.ready, session.catalogLoaded, session.providers.length, wizardSnoozed])
+  }, [session.ready, session.catalogLoaded, session.catalogError, session.providers.length, wizardSnoozed])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -148,39 +173,77 @@ function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [togglePalette, goSettings])
 
-  const startupReady = session.ready && session.sessionsLoaded && session.catalogLoaded
+  // El shell abre cuando el engine está usable. Sesiones y catálogo son
+  // subsistemas independientes: si fallan, se degradan con retry local.
+  const startupReady = session.ready
   if (!startupReady) {
     return (
       <I18nProvider lang={lang}>
         <StartupSplash
           failed={session.status?.state === 'failed' || session.status?.state === 'degraded'}
           detail={session.status?.detail}
+          state={session.status?.state ?? null}
           onRetry={() => void session.restartEngine()}
         />
       </I18nProvider>
     )
   }
 
+  const degradedDetail = session.sessionsError ?? session.catalogError
+  const degradedKey =
+    session.sessionsError !== null ? 'startup.sessionsDegraded' : 'startup.catalogDegraded'
+
   return (
     <I18nProvider lang={lang}>
       <AppShell
+        banner={degradedDetail !== null && (
+          <div
+            role="alert"
+            className="flex items-center gap-3 border-b border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs text-[var(--text)]"
+          >
+            <span className="min-w-0 flex-1 truncate">
+              {translate(lang, degradedKey, { detail: degradedDetail ?? '' })}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                void session.refreshSessions()
+                void session.refreshCatalog()
+              }}
+              className="shrink-0 rounded-full border border-[var(--border)] px-3 py-0.5 transition-colors hover:border-[var(--accent)]/50"
+            >
+              {translate(lang, 'startup.retry')}
+            </button>
+          </div>
+        )}
         sidebar={
           <AppSidebar
-            sessions={session.sessions}
-            activeId={session.activeSession || null}
-            engine={session.status}
-            approvals={session.approvals}
             collapsed={sidebarCollapsed}
             onToggleCollapse={toggleSidebarCollapsed}
             onSearch={() => setPaletteOpen(true)}
+            onOpenSettings={() => goSettings()}
+            onOpenEngine={goEngine}
+            onOpenProjectHome={
+              session.activeProjectRoot ? () => goProject(session.activeProjectRoot as string) : null
+            }
+            onNewChat={() => void session.createSession().then(() => goChat())}
+            onOpenFolder={() =>
+              void openFolderDialog({ directory: true }).then((picked) => {
+                if (typeof picked === 'string') void handleOpenProjectPath(picked).then((ok) => ok && goChat())
+              })
+            }
+            sessions={session.sessions}
+            closedSessions={session.closedSessions}
+            projects={session.projects}
+            activeId={session.activeSession}
             onSelectSession={(id) => {
               void session.selectSession(id)
               goChat()
             }}
-            onNewSession={() => void session.createSession().then(() => goChat())}
-            onOpenSettings={() => goSettings()}
-            onOpenEngine={goEngine}
-            onOpenWorkspace={goWorkspace}
+            onOpenProject={(root) => goProject(root)}
+            onCloseSession={(id) => void session.closeSession(id)}
+            onDeleteSession={(id, cascade) => void handleDeleteSession(id, cascade)}
+            approvals={session.approvals}
           />
         }
         header={
@@ -189,6 +252,23 @@ function App() {
               title={activeTitle}
               kind={activeRecord?.kind ?? null}
               mode={activeRecord?.mode ?? null}
+              projectRoot={session.activeProjectRoot}
+              projectName={session.activeProjectRoot}
+              git={
+                session.activeGitStatus?.status.available
+                  ? {
+                      branch: session.activeGitStatus.status.branch,
+                      dirty: session.activeGitStatus.status.dirty,
+                      changed: session.activeGitStatus.status.files.length,
+                    }
+                  : null
+              }
+              gitMissing={session.activeGitError !== null}
+              onOpenProject={
+                session.activeProjectRoot
+                  ? () => goProject(session.activeProjectRoot as string)
+                  : null
+              }
               onOpenMobileSidebar={() => setSidebarOpen(true)}
               onExpandSidebar={toggleSidebarCollapsed}
               sidebarCollapsed={sidebarCollapsed}
@@ -230,6 +310,43 @@ function App() {
         {view === 'engine' && <EngineConsole session={session} />}
         {view === 'workspace' && (
           <WorkspaceView session={activeRecord} onBack={goChat} />
+        )}
+        {view === 'project' && projectRoot !== null && (
+          <ProjectHome
+            root={projectRoot}
+            project={session.projects.find((p) => p.root === projectRoot) ?? null}
+            sessions={session.sessions.filter((s) => {
+              const projectId = session.projects.find((p) => p.root === projectRoot)?.id ?? null
+              return (projectId !== null && s.project_id === projectId) || s.project_root === projectRoot
+            })}
+            activeId={session.activeSession}
+            status={session.projectStatusByRoot[projectRoot] ?? null}
+            statusError={session.projectStatusErrorByRoot[projectRoot] ?? null}
+            intel={session.projectIntelByRoot[projectRoot] ?? null}
+            onBack={goChat}
+            onSelectSession={(id) => {
+              void session.selectSession(id)
+              goChat()
+            }}
+            onNewSession={() =>
+              void engineApi
+                .createSession({ cwd: projectRoot })
+                .then(async (created) => {
+                  await session.refreshSessions()
+                  await session.selectSession(created.session.id)
+                  goChat()
+                })
+                .catch((err: unknown) =>
+                  toast.error(err instanceof Error ? err.message : String(err)),
+                )
+            }
+            onEnsure={() => {
+              void session.loadProjectStatus(projectRoot)
+              if (!session.projectIntelByRoot[projectRoot]) {
+                void session.loadProjectIntelligence(projectRoot)
+              }
+            }}
+          />
         )}
         {view === 'settings' && (
           <SettingsView

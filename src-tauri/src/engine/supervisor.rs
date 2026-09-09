@@ -11,6 +11,7 @@ use std::time::Duration;
 use serde::Serialize;
 use serde_json::{json, Value};
 
+use crate::engine::methods::{Method, REQUIRED_CAPABILITY};
 use crate::engine::protocol::{EngineEvent, Hello};
 use crate::engine::transport::{EngineTransport, TransportError};
 
@@ -224,7 +225,7 @@ impl EngineSupervisor {
             self.set_state(EngineState::Failed, Some(error.to_string()));
             CommandError::from(error)
         })?;
-        if hello.capabilities.get("desktop_turn_runtime_v3") != Some(&true) {
+        if hello.capabilities.get(REQUIRED_CAPABILITY) != Some(&true) {
             transport.shutdown();
             let message = concat!(
                 "The active Rinari Engine is outdated and does not support the desktop turn ",
@@ -292,19 +293,24 @@ impl EngineSupervisor {
         }
     }
 
-    pub fn request(&self, method: &str, params: Option<Value>) -> Result<Value, CommandError> {
+    pub fn request(&self, method: Method, params: Option<Value>) -> Result<Value, CommandError> {
         let transport = self.current_transport()?;
         transport
-            .request(method, params)
+            .request(method.as_str(), params)
             .map_err(CommandError::from)
     }
 
-    pub fn session_list(&self, kind: Option<String>) -> Result<Value, CommandError> {
+    pub fn session_list(
+        &self,
+        kind: Option<String>,
+        include_closed: bool,
+    ) -> Result<Value, CommandError> {
         let mut params = serde_json::Map::new();
         if let Some(kind) = kind {
             params.insert("kind".to_string(), Value::String(kind));
         }
-        self.request("session.list", Some(Value::Object(params)))
+        params.insert("include_closed".to_string(), Value::Bool(include_closed));
+        self.request(Method::SessionList, Some(Value::Object(params)))
     }
 
     pub fn session_create(
@@ -338,7 +344,7 @@ impl EngineSupervisor {
         if let Some(profile) = permission_profile {
             params.insert("permission_profile".to_string(), Value::String(profile));
         }
-        self.request("session.create", Some(Value::Object(params)))
+        self.request(Method::SessionCreate, Some(Value::Object(params)))
     }
 
     pub fn turn_start(&self, session_id: &str, message: &str) -> Result<Value, CommandError> {
@@ -362,7 +368,7 @@ impl EngineSupervisor {
         attachments: Option<Value>,
     ) -> Result<Value, CommandError> {
         self.request(
-            "session.turn.start",
+            Method::SessionTurnStart,
             Some(json!({
                 "session_id": session_id,
                 "message": message,
@@ -378,13 +384,16 @@ impl EngineSupervisor {
         profile: &str,
     ) -> Result<Value, CommandError> {
         self.request(
-            "session.permission.set",
+            Method::SessionPermissionSet,
             Some(json!({"ref": reference, "permission_profile": profile})),
         )
     }
 
     pub fn session_permission_get(&self, reference: &str) -> Result<Value, CommandError> {
-        self.request("session.permission.get", Some(json!({"ref": reference})))
+        self.request(
+            Method::SessionPermissionGet,
+            Some(json!({"ref": reference})),
+        )
     }
 
     pub fn session_model_set(
@@ -394,7 +403,7 @@ impl EngineSupervisor {
         provider: Option<&str>,
     ) -> Result<Value, CommandError> {
         self.request(
-            "session.model.set",
+            Method::SessionModelSet,
             Some(json!({"ref": reference, "model": model, "provider": provider})),
         )
     }
@@ -406,20 +415,31 @@ impl EngineSupervisor {
         limit: u32,
     ) -> Result<Value, CommandError> {
         self.request(
-            "workspace.file.search",
+            Method::WorkspaceFileSearch,
             Some(json!({"session_id": session_id, "query": query, "limit": limit})),
         )
     }
 
     pub fn turn_cancel(&self, session_id: &str) -> Result<Value, CommandError> {
         self.request(
-            "session.turn.cancel",
+            Method::SessionTurnCancel,
             Some(json!({"session_id": session_id})),
         )
     }
 
     pub fn session_open(&self, reference: &str) -> Result<Value, CommandError> {
-        self.request("session.open", Some(json!({"ref": reference})))
+        self.request(Method::SessionOpen, Some(json!({"ref": reference})))
+    }
+
+    pub fn session_close(&self, reference: &str) -> Result<Value, CommandError> {
+        self.request(Method::SessionClose, Some(json!({"ref": reference})))
+    }
+
+    pub fn session_delete(&self, reference: &str, cascade: bool) -> Result<Value, CommandError> {
+        self.request(
+            Method::SessionDelete,
+            Some(json!({"ref": reference, "cascade": cascade})),
+        )
     }
 
     pub fn session_history(
@@ -432,12 +452,12 @@ impl EngineSupervisor {
         if let Some(limit) = limit {
             params.insert("limit".to_string(), Value::Number(limit.into()));
         }
-        self.request("session.history", Some(Value::Object(params)))
+        self.request(Method::SessionHistory, Some(Value::Object(params)))
     }
 
     pub fn session_mode_set(&self, reference: &str, mode: &str) -> Result<Value, CommandError> {
         self.request(
-            "session.mode.set",
+            Method::SessionModeSet,
             Some(json!({"ref": reference, "mode": mode})),
         )
     }
@@ -445,11 +465,14 @@ impl EngineSupervisor {
     // -- tasks / verification / checkpoints / working tree (Phase 6) --------
 
     pub fn task_tree(&self, path: &str) -> Result<Value, CommandError> {
-        self.request("task.tree", Some(json!({"path": path})))
+        self.request(Method::TaskTree, Some(json!({"path": path})))
     }
 
     pub fn task_get(&self, path: &str, task_id: &str) -> Result<Value, CommandError> {
-        self.request("task.get", Some(json!({"path": path, "task_id": task_id})))
+        self.request(
+            Method::TaskGet,
+            Some(json!({"path": path, "task_id": task_id})),
+        )
     }
 
     pub fn verification_latest(
@@ -466,7 +489,7 @@ impl EngineSupervisor {
         if let Some(limit) = limit {
             params.insert("limit".to_string(), Value::Number(limit.into()));
         }
-        self.request("verification.latest", Some(Value::Object(params)))
+        self.request(Method::VerificationLatest, Some(Value::Object(params)))
     }
 
     pub fn verification_plan(
@@ -475,7 +498,7 @@ impl EngineSupervisor {
         changed_files: Vec<String>,
     ) -> Result<Value, CommandError> {
         self.request(
-            "verification.plan",
+            Method::VerificationPlan,
             Some(json!({"path": path, "changed_files": changed_files})),
         )
     }
@@ -485,22 +508,22 @@ impl EngineSupervisor {
         if let Some(path) = path {
             params.insert("path".to_string(), Value::String(path));
         }
-        self.request("checkpoint.list", Some(Value::Object(params)))
+        self.request(Method::CheckpointList, Some(Value::Object(params)))
     }
 
     pub fn checkpoint_show(&self, checkpoint_id: &str) -> Result<Value, CommandError> {
         self.request(
-            "checkpoint.show",
+            Method::CheckpointShow,
             Some(json!({"checkpoint_id": checkpoint_id})),
         )
     }
 
     pub fn checkpoint_restore(&self, params: Value) -> Result<Value, CommandError> {
-        self.request("checkpoint.restore", Some(params))
+        self.request(Method::CheckpointRestore, Some(params))
     }
 
     pub fn project_changes(&self, path: &str) -> Result<Value, CommandError> {
-        self.request("project.changes", Some(json!({"path": path})))
+        self.request(Method::ProjectChanges, Some(json!({"path": path})))
     }
 
     pub fn project_diff(
@@ -517,21 +540,41 @@ impl EngineSupervisor {
         if let Some(max_chars) = max_chars {
             params.insert("max_chars".to_string(), Value::Number(max_chars.into()));
         }
-        self.request("project.diff", Some(Value::Object(params)))
+        self.request(Method::ProjectDiff, Some(Value::Object(params)))
     }
 
     // -- agents (Phase 7) -----------------------------------------------------
 
+    pub fn project_list_recent(&self, limit: Option<u32>) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        if let Some(limit) = limit {
+            params.insert("limit".to_string(), Value::Number(limit.into()));
+        }
+        self.request(Method::ProjectListRecent, Some(Value::Object(params)))
+    }
+
+    pub fn project_open(&self, path: &str) -> Result<Value, CommandError> {
+        self.request(Method::ProjectOpen, Some(json!({"path": path})))
+    }
+
+    pub fn project_status(&self, path: &str) -> Result<Value, CommandError> {
+        self.request(Method::ProjectStatus, Some(json!({"path": path})))
+    }
+
+    pub fn project_intelligence(&self, path: &str) -> Result<Value, CommandError> {
+        self.request(Method::ProjectIntelligence, Some(json!({"path": path})))
+    }
+
     pub fn agent_list(&self) -> Result<Value, CommandError> {
-        self.request("agent.list", None)
+        self.request(Method::AgentList, None)
     }
 
     pub fn agent_config_get(&self, agent: &str) -> Result<Value, CommandError> {
-        self.request("agent.config.get", Some(json!({"agent": agent})))
+        self.request(Method::AgentConfigGet, Some(json!({"agent": agent})))
     }
 
     pub fn agent_config_set(&self, params: Value) -> Result<Value, CommandError> {
-        self.request("agent.config.set", Some(params))
+        self.request(Method::AgentConfigSet, Some(params))
     }
 
     pub fn session_events(
@@ -548,94 +591,94 @@ impl EngineSupervisor {
         if let Some(limit) = limit {
             params.insert("limit".to_string(), Value::Number(limit.into()));
         }
-        self.request("session.events", Some(Value::Object(params)))
+        self.request(Method::SessionEvents, Some(Value::Object(params)))
     }
 
     // -- souls (Phase 8) ------------------------------------------------------
 
     pub fn soul_list(&self) -> Result<Value, CommandError> {
-        self.request("soul.list", None)
+        self.request(Method::SoulList, None)
     }
 
     pub fn soul_get(&self, soul_id: &str) -> Result<Value, CommandError> {
-        self.request("soul.get", Some(json!({"id": soul_id})))
+        self.request(Method::SoulGet, Some(json!({"id": soul_id})))
     }
 
     pub fn soul_create(&self, params: Value) -> Result<Value, CommandError> {
-        self.request("soul.create", Some(params))
+        self.request(Method::SoulCreate, Some(params))
     }
 
     pub fn soul_update(&self, params: Value) -> Result<Value, CommandError> {
-        self.request("soul.update", Some(params))
+        self.request(Method::SoulUpdate, Some(params))
     }
 
     pub fn soul_remove(&self, soul_id: &str) -> Result<Value, CommandError> {
-        self.request("soul.remove", Some(json!({"id": soul_id})))
+        self.request(Method::SoulRemove, Some(json!({"id": soul_id})))
     }
 
     pub fn soul_activate(&self, soul_id: &str) -> Result<Value, CommandError> {
-        self.request("soul.activate", Some(json!({"id": soul_id})))
+        self.request(Method::SoulActivate, Some(json!({"id": soul_id})))
     }
 
     // -- ecosystem (Phase 9) ----------------------------------------------------
 
     pub fn mcp_list(&self) -> Result<Value, CommandError> {
-        self.request("mcp.list", None)
+        self.request(Method::McpList, None)
     }
 
     pub fn mcp_get(&self, name: &str) -> Result<Value, CommandError> {
-        self.request("mcp.get", Some(json!({"name": name})))
+        self.request(Method::McpGet, Some(json!({"name": name})))
     }
 
     pub fn mcp_create(&self, name: &str, command: Vec<String>) -> Result<Value, CommandError> {
         self.request(
-            "mcp.create",
+            Method::McpCreate,
             Some(json!({"name": name, "command": command})),
         )
     }
 
     pub fn mcp_remove(&self, name: &str) -> Result<Value, CommandError> {
-        self.request("mcp.remove", Some(json!({"name": name})))
+        self.request(Method::McpRemove, Some(json!({"name": name})))
     }
 
     pub fn mcp_enable(&self, name: &str) -> Result<Value, CommandError> {
-        self.request("mcp.enable", Some(json!({"name": name})))
+        self.request(Method::McpEnable, Some(json!({"name": name})))
     }
 
     pub fn mcp_disable(&self, name: &str) -> Result<Value, CommandError> {
-        self.request("mcp.disable", Some(json!({"name": name})))
+        self.request(Method::McpDisable, Some(json!({"name": name})))
     }
 
     pub fn mcp_test(&self, name: &str) -> Result<Value, CommandError> {
-        self.request("mcp.test", Some(json!({"name": name})))
+        self.request(Method::McpTest, Some(json!({"name": name})))
     }
 
     pub fn plugin_list(&self) -> Result<Value, CommandError> {
-        self.request("plugin.list", None)
+        self.request(Method::PluginList, None)
     }
 
     pub fn plugin_get(&self, name: &str) -> Result<Value, CommandError> {
-        self.request("plugin.get", Some(json!({"name": name})))
+        self.request(Method::PluginGet, Some(json!({"name": name})))
     }
 
     pub fn plugin_enable(&self, name: &str) -> Result<Value, CommandError> {
-        self.request("plugin.enable", Some(json!({"name": name})))
+        self.request(Method::PluginEnable, Some(json!({"name": name})))
     }
 
     pub fn plugin_disable(&self, name: &str) -> Result<Value, CommandError> {
-        self.request("plugin.disable", Some(json!({"name": name})))
+        self.request(Method::PluginDisable, Some(json!({"name": name})))
     }
 
     pub fn plugin_diagnostics(&self) -> Result<Value, CommandError> {
-        self.request("plugin.diagnostics", None)
+        self.request(Method::PluginDiagnostics, None)
     }
 
     pub fn tool_list(&self) -> Result<Value, CommandError> {
-        self.request("tool.list", None)
+        self.request(Method::ToolList, None)
     }
 
     pub fn policy_get(&self) -> Result<Value, CommandError> {
-        self.request("policy.get", None)
+        self.request(Method::PolicyGet, None)
     }
 
     // -- observability (Phase 10) -------------------------------------------------
@@ -650,7 +693,7 @@ impl EngineSupervisor {
         } else {
             Some(Value::Object(params))
         };
-        self.request("artifact.list", params)
+        self.request(Method::ArtifactList, params)
     }
 
     pub fn artifact_read(&self, uri: &str, max_bytes: Option<u32>) -> Result<Value, CommandError> {
@@ -659,11 +702,11 @@ impl EngineSupervisor {
         if let Some(max_bytes) = max_bytes {
             params.insert("max_bytes".to_string(), Value::Number(max_bytes.into()));
         }
-        self.request("artifact.read", Some(Value::Object(params)))
+        self.request(Method::ArtifactRead, Some(Value::Object(params)))
     }
 
     pub fn context_get(&self, reference: &str) -> Result<Value, CommandError> {
-        self.request("context.get", Some(json!({"ref": reference})))
+        self.request(Method::ContextGet, Some(json!({"ref": reference})))
     }
 
     pub fn usage_get(&self, reference: Option<String>) -> Result<Value, CommandError> {
@@ -676,46 +719,46 @@ impl EngineSupervisor {
         } else {
             Some(Value::Object(params))
         };
-        self.request("usage.get", params)
+        self.request(Method::UsageGet, params)
     }
 
     // -- workflow (Phase 11) ------------------------------------------------------
 
     pub fn queue_add(&self, session_id: &str, message: &str) -> Result<Value, CommandError> {
         self.request(
-            "session.queue.add",
+            Method::SessionQueueAdd,
             Some(json!({"session_id": session_id, "message": message})),
         )
     }
 
     pub fn queue_list(&self, session_id: &str) -> Result<Value, CommandError> {
         self.request(
-            "session.queue.list",
+            Method::SessionQueueList,
             Some(json!({"session_id": session_id})),
         )
     }
 
     pub fn queue_clear(&self, session_id: &str) -> Result<Value, CommandError> {
         self.request(
-            "session.queue.clear",
+            Method::SessionQueueClear,
             Some(json!({"session_id": session_id})),
         )
     }
 
     pub fn bundle_list(&self) -> Result<Value, CommandError> {
-        self.request("profile_bundle.list", None)
+        self.request(Method::ProfileBundleList, None)
     }
 
     pub fn bundle_get(&self, id: &str) -> Result<Value, CommandError> {
-        self.request("profile_bundle.get", Some(json!({"id": id})))
+        self.request(Method::ProfileBundleGet, Some(json!({"id": id})))
     }
 
     pub fn bundle_create(&self, params: Value) -> Result<Value, CommandError> {
-        self.request("profile_bundle.create", Some(params))
+        self.request(Method::ProfileBundleCreate, Some(params))
     }
 
     pub fn bundle_remove(&self, id: &str) -> Result<Value, CommandError> {
-        self.request("profile_bundle.remove", Some(json!({"id": id})))
+        self.request(Method::ProfileBundleRemove, Some(json!({"id": id})))
     }
 
     pub fn bundle_apply(
@@ -728,7 +771,7 @@ impl EngineSupervisor {
         if let Some(session_ref) = session_ref {
             params.insert("session_ref".to_string(), Value::String(session_ref));
         }
-        self.request("profile_bundle.apply", Some(Value::Object(params)))
+        self.request(Method::ProfileBundleApply, Some(Value::Object(params)))
     }
 
     pub fn approval_resolve(
@@ -737,31 +780,31 @@ impl EngineSupervisor {
         decision: &str,
     ) -> Result<Value, CommandError> {
         self.request(
-            "approval.resolve",
+            Method::ApprovalResolve,
             Some(json!({"approval_id": approval_id, "decision": decision})),
         )
     }
 
     pub fn snapshot_get(&self) -> Result<Value, CommandError> {
-        self.request("runtime.snapshot.get", None)
+        self.request(Method::RuntimeSnapshotGet, None)
     }
 
     // -- providers / models (Phase 3) --------------------------------------
 
     pub fn provider_list(&self) -> Result<Value, CommandError> {
-        self.request("provider.list", None)
+        self.request(Method::ProviderList, None)
     }
 
     pub fn provider_create(&self, params: Value) -> Result<Value, CommandError> {
-        self.request("provider.create", Some(params))
+        self.request(Method::ProviderCreate, Some(params))
     }
 
     pub fn provider_get(&self, ref_: &str) -> Result<Value, CommandError> {
-        self.request("provider.get", Some(json!({ "ref": ref_ })))
+        self.request(Method::ProviderGet, Some(json!({ "ref": ref_ })))
     }
 
     pub fn provider_update(&self, params: Value) -> Result<Value, CommandError> {
-        self.request("provider.update", Some(params))
+        self.request(Method::ProviderUpdate, Some(params))
     }
 
     pub fn provider_remove(
@@ -771,36 +814,36 @@ impl EngineSupervisor {
         keep_credentials: bool,
     ) -> Result<Value, CommandError> {
         self.request(
-            "provider.remove",
+            Method::ProviderRemove,
             Some(json!({ "ref": ref_, "switch_to": switch_to, "keep_credentials": keep_credentials })),
         )
     }
 
     pub fn provider_test(&self, ref_: &str) -> Result<Value, CommandError> {
-        self.request("provider.test", Some(json!({ "ref": ref_ })))
+        self.request(Method::ProviderTest, Some(json!({ "ref": ref_ })))
     }
 
     pub fn provider_discover(&self) -> Result<Value, CommandError> {
-        self.request("provider.discover", None)
+        self.request(Method::ProviderDiscover, None)
     }
 
     pub fn provider_use(&self, ref_: &str) -> Result<Value, CommandError> {
-        self.request("provider.use", Some(json!({ "ref": ref_ })))
+        self.request(Method::ProviderUse, Some(json!({ "ref": ref_ })))
     }
 
     pub fn model_list(&self, provider: Option<String>) -> Result<Value, CommandError> {
-        self.request("model.list", Some(json!({ "provider": provider })))
+        self.request(Method::ModelList, Some(json!({ "provider": provider })))
     }
 
     pub fn model_get(&self, ref_: &str, provider: Option<String>) -> Result<Value, CommandError> {
         self.request(
-            "model.get",
+            Method::ModelGet,
             Some(json!({ "ref": ref_, "provider": provider })),
         )
     }
 
     pub fn model_add(&self, params: Value) -> Result<Value, CommandError> {
-        self.request("model.add", Some(params))
+        self.request(Method::ModelAdd, Some(params))
     }
 
     pub fn model_alias(
@@ -810,7 +853,7 @@ impl EngineSupervisor {
         provider: Option<String>,
     ) -> Result<Value, CommandError> {
         self.request(
-            "model.alias",
+            Method::ModelAlias,
             Some(json!({ "ref": ref_, "new_alias": new_alias, "provider": provider })),
         )
     }
@@ -821,29 +864,29 @@ impl EngineSupervisor {
         provider: Option<String>,
     ) -> Result<Value, CommandError> {
         self.request(
-            "model.remove",
+            Method::ModelRemove,
             Some(json!({ "ref": ref_, "provider": provider })),
         )
     }
 
     pub fn model_use(&self, ref_: &str, provider: Option<String>) -> Result<Value, CommandError> {
         self.request(
-            "model.use",
+            Method::ModelUse,
             Some(json!({ "ref": ref_, "provider": provider })),
         )
     }
 
     pub fn model_discover(&self, provider: Option<String>) -> Result<Value, CommandError> {
-        self.request("model.discover", Some(json!({ "provider": provider })))
+        self.request(Method::ModelDiscover, Some(json!({ "provider": provider })))
     }
 
     pub fn model_refresh(&self, provider: Option<String>) -> Result<Value, CommandError> {
-        self.request("model.refresh", Some(json!({ "provider": provider })))
+        self.request(Method::ModelRefresh, Some(json!({ "provider": provider })))
     }
 
     pub fn model_test(&self, ref_: &str, provider: Option<String>) -> Result<Value, CommandError> {
         self.request(
-            "model.test",
+            Method::ModelTest,
             Some(json!({ "ref": ref_, "provider": provider })),
         )
     }
@@ -966,7 +1009,7 @@ mod tests {
     fn request_without_engine_is_not_ready() {
         let supervisor = EngineSupervisor::new();
         let error = supervisor
-            .request("session.list", None)
+            .request(Method::SessionList, None)
             .expect_err("must refuse");
         assert_eq!(error.code, "ENGINE_NOT_READY");
     }

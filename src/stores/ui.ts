@@ -11,7 +11,7 @@ import {
 } from '../lib/appearance'
 import type { Language } from '../types'
 
-export type View = 'chat' | 'settings' | 'engine' | 'workspace'
+export type View = 'chat' | 'settings' | 'engine' | 'workspace' | 'project'
 
 /** Secciones de Ajustes. Las marcadas con * llegan en fases posteriores. */
 export type SettingsSection =
@@ -74,9 +74,12 @@ interface UIState {
   enterToSend: boolean
   autoFollow: boolean
   showSuggestions: boolean
+  /** Home del proyecto abierto (root). Solo con view 'project'. */
+  projectRoot: string | null
   goChat: () => void
   goEngine: () => void
   goWorkspace: () => void
+  goProject: (root: string) => void
   goSettings: (section?: SettingsSection) => void
   setSettingsSection: (section: SettingsSection) => void
   setLang: (lang: Language) => void
@@ -103,6 +106,7 @@ if (typeof window !== 'undefined') {
 /** Estado de shell (vista, sidebar, paleta, tema, prefs). Lo caliente (sesiones, streaming) sigue en los servicios. */
 export const useUIStore = create<UIState>((set) => ({
   view: 'chat',
+  projectRoot: null,
   settingsSection: 'general',
   lang: typeof window === 'undefined' ? 'es' : readLang(),
   sidebarOpen: false,
@@ -115,11 +119,12 @@ export const useUIStore = create<UIState>((set) => ({
   autoFollow: typeof window === 'undefined' ? true : readBool('rinari.autoFollow', true),
   showSuggestions:
     typeof window === 'undefined' ? true : readBool('rinari.showSuggestions', true),
-  goChat: () => set({ view: 'chat', sidebarOpen: false }),
-  goEngine: () => set({ view: 'engine', sidebarOpen: false }),
-  goWorkspace: () => set({ view: 'workspace', sidebarOpen: false }),
+  goChat: () => set({ view: 'chat', sidebarOpen: false, projectRoot: null }),
+  goEngine: () => set({ view: 'engine', sidebarOpen: false, projectRoot: null }),
+  goWorkspace: () => set({ view: 'workspace', sidebarOpen: false, projectRoot: null }),
+  goProject: (root) => set({ view: 'project', sidebarOpen: false, projectRoot: root }),
   goSettings: (section = 'general') =>
-    set({ view: 'settings', sidebarOpen: false, settingsSection: section }),
+    set({ view: 'settings', sidebarOpen: false, settingsSection: section, projectRoot: null }),
   setSettingsSection: (settingsSection) => set({ settingsSection }),
   setLang: (lang) => {
     try {

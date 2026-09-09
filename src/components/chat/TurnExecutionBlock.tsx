@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, ChevronDown, Circle, LoaderCircle, ShieldAlert, Terminal, XCircle } from 'lucide-react'
-import type { PendingApproval, ToolActivity, TurnExecution } from '../../types'
+import type { PendingApproval, ToolActivity, TurnExecution, TurnStopReason } from '../../types'
+import { useI18n } from '../../i18n'
 
 interface Props {
   execution: TurnExecution
   approvals: PendingApproval[]
   onResolveApproval: (id: string, decision: string) => void
+  onContinue?: () => void
 }
 
-const terminalStatuses = new Set(['completed', 'cancelled', 'failed'])
+const terminalStatuses = new Set(['completed', 'cancelled', 'failed', 'stopped'])
 
 function seconds(execution: TurnExecution, now: number): string {
   const end = execution.completedAt ?? now
@@ -34,8 +36,23 @@ function statusLabel(execution: TurnExecution): string {
     cancelling: 'Cancelando…',
     cancelled: 'Cancelado',
     failed: 'Falló',
+    stopped: 'Detenido',
     completed: 'Completado',
   }[execution.status]
+}
+
+function formatWall(totalS: number): string {
+  if (totalS >= 3600) return `${Math.floor(totalS / 3600)}h ${Math.floor((totalS % 3600) / 60)}m`
+  if (totalS >= 60) return `${Math.floor(totalS / 60)}m ${Math.floor(totalS % 60)}s`
+  return `${Math.floor(totalS)}s`
+}
+
+function stopUsage(reason: TurnStopReason): string | null {
+  const parts: string[] = []
+  if (reason.modelCalls != null) parts.push(`Model calls: ${reason.modelCalls}`)
+  if (reason.toolCalls != null) parts.push(`Tool calls: ${reason.toolCalls}`)
+  if (reason.wallTimeS != null) parts.push(`Runtime: ${formatWall(reason.wallTimeS)}`)
+  return parts.length > 0 ? parts.join(' · ') : null
 }
 
 function toolIcon(tool: ToolActivity) {
@@ -45,7 +62,8 @@ function toolIcon(tool: ToolActivity) {
   return <Circle size={12} className="text-[var(--text-subtle)]" />
 }
 
-export default function TurnExecutionBlock({ execution, approvals, onResolveApproval }: Props) {
+export default function TurnExecutionBlock({ execution, approvals, onResolveApproval, onContinue }: Props) {
+  const { t } = useI18n()
   const [now, setNow] = useState(Date.now())
   const [open, setOpen] = useState(!terminalStatuses.has(execution.status))
   const active = !terminalStatuses.has(execution.status)
@@ -74,7 +92,7 @@ export default function TurnExecutionBlock({ execution, approvals, onResolveAppr
         className="flex w-full cursor-pointer items-start gap-2 rounded-2xl px-3 py-2.5 text-left transition-colors hover:bg-[var(--bg-hover)]/50"
         aria-expanded={open}
       >
-        {active ? <LoaderCircle size={16} className="mt-0.5 animate-spin text-[var(--accent-2)]" /> : execution.status === 'completed' ? <CheckCircle2 size={16} className="mt-0.5 text-emerald-500" /> : <XCircle size={16} className="mt-0.5 text-rose-400" />}
+        {active ? <LoaderCircle size={16} className="mt-0.5 animate-spin text-[var(--accent-2)]" /> : execution.status === 'completed' ? <CheckCircle2 size={16} className="mt-0.5 text-emerald-500" /> : execution.status === 'stopped' ? <ShieldAlert size={16} className="mt-0.5 text-amber-400" /> : <XCircle size={16} className="mt-0.5 text-rose-400" />}
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-medium text-[var(--text)]">{title}</span>
           <span className="mt-0.5 block font-mono text-[10px] text-[var(--text-subtle)]">{seconds(execution, now)}</span>
@@ -82,6 +100,33 @@ export default function TurnExecutionBlock({ execution, approvals, onResolveAppr
         </span>
         <ChevronDown size={15} className={`mt-1 text-[var(--text-subtle)] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
+
+      {execution.status === 'stopped' && execution.stopReason && (
+        <div className="border-t border-[var(--border)] px-3 py-2.5">
+          <p className="text-xs text-[var(--text-muted)]">{execution.stopReason.message}</p>
+          {stopUsage(execution.stopReason) && (
+            <p className="mt-1 font-mono text-[10px] text-[var(--text-subtle)]">
+              {stopUsage(execution.stopReason)}
+            </p>
+          )}
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => onContinue?.()}
+              className="cursor-pointer rounded-lg bg-[var(--accent)] px-3 py-1.5 text-[11px] font-semibold text-white transition-all hover:brightness-110"
+            >
+              {t('turn.continue')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="cursor-pointer rounded-lg border border-[var(--border)] px-3 py-1.5 text-[11px] text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text)]"
+            >
+              {t('turn.reviewActivity')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {open && (execution.tools.length > 0 || visibleApprovals.length > 0) && (
         <div className="space-y-2 border-t border-[var(--border)] px-3 py-2.5">
