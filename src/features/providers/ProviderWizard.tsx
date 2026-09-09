@@ -55,6 +55,11 @@ export default function ProviderWizard({
       setWorking(true)
       setError('')
       try {
+        if (!form.preset?.provider_type) {
+          setError(t('providers.noType'))
+          setWorking(false)
+          return
+        }
         const alias = form.alias.trim()
         await engineApi.providerCreate({
           alias,

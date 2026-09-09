@@ -111,7 +111,7 @@ export default function ChatView({
                 background: 'radial-gradient(closest-side, rgba(139,92,246,0.16), transparent)',
               }}
             />
-            <Logo size={48} radius="rounded-2xl" className="relative" />
+            <Logo size={96} radius="rounded-3xl" className="relative" />
             <h2 className="relative mt-4 text-center text-3xl font-bold tracking-tight text-[var(--text)]">
               {t('chat.emptyTitle')}
             </h2>

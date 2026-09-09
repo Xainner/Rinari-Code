@@ -96,7 +96,7 @@ export default function AppSidebar({
           aria-label={t('shell.expand')}
           title={t('shell.expand')}
         >
-          <Logo size={36} />
+          <Logo size={44} />
         </button>
         <div className="mt-3 flex flex-col gap-1">
           <RailButton label={t('sidebar.newChat')} onClick={onNewSession}>
@@ -122,7 +122,7 @@ export default function AppSidebar({
     <div className="flex h-full w-full flex-col">
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div className="flex items-center gap-2.5">
-          <Logo size={36} />
+          <Logo size={44} />
           <span className="text-[17px] font-bold tracking-tight text-[var(--text)]">
             {t('app.name')}
           </span>

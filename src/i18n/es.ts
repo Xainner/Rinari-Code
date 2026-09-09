@@ -500,6 +500,7 @@ export const es = {
   'providers.healthOk': 'OK: {n} modelo(s) detectado(s).',
   'providers.healthFail': 'Falló: {detail}',
   'providers.noCredential': 'Sin credencial',
+  'providers.noType': 'Elige un tipo de proveedor.',
   'providers.offline': 'Desconectado',
 
   /* Actividad e historial (Fase 4) */

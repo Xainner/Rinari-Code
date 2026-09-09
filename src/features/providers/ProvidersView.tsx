@@ -72,6 +72,10 @@ export default function ProvidersView({
   async function save() {
     const alias = form.alias.trim()
     if (alias === '') return
+    if (!form.preset?.provider_type) {
+      toast.error(t('providers.noType'))
+      return
+    }
     if (form.auth === 'api-key' && dialog?.mode === 'add' && form.secret === '' && form.secret_env === '') {
       toast.error(t('providers.noCredential'))
       return

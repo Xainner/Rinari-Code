@@ -400,3 +400,10 @@ html[data-motion='reduced'] *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/* WebView2/Edge pinta su propio botón reveal en inputs password.
+   Ya tenemos el nuestro (ojo en ProviderForm): se oculta el nativo. */
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none;
+}

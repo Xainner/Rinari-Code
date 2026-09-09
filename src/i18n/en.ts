@@ -482,6 +482,7 @@ export const en: Record<I18nKey, string> = {
   'providers.healthOk': 'OK: {n} model(s) found.',
   'providers.healthFail': 'Failed: {detail}',
   'providers.noCredential': 'No credential',
+  'providers.noType': 'Choose a provider type.',
   'providers.offline': 'Offline',
 
   /* Activity & history (Phase 4) */

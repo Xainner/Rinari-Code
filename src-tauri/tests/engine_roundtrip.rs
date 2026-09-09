@@ -487,6 +487,38 @@ fn observability_roundtrip_artifacts_context_usage() {
 }
 
 #[test]
+fn provider_create_roundtrip_with_nulls() {
+    // Payload tal cual lo arma main.rs: clave `type`, nulls explícitos.
+    let harness = start_fake("stream");
+
+    let created = harness
+        .supervisor
+        .provider_create(serde_json::json!({
+            "alias": "demo",
+            "type": "openai",
+            "auth_method": null,
+            "endpoint": null,
+            "account_hint": null,
+            "secret": "s",
+            "secret_env": null,
+            "settings": null,
+        }))
+        .expect("provider.create");
+    assert_eq!(created["provider"]["alias"], serde_json::json!("demo"));
+
+    let missing = harness
+        .supervisor
+        .provider_create(serde_json::json!({"alias": "demo2"}))
+        .expect_err("missing type must fail");
+    assert_eq!(missing.code, "INVALID_PARAMS");
+
+    assert_eq!(
+        format!("{:?}", harness.supervisor.shutdown().state),
+        "Stopped"
+    );
+}
+
+#[test]
 fn workflow_roundtrip_queue_and_bundles() {
     let harness = start_fake("stream");
 

@@ -85,13 +85,6 @@ export default function EngineConsole({ session }: { session: EngineSession }) {
           >
             {t('engine.restart')}
           </button>
-          <button
-            type="button"
-            onClick={() => void session.shutdownEngine()}
-            className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-[var(--bg-hover)]"
-          >
-            {t('engine.shutdown')}
-          </button>
         </div>
       </Section>
 

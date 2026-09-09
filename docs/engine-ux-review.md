@@ -39,5 +39,19 @@ solo presentación y arranque automático.
 ## Estado real preservado
 
 - Footer del sidebar: dot por estado + versión del engine (sin cambios).
-- `EngineConsole`: estado, detalle, reiniciar, detener, reintentar.
+- `EngineConsole`: estado, detalle, reintentar, reiniciar. Sin botón
+  "Detener": cerrar la app mata el sidecar; el comando `engine_shutdown`
+  sigue existiendo para diagnóstico.
 - El auto-arranque nunca enmascara un fallo: `failed` sigue visible.
+
+## Ronda 2 (reporte de prueba 2026-09-08)
+
+- `provider_create` "missing key": la cadena Rust→engine se verificó con el
+  payload exacto (clave `type` + nulls) contra el engine empaquetado: OK.
+  El mensaje visto es formato Tauri (key ausente en el invoke), que solo
+  ocurre si `form.preset` llega vacío. Blindaje: validación explícita
+  (`providers.noType`) en wizard y ajustes + test roundtrip con nulls.
+  Si reaparece, anotar el texto EXACTO del toast.
+- Doble ojo en apikey: era el reveal nativo de WebView2 + el nuestro.
+  Se oculta `::-ms-reveal/::-ms-clear` en CSS.
+- Imágenes: home 48→96, sidebar 36→44.
