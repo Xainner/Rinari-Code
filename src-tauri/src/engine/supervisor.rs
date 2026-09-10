@@ -437,6 +437,48 @@ impl EngineSupervisor {
         )
     }
 
+    pub fn turn_changes_get(&self, turn_id: &str) -> Result<Value, CommandError> {
+        self.request(Method::TurnChangesGet, Some(json!({"turn_id": turn_id})))
+    }
+
+    pub fn turn_changes_review(
+        &self,
+        turn_id: &str,
+        path: Option<&str>,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            Method::TurnChangesReview,
+            Some(json!({"turn_id": turn_id, "path": path})),
+        )
+    }
+
+    pub fn turn_changes_undo_preview(
+        &self,
+        turn_id: &str,
+        paths: Option<Vec<String>>,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            Method::TurnChangesUndoPreview,
+            Some(json!({"turn_id": turn_id, "paths": paths})),
+        )
+    }
+
+    pub fn turn_changes_undo(
+        &self,
+        turn_id: &str,
+        paths: Option<Vec<String>>,
+        apply_safe_only: bool,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            Method::TurnChangesUndo,
+            Some(json!({
+                "turn_id": turn_id,
+                "paths": paths,
+                "apply_safe_only": apply_safe_only,
+            })),
+        )
+    }
+
     pub fn session_model_set(
         &self,
         reference: &str,

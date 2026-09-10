@@ -1,5 +1,5 @@
 import type { ChatMessage, PendingApproval, TurnStopReason } from '../../types'
-import type { EngineEventMsg, TimelineTurn } from '../../services/engine'
+import type { EngineEventMsg, TimelineTurn, TurnChangedFile } from '../../services/engine'
 import type {
   ApprovalTimelineItem,
   TimelineItem,
@@ -65,6 +65,7 @@ function defaultTimeline(turnId: string, sessionId: string, now: number): TurnTi
 }
 
 function itemId(event: string, payload: Record<string, unknown>): string {
+  if (event.startsWith('turn.changes.')) return `changeset:${payload.id || payload.changeset_id || 'turn'}`
   if (payload.tool_call_id) return `tool:${payload.tool_call_id}`
   if (event.startsWith('model.')) return `model:${payload.model_call_id || 'legacy'}`
   if (payload.approval_id) return `approval:${payload.approval_id}`
@@ -172,6 +173,45 @@ function mergeEventItem(
       risk: text(payload.risk) || prior?.risk || 'medium',
       description: text(payload.description) || prior?.description || '',
       decision: decision || prior?.decision,
+      choices: Array.isArray(payload.choices)
+        ? payload.choices.filter((choice): choice is string => typeof choice === 'string')
+        : prior?.choices,
+      ruleId: text(payload.rule_id) || prior?.ruleId,
+      reusable: typeof payload.reusable === 'boolean' ? payload.reusable : prior?.reusable,
+    }
+  }
+  if (event.startsWith('turn.changes.')) {
+    const prior = current?.type === 'changeset' ? current : undefined
+    const files = Array.isArray(payload.files)
+      ? payload.files.filter(
+          (file): file is TurnChangedFile => Boolean(file && typeof file === 'object'),
+        )
+      : prior?.files ?? []
+    const eventStatus = text(payload.status)
+    return {
+      id,
+      type: 'changeset',
+      activitySeq,
+      occurredAt,
+      changesetId: text(payload.id) || text(payload.changeset_id) || prior?.changesetId || '',
+      turnId: text(payload.turn_id) || prior?.turnId || '',
+      status: event.endsWith('started')
+        ? 'undoing'
+        : event.endsWith('conflict')
+          ? 'conflicted'
+          : eventStatus === 'undone' || eventStatus === 'partially_undone'
+            ? eventStatus
+            : prior?.status ?? 'active',
+      additions: number(payload.additions) ?? prior?.additions ?? 0,
+      deletions: number(payload.deletions) ?? prior?.deletions ?? 0,
+      undoable: typeof payload.undoable === 'boolean' ? payload.undoable : prior?.undoable ?? false,
+      attributionComplete: typeof payload.attribution_complete === 'boolean'
+        ? payload.attribution_complete
+        : prior?.attributionComplete ?? true,
+      warnings: Array.isArray(payload.warnings)
+        ? payload.warnings.filter((warning): warning is string => typeof warning === 'string')
+        : prior?.warnings ?? [],
+      files,
     }
   }
   if (event.startsWith('agent.')) {

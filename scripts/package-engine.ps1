@@ -83,6 +83,15 @@ $hello = @{ id = "pkg-smoke"; method = "engine.info"; params = @{} } | ConvertTo
 $out = $hello | & (Join-Path $OutDir "python.exe") -m rinari engine --stdio 2>$null | Select-Object -First 2
 $out | ForEach-Object { Write-Host $_ }
 if (-not ($out -match '"ok":\s*true')) { throw "el engine empaquetado no responde engine.info" }
-if (-not ($out -match 'desktop_turn_runtime_v3')) { throw "el engine empaquetado no expone desktop_turn_runtime_v3" }
+foreach ($capability in $manifest.required_capabilities) {
+  if (-not ($out -match [regex]::Escape($capability))) {
+    throw "el engine empaquetado no expone la capacidad requerida: $capability"
+  }
+}
+foreach ($capability in $manifest.optional_capabilities) {
+  if (-not ($out -match [regex]::Escape($capability))) {
+    throw "el engine empaquetado no expone la capacidad fijada: $capability"
+  }
+}
 
 Write-Host "OK: $OutDir"

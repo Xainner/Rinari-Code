@@ -72,6 +72,44 @@ export interface TimelineTurn {
   terminal?: Record<string, unknown>;
 }
 
+export interface TurnChangedFile {
+  path: string
+  absolute_path: string
+  previous_path?: string | null
+  kind: 'created' | 'modified' | 'deleted' | 'renamed'
+  additions?: number | null
+  deletions?: number | null
+  ownership: 'agent' | 'user' | 'mixed' | 'unknown'
+  confidence: string
+  binary: boolean
+  sensitive: boolean
+  diff?: string | null
+  diff_truncated: boolean
+  undoable: boolean
+  conflict_reason?: string | null
+}
+
+export interface TurnChangeSet {
+  id: string
+  turn_id: string
+  session_id: string
+  project_id?: string | null
+  additions: number
+  deletions: number
+  undoable: boolean
+  attribution_complete: boolean
+  warnings: string[]
+  status: 'active' | 'undone' | 'partially_undone' | 'conflicted'
+  files: TurnChangedFile[]
+}
+
+export interface TurnUndoPreview {
+  changeset_id: string
+  turn_id: string
+  operations: Array<{ path: string; absolute_path: string; action: string; safe: boolean }>
+  conflicts: Array<{ path: string; absolute_path: string; reason: string }>
+}
+
 export interface ProviderSummary {
   id: string;
   alias: string;
@@ -402,6 +440,23 @@ export const engineApi = {
     }),
   getSessionPermission: (reference: string) =>
     invoke<{ session: SessionSummary }>("session_permission_get", { reference }),
+  turnChanges: (turnId: string) =>
+    invoke<TurnChangeSet>('turn_changes_get', { turn_id: turnId }),
+  reviewTurnChanges: (turnId: string, path?: string) =>
+    invoke<{ changeset_id: string; turn_id: string; files: TurnChangedFile[] }>(
+      'turn_changes_review',
+      { turn_id: turnId, path: path ?? null },
+    ),
+  previewTurnUndo: (turnId: string, paths?: string[]) =>
+    invoke<TurnUndoPreview>('turn_changes_undo_preview', {
+      turn_id: turnId,
+      paths: paths ?? null,
+    }),
+  undoTurnChanges: (turnId: string, paths?: string[], applySafeOnly = false) =>
+    invoke<TurnUndoPreview & { status: string; applied: string[]; skipped: string[] }>(
+      'turn_changes_undo',
+      { turn_id: turnId, paths: paths ?? null, apply_safe_only: applySafeOnly },
+    ),
   searchWorkspaceFiles: (sessionId: string, query: string, limit = 30) =>
     invoke<{ root: string; files: Array<{ path: string; relative_path: string; name: string }> }>(
       "workspace_file_search",

@@ -35,6 +35,7 @@ interface ChatViewProps {
   onReasoningChange: (effort: 'off' | 'low' | 'medium' | 'high') => void
   permissionProfile: 'read-only' | 'workspace' | 'full-access'
   effectivePermissionProfile: 'read-only' | 'workspace' | 'full-access'
+  permissionProfilesV2: boolean
   onPermissionChange: (profile: string) => void
   onSearchFiles: (query: string) => Promise<{ root: string; files: Array<{ path: string; relative_path: string; name: string }> }>
 }
@@ -67,6 +68,7 @@ export default function ChatView({
   onReasoningChange,
   permissionProfile,
   effectivePermissionProfile,
+  permissionProfilesV2,
   onPermissionChange,
   onSearchFiles,
 }: ChatViewProps) {
@@ -130,6 +132,7 @@ export default function ChatView({
       onOpenProviders={onOpenProviders}
       permissionProfile={permissionProfile}
       effectivePermissionProfile={effectivePermissionProfile}
+      permissionProfilesV2={permissionProfilesV2}
       onPermissionChange={onPermissionChange}
       onSearchFiles={onSearchFiles}
     />

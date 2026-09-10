@@ -710,6 +710,35 @@ fn desktop_session_permissions_files_and_attachments_roundtrip() {
 }
 
 #[test]
+fn turn_changes_review_and_undo_roundtrip() {
+    let harness = start_fake("stream");
+    let changes = harness
+        .supervisor
+        .turn_changes_get("turn_fake1")
+        .expect("turn changes");
+    assert_eq!(changes["files"][0]["path"], "src/main.ts");
+    assert!(changes["files"][0].get("before_blob_ref").is_none());
+
+    let review = harness
+        .supervisor
+        .turn_changes_review("turn_fake1", Some("src/main.ts"))
+        .expect("turn review");
+    assert_eq!(review["files"][0]["diff"], "+const ok = true");
+
+    let preview = harness
+        .supervisor
+        .turn_changes_undo_preview("turn_fake1", None)
+        .expect("undo preview");
+    assert!(preview["conflicts"].as_array().unwrap().is_empty());
+    let undone = harness
+        .supervisor
+        .turn_changes_undo("turn_fake1", None, false)
+        .expect("undo");
+    assert_eq!(undone["status"], "undone");
+    harness.supervisor.shutdown();
+}
+
+#[test]
 fn cancel_ends_slow_turn_without_completion() {
     let harness = start_fake("slow");
     let session_id = create_session(&harness);

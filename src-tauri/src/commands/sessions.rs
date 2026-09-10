@@ -184,6 +184,51 @@ pub(crate) async fn session_permission_get(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn turn_changes_get(
+    supervisor: State<'_, EngineSupervisor>,
+    turn_id: String,
+) -> Result<serde_json::Value, CommandError> {
+    super::run_engine(supervisor, move |engine| engine.turn_changes_get(&turn_id)).await
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn turn_changes_review(
+    supervisor: State<'_, EngineSupervisor>,
+    turn_id: String,
+    path: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    super::run_engine(supervisor, move |engine| {
+        engine.turn_changes_review(&turn_id, path.as_deref())
+    })
+    .await
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn turn_changes_undo_preview(
+    supervisor: State<'_, EngineSupervisor>,
+    turn_id: String,
+    paths: Option<Vec<String>>,
+) -> Result<serde_json::Value, CommandError> {
+    super::run_engine(supervisor, move |engine| {
+        engine.turn_changes_undo_preview(&turn_id, paths)
+    })
+    .await
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn turn_changes_undo(
+    supervisor: State<'_, EngineSupervisor>,
+    turn_id: String,
+    paths: Option<Vec<String>>,
+    apply_safe_only: Option<bool>,
+) -> Result<serde_json::Value, CommandError> {
+    super::run_engine(supervisor, move |engine| {
+        engine.turn_changes_undo(&turn_id, paths, apply_safe_only.unwrap_or(false))
+    })
+    .await
+}
+
+#[tauri::command(rename_all = "snake_case")]
 pub(crate) async fn session_model_set(
     supervisor: State<'_, EngineSupervisor>,
     reference: String,

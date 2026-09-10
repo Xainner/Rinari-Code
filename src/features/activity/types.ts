@@ -1,5 +1,6 @@
 import type { ChatMessage, PendingApproval, TurnStopReason } from '../../types'
 import type { TimelineTurn } from '../../services/engine'
+import type { TurnChangedFile } from '../../services/engine'
 
 export type TimelineStatus =
   | 'running'
@@ -12,7 +13,7 @@ export type TimelineStatus =
 
 interface TimelineItemBase {
   id: string
-  type: 'model' | 'tool' | 'approval' | 'agent' | 'context' | 'verification' | 'system'
+  type: 'model' | 'tool' | 'approval' | 'agent' | 'context' | 'verification' | 'changeset' | 'system'
   activitySeq: number
   occurredAt: number
 }
@@ -48,6 +49,22 @@ export interface ApprovalTimelineItem extends TimelineItemBase {
   risk: string
   description: string
   decision?: string
+  choices?: string[]
+  ruleId?: string
+  reusable?: boolean
+}
+
+export interface ChangeSetTimelineItem extends TimelineItemBase {
+  type: 'changeset'
+  changesetId: string
+  turnId: string
+  status: 'active' | 'undoing' | 'undone' | 'partially_undone' | 'conflicted'
+  additions: number
+  deletions: number
+  undoable: boolean
+  attributionComplete: boolean
+  warnings: string[]
+  files: TurnChangedFile[]
 }
 
 export interface AgentTimelineItem extends TimelineItemBase {
@@ -86,6 +103,7 @@ export type TimelineItem =
   | AgentTimelineItem
   | ContextTimelineItem
   | VerificationTimelineItem
+  | ChangeSetTimelineItem
   | SystemTimelineItem
 
 export interface TurnTimeline {

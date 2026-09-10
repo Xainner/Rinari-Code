@@ -314,6 +314,7 @@ function App() {
             onResolveApproval={(id, decision) => void session.resolveApproval(id, decision)}
             permissionProfile={activeRecord?.permission_profile ?? 'workspace'}
             effectivePermissionProfile={activeRecord?.effective_permission_profile ?? 'workspace'}
+            permissionProfilesV2={session.status?.capabilities.permission_profiles_v2 === true}
             onPermissionChange={(profile) => void session.setPermission(profile)}
             onSearchFiles={session.searchFiles}
             historyNote={

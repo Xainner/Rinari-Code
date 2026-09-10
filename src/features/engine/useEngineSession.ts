@@ -51,6 +51,13 @@ export function useEngineSession() {
     if (connection.ready && activeProjectRoot) void projects.loadStatus(activeProjectRoot)
   }, [activeProjectRoot, connection.ready, projects.loadStatus])
 
+  useEffect(() => {
+    if (!activeProjectRoot) return
+    const refresh = () => void projects.loadStatus(activeProjectRoot, true)
+    window.addEventListener('rinari-workspace-refresh', refresh)
+    return () => window.removeEventListener('rinari-workspace-refresh', refresh)
+  }, [activeProjectRoot, projects.loadStatus])
+
   async function startEngine(): Promise<void> {
     const next = await connection.start()
     if (next?.state === 'ready') {

@@ -26,6 +26,7 @@ interface ComposerProps {
   onReasoningChange: (effort: 'off' | 'low' | 'medium' | 'high') => void
   permissionProfile: 'read-only' | 'workspace' | 'full-access'
   effectivePermissionProfile: 'read-only' | 'workspace' | 'full-access'
+  permissionProfilesV2: boolean
   onPermissionChange: (profile: string) => void
   onSearchFiles: (query: string) => Promise<{ root: string; files: Array<{ path: string; relative_path: string; name: string }> }>
 }
@@ -55,6 +56,7 @@ export default function Composer({
   onReasoningChange,
   permissionProfile,
   effectivePermissionProfile,
+  permissionProfilesV2,
   onPermissionChange,
   onSearchFiles,
 }: ComposerProps) {
@@ -301,11 +303,11 @@ export default function Composer({
             <PopoverContent align="start" className="w-64 p-1.5">
               {sessionMode !== 'build' && <p className="px-2.5 py-2 text-[11px] text-[var(--text-subtle)]">PLAN y REVIEW siempre usan solo lectura.</p>}
               {([
-                ['read-only', 'Solo lectura', 'Inspección sin modificar archivos.'],
-                ['workspace', 'Workspace', 'Puede trabajar dentro del proyecto.'],
-                ['full-access', 'Acceso completo', 'Permite acciones fuera del workspace según política.'],
+                ['read-only', 'Solo lectura', 'No inicia shell ni procesos y no modifica archivos.'],
+                ['workspace', 'Workspace', 'Trabaja dentro del proyecto; pide permiso ante una mutación externa detectable.'],
+                ['full-access', 'Acceso completo', 'Permite mutaciones locales externas. Credenciales, trabajo previo y Git remoto siguen protegidos.'],
               ] as const).map(([value, label, description]) => (
-                <button key={value} type="button" disabled={sessionMode !== 'build'} onClick={() => onPermissionChange(value)} className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)] disabled:cursor-default disabled:opacity-40">
+                <button key={value} type="button" disabled={sessionMode !== 'build' || (value === 'full-access' && !permissionProfilesV2)} title={value === 'full-access' && !permissionProfilesV2 ? 'Actualiza Rinari Engine para usar acceso completo con garantías v2.' : undefined} onClick={() => onPermissionChange(value)} className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)] disabled:cursor-default disabled:opacity-40">
                   <span className="min-w-0 flex-1"><span className="block text-[13px] text-[var(--text)]">{label}</span><span className="block text-[11px] text-[var(--text-subtle)]">{description}</span></span>
                   {permissionProfile === value && <Check size={14} className="mt-0.5 text-[var(--accent-2)]" />}
                 </button>

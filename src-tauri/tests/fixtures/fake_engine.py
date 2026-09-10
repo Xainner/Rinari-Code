@@ -34,6 +34,8 @@ CAPABILITIES = {
     "terminal": True,
     "desktop_turn_runtime_v3": True,
     "activity_timeline_v1": True,
+    "permission_profiles_v2": True,
+    "turn_changeset_v1": True,
 }
 
 DECISIONS = ["allow_once", "allow_session", "deny"]
@@ -155,6 +157,43 @@ class FakeEngine:
             fail(req_id, "NOT_FOUND", f"Session {session_id} not found.")
             return
         respond(req_id, result={"session": record})
+
+    def _changeset(self, turn_id):
+        return {
+            "id": "chg_fake1", "turn_id": turn_id, "session_id": "ses_fake1",
+            "project_id": None, "additions": 1, "deletions": 0,
+            "undoable": True, "attribution_complete": True, "warnings": [],
+            "status": "active", "files": [{
+                "path": "src/main.ts", "absolute_path": "/fake/work/src/main.ts",
+                "previous_path": None, "kind": "modified", "additions": 1,
+                "deletions": 0, "ownership": "agent", "confidence": "exact",
+                "binary": False, "sensitive": False, "diff": "+const ok = true",
+                "diff_truncated": False, "undoable": True, "conflict_reason": None,
+            }],
+        }
+
+    def turn_changes_get(self, req_id, params):
+        respond(req_id, result=self._changeset((params or {}).get("turn_id", "turn_fake1")))
+
+    def turn_changes_review(self, req_id, params):
+        changeset = self._changeset((params or {}).get("turn_id", "turn_fake1"))
+        respond(req_id, result={"changeset_id": changeset["id"],
+                               "turn_id": changeset["turn_id"],
+                               "files": changeset["files"]})
+
+    def turn_changes_undo_preview(self, req_id, params):
+        turn_id = (params or {}).get("turn_id", "turn_fake1")
+        respond(req_id, result={"changeset_id": "chg_fake1", "turn_id": turn_id,
+                               "operations": [{"path": "src/main.ts",
+                                               "absolute_path": "/fake/work/src/main.ts",
+                                               "action": "restore", "safe": True}],
+                               "conflicts": []})
+
+    def turn_changes_undo(self, req_id, params):
+        turn_id = (params or {}).get("turn_id", "turn_fake1")
+        respond(req_id, result={"changeset_id": "chg_fake1", "turn_id": turn_id,
+                               "operations": [], "conflicts": [], "status": "undone",
+                               "applied": ["src/main.ts"], "skipped": []})
 
     def session_model_set(self, req_id, params):
         params = params or {}
@@ -1046,6 +1085,10 @@ class FakeEngine:
             "session.model.set": self.session_model_set,
             "session.permission.get": self.session_permission_get,
             "session.permission.set": self.session_permission_set,
+            "turn.changes.get": self.turn_changes_get,
+            "turn.changes.review": self.turn_changes_review,
+            "turn.changes.undo.preview": self.turn_changes_undo_preview,
+            "turn.changes.undo": self.turn_changes_undo,
             "workspace.file.search": self.workspace_file_search,
             "task.tree": self.task_tree,
             "task.get": self.task_get,

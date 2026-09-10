@@ -36,6 +36,36 @@ describe('narrative activity timeline', () => {
     expect(state.approvals).toHaveLength(0)
   })
 
+  it('preserves non-reusable approval choices from the engine', () => {
+    const state = turnTimelineReducer(createInitialTimelineState(), event('approval.requested', {
+      turn_id: 't1', session_id: 's1', approval_id: 'p1', activity_seq: 1,
+      capability: 'fs.write', choices: ['deny', 'allow_once'],
+      rule_id: 'sensitive_file_write', reusable: false,
+    }))
+    expect(state.timelines.t1.items[0]).toMatchObject({
+      type: 'approval', choices: ['deny', 'allow_once'],
+      ruleId: 'sensitive_file_write', reusable: false,
+    })
+  })
+
+  it('deduplicates changeset lifecycle and retains its persisted files', () => {
+    let state = createInitialTimelineState()
+    state = turnTimelineReducer(state, event('turn.changes.completed', {
+      turn_id: 't1', session_id: 's1', id: 'chg1', activity_seq: 4,
+      additions: 2, deletions: 1, undoable: true, attribution_complete: true,
+      warnings: [], files: [{ path: 'a.ts', absolute_path: '/repo/a.ts', kind: 'modified', ownership: 'agent', confidence: 'exact', binary: false, sensitive: false, diff: '+x', diff_truncated: false, undoable: true }],
+    }))
+    state = turnTimelineReducer(state, event('turn.changes.undo.completed', {
+      turn_id: 't1', session_id: 's1', changeset_id: 'chg1', activity_seq: 8,
+      status: 'undone', applied: ['a.ts'], skipped: [], conflicts: [],
+    }))
+    expect(state.timelines.t1.items).toHaveLength(1)
+    expect(state.timelines.t1.items[0]).toMatchObject({
+      type: 'changeset', changesetId: 'chg1', status: 'undone',
+      additions: 2, files: [{ path: 'a.ts' }],
+    })
+  })
+
   it('deduplicates history messages covered by a timeline', () => {
     const timeline = { turnId: 't1', sessionId: 's1', status: 'completed' as const, startedAt: NOW, completedAt: NOW + 1, userMessage: 'Hola', items: [] }
     const rows = buildChatStream([
