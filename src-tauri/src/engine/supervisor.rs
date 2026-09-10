@@ -3,6 +3,7 @@
 //! Path: Tauri command → EngineSupervisor → EngineTransport → Engine Protocol.
 //! No harness logic lives here; this is process lifecycle plus typed routing.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
@@ -41,6 +42,7 @@ pub struct EngineStatus {
     pub engine_version: Option<String>,
     pub protocol_version: Option<u32>,
     pub detail: Option<String>,
+    pub capabilities: HashMap<String, bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -144,6 +146,11 @@ impl EngineSupervisor {
                         .map(|hello| hello.engine_version.clone()),
                     protocol_version: inner.hello.as_ref().map(|hello| hello.protocol_version),
                     detail,
+                    capabilities: inner
+                        .hello
+                        .as_ref()
+                        .map(|hello| hello.capabilities.clone())
+                        .unwrap_or_default(),
                 }
             }
             Err(_) => EngineStatus {
@@ -151,6 +158,7 @@ impl EngineSupervisor {
                 engine_version: None,
                 protocol_version: None,
                 detail: Some("supervisor lock poisoned".to_string()),
+                capabilities: HashMap::new(),
             },
         }
     }
@@ -501,6 +509,26 @@ impl EngineSupervisor {
             params.insert("limit".to_string(), Value::Number(limit.into()));
         }
         self.request(Method::SessionHistory, Some(Value::Object(params)))
+    }
+
+    pub fn session_timeline(
+        &self,
+        reference: &str,
+        before_turn_index: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("ref".to_string(), Value::String(reference.to_string()));
+        if let Some(before) = before_turn_index {
+            params.insert(
+                "before_turn_index".to_string(),
+                Value::Number(before.into()),
+            );
+        }
+        if let Some(limit) = limit {
+            params.insert("limit".to_string(), Value::Number(limit.into()));
+        }
+        self.request(Method::SessionTimeline, Some(Value::Object(params)))
     }
 
     pub fn session_mode_set(&self, reference: &str, mode: &str) -> Result<Value, CommandError> {

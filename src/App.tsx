@@ -296,6 +296,7 @@ function App() {
         {view === 'chat' && (
           <ChatView
             messages={session.messages}
+            sessionId={session.activeSession}
             isStreaming={session.busy}
             engineReady={session.ready}
             onSend={session.send}
@@ -309,8 +310,7 @@ function App() {
             onModeChange={(mode) => void session.setMode(mode)}
             reasoningEffort={session.reasoningEffort}
             onReasoningChange={session.setReasoningEffort}
-            executions={session.executions}
-            approvals={session.approvals}
+            timelines={session.timelines}
             onResolveApproval={(id, decision) => void session.resolveApproval(id, decision)}
             permissionProfile={activeRecord?.permission_profile ?? 'workspace'}
             effectivePermissionProfile={activeRecord?.effective_permission_profile ?? 'workspace'}

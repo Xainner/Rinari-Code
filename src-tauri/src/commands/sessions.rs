@@ -101,6 +101,19 @@ pub(crate) async fn session_history(
     .await
 }
 
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn session_timeline(
+    supervisor: State<'_, EngineSupervisor>,
+    reference: String,
+    before_turn_index: Option<u64>,
+    limit: Option<u32>,
+) -> Result<serde_json::Value, CommandError> {
+    super::run_engine(supervisor, move |engine| {
+        engine.session_timeline(&reference, before_turn_index, limit)
+    })
+    .await
+}
+
 #[tauri::command]
 pub(crate) async fn session_mode_set(
     supervisor: State<'_, EngineSupervisor>,

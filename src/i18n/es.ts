@@ -762,6 +762,9 @@ export const es = {
   'wizard.modelSaved': 'Modelo guardado como “{alias}”.',
   'wizard.ready': 'Todo listo. Ya puedes conversar.',
   'composer.chooseModel': 'Elegir modelo',
+  'settings.advanced.description': 'Preferencias de diagnóstico y presentación para usuarios avanzados.',
+  'settings.advanced.technicalActivity': 'Mostrar nombres técnicos de actividad',
+  'settings.advanced.technicalActivityHint': 'Añade identificadores como shell.exec junto a la narración legible.',
   'composer.noModelsSetup': 'Sin modelos: configúralos en Proveedores',
   'cmd.openProviders': 'Abrir proveedores',
 } as const

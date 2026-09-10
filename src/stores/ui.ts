@@ -74,6 +74,8 @@ interface UIState {
   enterToSend: boolean
   autoFollow: boolean
   showSuggestions: boolean
+  /** Revela identificadores de protocolo junto a las etiquetas narrativas. */
+  showTechnicalActivityNames: boolean
   /** Home del proyecto abierto (root). Solo con view 'project'. */
   projectRoot: string | null
   goChat: () => void
@@ -94,6 +96,7 @@ interface UIState {
   setEnterToSend: (on: boolean) => void
   setAutoFollow: (on: boolean) => void
   setShowSuggestions: (on: boolean) => void
+  setShowTechnicalActivityNames: (on: boolean) => void
 }
 
 const initialAccent = typeof window === 'undefined' ? 'nebula' : getStoredAccent()
@@ -119,6 +122,8 @@ export const useUIStore = create<UIState>((set) => ({
   autoFollow: typeof window === 'undefined' ? true : readBool('rinari.autoFollow', true),
   showSuggestions:
     typeof window === 'undefined' ? true : readBool('rinari.showSuggestions', true),
+  showTechnicalActivityNames:
+    typeof window === 'undefined' ? false : readBool('rinari.showTechnicalActivityNames', false),
   goChat: () => set({ view: 'chat', sidebarOpen: false, projectRoot: null }),
   goEngine: () => set({ view: 'engine', sidebarOpen: false, projectRoot: null }),
   goWorkspace: () => set({ view: 'workspace', sidebarOpen: false, projectRoot: null }),
@@ -172,5 +177,9 @@ export const useUIStore = create<UIState>((set) => ({
   setShowSuggestions: (on) => {
     writeBool('rinari.showSuggestions', on)
     set({ showSuggestions: on })
+  },
+  setShowTechnicalActivityNames: (on) => {
+    writeBool('rinari.showTechnicalActivityNames', on)
+    set({ showTechnicalActivityNames: on })
   },
 }))

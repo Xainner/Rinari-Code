@@ -20,6 +20,7 @@ export interface EngineStatus {
   engine_version: string | null;
   protocol_version: number | null;
   detail: string | null;
+  capabilities: Record<string, boolean>;
 }
 
 export interface CommandError {
@@ -46,6 +47,29 @@ export interface HistoryMessage {
   tool_call_id: string | null;
   name: string | null;
   created_at: string;
+  turn_id?: string | null;
+}
+
+export interface TimelineEvent {
+  event: string;
+  turn_id: string;
+  session_id: string;
+  activity_seq: number;
+  occurred_at?: string;
+  [key: string]: unknown;
+}
+
+export interface TimelineTurn {
+  turn_id: string;
+  session_id: string;
+  turn_index: number;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  user_message: string;
+  items: TimelineEvent[];
+  final_response: string;
+  terminal?: Record<string, unknown>;
 }
 
 export interface ProviderSummary {
@@ -134,6 +158,7 @@ export interface SessionEvent {
   type: string;
   payload: Record<string, unknown>;
   created_at: string;
+  turn_id: string | null;
 }
 
 export interface SoulSummary {
@@ -351,6 +376,17 @@ export const engineApi = {
       total: number;
       has_more: boolean;
     }>("session_history", { reference, limit: limit ?? null }),
+  sessionTimeline: (reference: string, beforeTurnIndex?: number, limit?: number) =>
+    invoke<{
+      session_id: string;
+      turns: TimelineTurn[];
+      has_more: boolean;
+      next_before_turn_index: number | null;
+    }>('session_timeline', {
+      reference,
+      before_turn_index: beforeTurnIndex ?? null,
+      limit: limit ?? null,
+    }),
   setSessionMode: (reference: string, mode: string) =>
     invoke<{ session: SessionSummary }>("session_mode_set", { reference, mode }),
   setSessionModel: (reference: string, model: string, provider?: string) =>

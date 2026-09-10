@@ -1,0 +1,18 @@
+# Narrative activity timeline
+
+Rinari Code presents observable work as a chronological narrative attached to each turn. It never presents provider-private reasoning, scratchpads, hidden prompts, credentials, or raw policy internals.
+
+| Event family | Default view | Technical names enabled | Notes |
+| --- | --- | --- | --- |
+| `model.content.completed` (`progress`) | Visible prose | Same | Normal provider-visible content before an action. |
+| `model.content.completed` (`final`) | Normal assistant response | Same | Rendered with the standard Markdown message renderer. |
+| `model.started`, deltas, `model.completed` | Waiting/stream state only | Same | Token deltas are not separate rows or aria announcements. |
+| `tool.*` | Semantic narrative label | Adds the protocol tool name | Arguments and sanitized results stay collapsed. |
+| `approval.*` | Inline controls/state | Same | One logical row evolves through request, resolution, or expiry. |
+| `agent.*` | Visible lifecycle milestone | Same | Start and terminal phases remain separate chronological events. |
+| `governor.compact` | Visible context milestone | Same | Internal governor telemetry stays hidden. |
+| `verification.*` | Visible verification milestone | Same | Success and failure use restrained status color. |
+| `turn.preparing`, routine governor telemetry | Hidden | Hidden | Used only to drive state and recovery. |
+| turn failure/cancellation/stop | Visible terminal state | Same | A compact summary appears for exceptional endings. |
+
+The desktop consumes `session.timeline`, `runtime.snapshot.get`, and live events through one reducer. Stable protocol identifiers reconcile the same logical item, so reconnecting or opening history cannot create duplicate rows.

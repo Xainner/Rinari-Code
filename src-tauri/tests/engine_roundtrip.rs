@@ -150,6 +150,31 @@ fn history_grows_with_turns_and_rejects_unknown_sessions() {
 }
 
 #[test]
+fn narrative_timeline_roundtrip_keeps_turn_and_model_identity() {
+    let harness = start_fake("stream");
+    let session_id = create_session(&harness);
+    let started = harness
+        .supervisor
+        .turn_start(&session_id, "hola timeline")
+        .expect("session.turn.start");
+    wait_for(&harness, Duration::from_secs(10), is("turn.completed"));
+    let timeline = harness
+        .supervisor
+        .session_timeline(&session_id, None, Some(30))
+        .expect("session.timeline");
+    assert_eq!(timeline["turns"][0]["turn_id"], started["turn_id"]);
+    assert_eq!(
+        timeline["turns"][0]["items"][0]["model_call_id"],
+        serde_json::json!("model_fake1")
+    );
+    assert_eq!(
+        timeline["turns"][0]["items"][0]["output_kind"],
+        serde_json::json!("final")
+    );
+    harness.supervisor.shutdown();
+}
+
+#[test]
 fn mode_set_roundtrip_emits_change_and_rejects_unknown() {
     let harness = start_fake("stream");
     let session_id = create_session(&harness);

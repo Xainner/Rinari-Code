@@ -744,6 +744,9 @@ export const en: Record<I18nKey, string> = {
   'wizard.modelSaved': 'Model saved as “{alias}”.',
   'wizard.ready': 'All set. You can chat now.',
   'composer.chooseModel': 'Choose model',
+  'settings.advanced.description': 'Diagnostic and presentation preferences for advanced users.',
+  'settings.advanced.technicalActivity': 'Show technical activity names',
+  'settings.advanced.technicalActivityHint': 'Adds identifiers such as shell.exec beside readable narration.',
   'composer.noModelsSetup': 'No models: set them up in Providers',
   'cmd.openProviders': 'Open providers',
 }

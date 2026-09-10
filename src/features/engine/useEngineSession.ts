@@ -3,7 +3,6 @@ import { toast } from 'sonner'
 import { useI18n } from '../../i18n'
 import { commandMessage, engineApi, type ModelSummary } from '../../services/engine'
 import type { AttachmentRef } from '../../types'
-import { createMessageId } from './turnRuntime'
 import { useCatalog } from './useCatalog'
 import { useEngineConnection } from './useEngineConnection'
 import { useProjects } from '../projects/useProjects'
@@ -26,7 +25,11 @@ export function useEngineSession() {
   // sessions necesita dispatch y runtime necesita el refresh de sessions.
   const sessionsChangedRef = useRef<() => void>(() => {})
   const runtime = useTurnRuntime({ onSessionsChanged: () => sessionsChangedRef.current() })
-  const sessions = useSessionList({ dispatch: runtime.dispatch, engineReady: connection.ready })
+  const sessions = useSessionList({
+    dispatch: runtime.dispatch,
+    engineReady: connection.ready,
+    timelineEnabled: connection.status?.capabilities.activity_timeline_v1 === true,
+  })
   const projects = useProjects({ engineReady: connection.ready })
   const catalog = useCatalog()
 
@@ -85,11 +88,11 @@ export function useEngineSession() {
       return false
     }
     runtime.dispatch({
-      type: 'turn/message-sent',
+      type: 'message/sent',
       sessionId,
-      message: { id: createMessageId(), role: 'user', content: trimmed, createdAt: Date.now() },
+      message: { id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`, role: 'user', content: trimmed, createdAt: Date.now() },
     })
-    runtime.dispatch({ type: 'turn/busy-set', sessionId, busy: true })
+    runtime.dispatch({ type: 'busy/set', sessionId, busy: true })
     try {
       const started = await engineApi.startTurn(
         sessionId,
@@ -97,11 +100,11 @@ export function useEngineSession() {
         reasoningEffort === 'off' ? null : reasoningEffort,
         attachments,
       )
-      runtime.dispatch({ type: 'turn/started-ack', turnId: started.turn_id, sessionId, now: Date.now() })
+      runtime.dispatch({ type: 'turn/ack', turnId: started.turn_id, sessionId, now: Date.now() })
       return true
     } catch (err) {
       toast.error(commandMessage(err))
-      runtime.dispatch({ type: 'turn/busy-set', sessionId, busy: false })
+      runtime.dispatch({ type: 'busy/set', sessionId, busy: false })
       return false
     }
   }
@@ -178,7 +181,7 @@ export function useEngineSession() {
     useModel,
     selectSession: sessions.selectSession,
     setMode: sessions.setMode,
-    executions: runtime.executions,
+    timelines: runtime.timelines,
     setPermission: sessions.setPermission,
     searchFiles: sessions.searchFiles,
     historyInfo: sessions.historyInfo,

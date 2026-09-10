@@ -19,7 +19,13 @@ export function historyToMessages(rows: HistoryMessage[]): ChatMessage[] {
     if (row.role !== 'user' && row.role !== 'assistant') continue
     const content = row.content ?? ''
     if (content === '') continue
-    out.push({ id: `h${row.seq}`, role: row.role, content, createdAt: historyTimestamp(row.created_at) })
+    out.push({
+      id: `h${row.seq}`,
+      role: row.role,
+      content,
+      createdAt: historyTimestamp(row.created_at),
+      turnId: row.turn_id ?? undefined,
+    })
   }
   return out
 }

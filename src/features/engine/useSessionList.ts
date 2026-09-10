@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch } from 'react'
 import { toast } from 'sonner'
 import { commandMessage, engineApi, type SessionDeleteResult, type SessionSummary } from '../../services/engine'
 import { historyToMessages } from './history'
-import type { TurnRuntimeAction } from './turnRuntime'
+import type { TimelineAction } from '../activity/turnTimelineReducer'
 
 /**
  * SessionController: lista de sesiones, sesión activa, historial persistente
@@ -10,10 +10,11 @@ import type { TurnRuntimeAction } from './turnRuntime'
  * por separado para que el shell degrade sin atraparse en el splash.
  */
 export function useSessionList(options: {
-  dispatch: Dispatch<TurnRuntimeAction>
+  dispatch: Dispatch<TimelineAction>
   engineReady: boolean
+  timelineEnabled: boolean
 }) {
-  const { dispatch, engineReady } = options
+  const { dispatch, engineReady, timelineEnabled } = options
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [activeSession, setActiveSession] = useState<string>('')
   const [sessionsLoaded, setSessionsLoaded] = useState(false)
@@ -52,7 +53,10 @@ export function useSessionList(options: {
       if (historyLoaded.current.has(id)) return
       historyLoaded.current.add(id)
       try {
-        const history = await engineApi.sessionHistory(id)
+        const [history, timeline] = await Promise.all([
+          engineApi.sessionHistory(id),
+          timelineEnabled ? engineApi.sessionTimeline(id).catch(() => null) : Promise.resolve(null),
+        ])
         setHistoryInfo((prev) => ({
           ...prev,
           [id]: { total: history.total, hasMore: history.has_more },
@@ -60,12 +64,13 @@ export function useSessionList(options: {
         const persisted = historyToMessages(history.messages)
         // Lo vivo siempre gana a un fetch de historial que llega tarde.
         dispatch({ type: 'history/loaded', sessionId: id, messages: persisted })
+        if (timeline) dispatch({ type: 'timeline/loaded', sessionId: id, turns: timeline.turns })
       } catch (err) {
         historyLoaded.current.delete(id)
         toast.error(commandMessage(err))
       }
     },
-    [dispatch],
+    [dispatch, timelineEnabled],
   )
 
   useEffect(() => {

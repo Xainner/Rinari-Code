@@ -51,6 +51,7 @@ pub fn run() {
             commands::sessions::session_restore,
             commands::sessions::session_fork,
             commands::sessions::session_history,
+            commands::sessions::session_timeline,
             commands::sessions::session_mode_set,
             commands::sessions::session_create,
             commands::sessions::session_model_set,

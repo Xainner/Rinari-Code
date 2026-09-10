@@ -33,6 +33,7 @@ CAPABILITIES = {
     "checkpoints": True,
     "terminal": True,
     "desktop_turn_runtime_v3": True,
+    "activity_timeline_v1": True,
 }
 
 DECISIONS = ["allow_once", "allow_session", "deny"]
@@ -74,6 +75,7 @@ class FakeEngine:
         self.model_seq = 0
         self.transcripts = {}
         self.pending_turns = {}
+        self.timelines = {}
         self.agent_configs = {}
         self.souls = {}
         self.active_soul = None
@@ -630,12 +632,30 @@ class FakeEngine:
         respond(req_id, result={"session_id": session_id, "messages": window,
                                "total": len(rows), "has_more": len(rows) > len(window)})
 
-    def _append_transcript(self, session_id, role, content):
+    def session_timeline(self, req_id, params):
+        params = params or {}
+        session_id = params.get("ref", "")
+        if session_id not in self.sessions:
+            fail(req_id, "NOT_FOUND", f"Session {session_id} not found.")
+            return
+        turns = [turn for turn in self.timelines.values()
+                 if turn["session_id"] == session_id]
+        limit = params.get("limit", 30)
+        before = params.get("before_turn_index")
+        if before is not None:
+            turns = [turn for turn in turns if turn["turn_index"] < before]
+        has_more = len(turns) > limit
+        turns = turns[-limit:]
+        respond(req_id, result={"session_id": session_id, "turns": turns,
+                               "has_more": has_more,
+                               "next_before_turn_index": turns[0]["turn_index"] if has_more and turns else None})
+
+    def _append_transcript(self, session_id, role, content, turn_id=None):
         rows = self.transcripts.setdefault(session_id, [])
         rows.append({"id": f"msg_fake{len(rows) + 1}", "seq": len(rows) + 1,
                     "role": role, "content": content, "tool_calls": None,
                     "tool_call_id": None, "name": None,
-                    "created_at": "2026-01-01T00:00:00Z"})
+                    "created_at": "2026-01-01T00:00:00Z", "turn_id": turn_id})
 
     def turn_start(self, req_id, params):
         params = params or {}
@@ -647,6 +667,11 @@ class FakeEngine:
         turn_id = f"turn_fake{self.turn_seq}"
         with self.lock:
             self.pending_turns[turn_id] = (session_id, params.get("message", ""))
+            self.timelines[turn_id] = {"turn_id": turn_id, "session_id": session_id,
+                "turn_index": self.turn_seq - 1, "status": "running",
+                "started_at": "2026-01-01T00:00:00Z", "completed_at": None,
+                "user_message": params.get("message", ""), "items": [],
+                "final_response": ""}
         respond(req_id, result={"status": "started", "turn_id": turn_id,
                                "session_id": session_id,
                                "reasoning_effort": params.get("reasoning_effort"),
@@ -721,8 +746,16 @@ class FakeEngine:
             was_cancelled = session_id in self.cancelled
             self.cancelled.discard(session_id)
         if was_cancelled:
+            self.timelines[turn_id]["status"] = "cancelled"
             emit("turn.cancelled", {"turn_id": turn_id, "session_id": session_id})
         else:
+            self.timelines[turn_id].update({"status": "completed",
+                "completed_at": "2026-01-01T00:00:01Z",
+                "final_response": "".join(deltas),
+                "items": [{"event": "model.content.completed", "turn_id": turn_id,
+                    "session_id": session_id, "model_call_id": "model_fake1",
+                    "activity_seq": 1, "occurred_at": "2026-01-01T00:00:01Z",
+                    "output_kind": "final", "content": "".join(deltas)}]})
             emit("turn.completed", {"turn_id": turn_id, "session_id": session_id,
                                    "kind": "done", "content": "".join(deltas)})
         with self.lock:
@@ -730,8 +763,8 @@ class FakeEngine:
         if pending is not None and scenario in ("stream", "slow"):
             session_id, message = pending
             if scenario == "stream" or not was_cancelled:
-                self._append_transcript(session_id, "user", message)
-                self._append_transcript(session_id, "assistant", "".join(deltas))
+                self._append_transcript(session_id, "user", message, turn_id)
+                self._append_transcript(session_id, "assistant", "".join(deltas), turn_id)
 
     def _run_approval(self, turn_id, session_id):
         emit("model.content.delta", {"turn_id": turn_id, "session_id": session_id,
@@ -1060,6 +1093,7 @@ class FakeEngine:
             "profile_bundle.remove": self.bundle_remove,
             "profile_bundle.apply": self.bundle_apply,
             "session.history": self.session_history,
+            "session.timeline": self.session_timeline,
             "session.turn.start": self.turn_start,
             "session.turn.cancel": self.turn_cancel,
             "approval.resolve": self.approval_resolve,

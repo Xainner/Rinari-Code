@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Virtualizer, type VirtualizerHandle } from 'virtua'
-import type { AttachmentRef, ChatMessage, PendingApproval, TurnExecution } from '../types'
+import type { AttachmentRef, ChatMessage } from '../types'
 import type { ModelSummary } from '../services/engine'
+import type { TurnTimeline } from '../features/activity/types'
+import { buildChatStream } from '../features/activity/buildChatStream'
+import TurnTimelineView from '../features/activity/TurnTimelineView'
 import { useI18n, type I18nKey } from '../i18n'
 import { useComposerStore } from '../stores/composer'
 import { useUIStore } from '../stores/ui'
@@ -10,10 +13,10 @@ import Composer from './composer/Composer'
 import Logo from './Logo'
 import MessageBubble from './MessageBubble'
 import ScrollToBottom from './chat/ScrollToBottom'
-import TurnExecutionBlock from './chat/TurnExecutionBlock'
 
 interface ChatViewProps {
   messages: ChatMessage[]
+  sessionId: string
   isStreaming: boolean
   engineReady: boolean
   onSend: (text: string, attachments?: AttachmentRef[]) => Promise<boolean>
@@ -23,8 +26,7 @@ interface ChatViewProps {
   activeAlias: string | null
   onUseModel: (model: ModelSummary) => void
   onDiscoverModels: () => void
-  executions: Record<string, TurnExecution>
-  approvals: PendingApproval[]
+  timelines: Record<string, TurnTimeline>
   onResolveApproval: (id: string, decision: string) => void
   historyNote: { total: number; hasMore: boolean } | null
   sessionMode: string | null
@@ -46,6 +48,7 @@ const SUGGESTIONS: I18nKey[] = [
 
 export default function ChatView({
   messages,
+  sessionId,
   isStreaming,
   engineReady,
   onSend,
@@ -55,8 +58,7 @@ export default function ChatView({
   activeAlias,
   onUseModel,
   onDiscoverModels,
-  executions,
-  approvals,
+  timelines,
   onResolveApproval,
   historyNote,
   sessionMode,
@@ -74,6 +76,7 @@ export default function ChatView({
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtRef = useRef<VirtualizerHandle>(null)
   const [atBottom, setAtBottom] = useState(true)
+  const [now, setNow] = useState(Date.now())
   const hasDraft = useComposerStore((s) => s.text.trim().length > 0)
   const setDraft = useComposerStore((s) => s.setText)
 
@@ -83,11 +86,18 @@ export default function ChatView({
     setDraft(t('turn.continueDraft'))
   }, [setDraft, t])
 
-  const empty = messages.length === 0
-  // `turn.started` creates the assistant placeholder linked to its execution.
-  // A second UI-only placeholder produced duplicate "Pensando" rows and could
-  // outlive a terminal event, so the protocol-backed message is the sole source.
-  const visibleMessages: ChatMessage[] = messages
+  const stream = useMemo(
+    () => buildChatStream(messages, timelines, sessionId),
+    [messages, timelines, sessionId],
+  )
+  const empty = stream.length === 0
+  const activeTimeline = Object.values(timelines).some((turn) => turn.sessionId === sessionId && ['running', 'approval', 'cancelling'].includes(turn.status))
+
+  useEffect(() => {
+    if (!activeTimeline) return
+    const timer = window.setInterval(() => setNow(Date.now()), 200)
+    return () => window.clearInterval(timer)
+  }, [activeTimeline])
 
   function handleScroll() {
     const el = scrollRef.current
@@ -98,10 +108,10 @@ export default function ChatView({
   useEffect(() => {
     // Autoscroll inteligente: solo sigue si el usuario ya estaba abajo
     // y la preferencia está activa.
-    if (autoFollow && atBottom && visibleMessages.length > 0) {
-      virtRef.current?.scrollToIndex(visibleMessages.length - 1, { align: 'end' })
+    if (autoFollow && atBottom && stream.length > 0) {
+      virtRef.current?.scrollToIndex(stream.length - 1, { align: 'end' })
     }
-  }, [messages, isStreaming, atBottom, autoFollow, visibleMessages.length])
+  }, [stream, isStreaming, atBottom, autoFollow])
 
   const composer = (
     <Composer
@@ -185,29 +195,21 @@ export default function ChatView({
                 {t('history.hasMore', { n: historyNote.total })}
               </p>
             )}
-            <Virtualizer ref={virtRef} scrollRef={scrollRef} data={visibleMessages} bufferSize={800}>
-              {(m, index) => (
+            <Virtualizer ref={virtRef} scrollRef={scrollRef} data={stream} bufferSize={800}>
+              {(row, index) => (
                 <div
-                  key={m.id}
+                  key={row.id}
                   className={`mx-auto max-w-3xl px-4 ${index === 0 ? 'pt-6' : 'pt-3'} pb-3`}
                 >
-                  {m.turnId && executions[m.turnId] && (
-                    <TurnExecutionBlock
-                      execution={executions[m.turnId]}
-                      approvals={approvals}
+                  {row.kind === 'timeline' ? (
+                    <TurnTimelineView
+                      timeline={row.timeline}
+                      user={row.user}
+                      now={now}
                       onResolveApproval={onResolveApproval}
                       onContinue={handleContinue}
                     />
-                  )}
-                  {(m.content !== '' || !m.turnId || !executions[m.turnId]) && (
-                    <MessageBubble
-                      message={
-                        m.turnId && executions[m.turnId]
-                          ? { ...m, pending: false }
-                          : m
-                      }
-                    />
-                  )}
+                  ) : <MessageBubble message={row.message} />}
                 </div>
               )}
             </Virtualizer>
@@ -223,12 +225,12 @@ export default function ChatView({
             </motion.div>
           </div>
           <ScrollToBottom
-            visible={!atBottom && messages.length > 0}
+            visible={!atBottom && stream.length > 0}
             onClick={() => {
               setAtBottom(true)
-              if (visibleMessages.length > 0) {
+              if (stream.length > 0) {
                 requestAnimationFrame(() => {
-                  virtRef.current?.scrollToIndex(visibleMessages.length - 1, { align: 'end' })
+                  virtRef.current?.scrollToIndex(stream.length - 1, { align: 'end' })
                 })
               }
             }}

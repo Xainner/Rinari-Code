@@ -15,6 +15,7 @@ import PluginsView from '../ecosystem/PluginsView'
 import ToolsView from '../ecosystem/ToolsView'
 import TerminalView from '../ecosystem/TerminalView'
 import ProfilesView from '../ecosystem/ProfilesView'
+import AdvancedSettings from '../../components/settings/AdvancedSettings'
 
 /** Vista de ajustes: shell + sección activa. Terminal llega en Fase 10. */
 export default function SettingsView({
@@ -70,8 +71,9 @@ export default function SettingsView({
         />
       )}
       {section === 'terminal' && <TerminalView />}
+      {section === 'advanced' && <AdvancedSettings />}
       {section === 'about' && <AboutSettings version={appVersion} />}
-      {!['general', 'appearance', 'providers', 'models', 'agents', 'soul', 'mcp', 'plugins', 'tools', 'profiles', 'terminal', 'about'].includes(section) && (
+      {!['general', 'appearance', 'providers', 'models', 'agents', 'soul', 'mcp', 'plugins', 'tools', 'profiles', 'terminal', 'advanced', 'about'].includes(section) && (
         <SoonSettings />
       )}
     </SettingsShell>
