@@ -1,107 +1,145 @@
-<p align="center">
-  <img src="docs/assets/readme-banner.png" alt="Rinari Code" width="100%" />
-</p>
+<div align="center">
 
-<h1 align="center">Rinari Code</h1>
+<img src="docs/assets/readme-banner.png" alt="Rinari Code" width="100%" />
 
-<p align="center">
-  <strong>Rinari, made visible.</strong><br />
-  A native desktop workspace for the Rinari agent harness.
-</p>
+# Rinari Code
 
-<p align="center">
-  <a href="https://github.com/Xainner/Rinari-Code/actions/workflows/code-ci.yml"><img src="https://github.com/Xainner/Rinari-Code/actions/workflows/code-ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/Xainner/Rinari-Code/releases"><img src="https://img.shields.io/github/v/release/Xainner/Rinari-Code?display_name=tag&sort=semver" alt="Latest release" /></a>
-  <img src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white" alt="Tauri 2" />
-  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827" alt="React 19" />
-</p>
+**The desktop workspace for the Rinari agent harness.**
 
-Rinari Code is the desktop interface for [Rinari CLI](https://github.com/Xainner/Rinari-CLI). It is not another agent harness and it does not duplicate Rinari's runtime in TypeScript or Rust. Sessions, model routing, tools, policies, approvals, agents, MCP, plugins, context, verification, artifacts, and persistent state remain owned by the Rinari Engine. This repository owns the native desktop experience that makes that system visible and controllable.
+Conversations · Execution activity · Projects · Verification
 
-## What works today
+[![CI](https://github.com/Xainner/Rinari-Code/actions/workflows/code-ci.yml/badge.svg)](https://github.com/Xainner/Rinari-Code/actions/workflows/code-ci.yml)
+![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
+![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827)
+![Rust](https://img.shields.io/badge/Host-Rust-DEA584?logo=rust&logoColor=white)
 
-- Persistent conversations backed by Rinari Engine sessions, with streamed responses and history.
-- Inline execution activity for each assistant turn: model calls, tool calls, elapsed time, results, failures, approvals, and cancellation.
-- PLAN, BUILD, and REVIEW modes with effective access controls enforced by the engine.
-- Per-chat permission profiles: read-only, workspace, or full access.
-- Provider configuration, connection checks, model discovery, model selection, and reasoning-effort controls.
-- Native multi-file attachments plus `@` search for text and code inside the workspace.
-- Project views for changes, tasks, verification, checkpoints, artifacts, context, and usage.
-- Agent, Soul, MCP, plugin, tool-policy, profile, appearance, and terminal settings.
-- Native engine supervision, restart recovery, single-instance handling, updater integration, and the `rinari code` desktop handoff.
-- English and Spanish interfaces, keyboard navigation, command palette, themes, and reduced-motion support.
+[Get started](#get-started) · [Workspace](#workspace) · [Architecture](#architecture) · [Development](#development) · [Engine](https://github.com/Xainner/Rinari-CLI)
 
-Rinari Code displays observable execution state. It does not expose or invent private model chain-of-thought.
+</div>
+
+---
+
+Rinari Code brings conversations, tool activity and project state into a native desktop interface. Follow execution as it happens, respond to approvals, inspect changes and continue work across persistent sessions.
+
+**The harness lives in [Rinari Engine](https://github.com/Xainner/Rinari-CLI).** This repository supplies its desktop client: a React interface, a Rust host and native integration through Tauri.
+
+> **Status:** Active development toward stable v1. Check [Releases](https://github.com/Xainner/Rinari-Code/releases) for published builds. Source code may include work beyond the latest release.
+
+## Get started
+
+1. Check the available builds and release notes in [Releases](https://github.com/Xainner/Rinari-Code/releases).
+2. Launch Rinari Code and configure a provider and model.
+3. Open a project or start a conversation, choose a mode and send a task.
+
+With Rinari CLI and the desktop client installed:
+
+```bash
+rinari code .
+```
+
+For a source build, follow [Development](#development).
+
+## Workspace
+
+| Surface | What you can do |
+| :--- | :--- |
+| **Conversations** | Stream responses, resume persisted sessions and organize work by project. |
+| **Execution activity** | Inspect model and tool calls, results, elapsed time, failures and cancellation state. |
+| **Modes and access** | Select PLAN, BUILD or REVIEW and use engine-enforced permission profiles. |
+| **Providers and models** | Configure connections, discover models and choose per-chat models and reasoning effort. |
+| **Project context** | Attach files and use `@` search to include workspace text and code. |
+| **Inspection** | Review changes, tasks, verification, checkpoints, artifacts, context and usage. |
+| **Configuration** | Manage agents, Souls, MCP, plugins, policies, profiles and appearance. |
+| **Desktop integration** | Use native dialogs, engine supervision, restart recovery and command-palette navigation. |
+
+The interface supports English and Spanish, themes, keyboard navigation and reduced-motion preferences. Activity reports observable execution events and results.
 
 ## Architecture
 
-```text
-React 19 + TypeScript
-        │ typed Tauri commands and events
-        ▼
-Rust / Tauri 2 desktop host
-        │ versioned NDJSON over stdin/stdout
-        ▼
-Rinari Engine (Python, from Rinari-CLI)
+```mermaid
+flowchart TD
+    UI["React 19 · TypeScript · Vite"] --> Host["Rust · Tauri 2"]
+    Host -->|"Versioned NDJSON over stdio"| Engine["Rinari Engine · Python"]
+    Engine --> Execution["Models · Tools · Approvals · Agents"]
+    Engine --> Persistence["Sessions · Context · Artifacts · Verification"]
 ```
 
-The desktop host supervises one long-lived engine process. Protocol events drive the UI, while `runtime.snapshot.get` can reconstruct active sessions after a reload or engine restart. Provider credentials remain engine-owned and are never stored in browser storage.
+| Layer | Responsibility |
+| :--- | :--- |
+| **React** | Conversation rendering, activity views, settings and local layout state. |
+| **Rust / Tauri** | Engine lifecycle, protocol transport, native dialogs and OS integration. |
+| **Rinari Engine** | Agent execution, sessions, model routing, permissions, credentials and durable state. |
+
+The host supervises a long-lived engine process. A negotiated protocol exposes requests and events, while `runtime.snapshot.get` reconstructs the UI after reconnects. Provider credentials remain engine-owned.
+
+The compatible engine revision is pinned in [engine-manifest.json](engine-manifest.json). Generated TypeScript and Rust types keep the desktop bridge aligned with the engine schema.
 
 ## Development
 
-### Requirements
+### Prerequisites
 
-- Node.js 20 or newer
-- Rust stable
-- Python 3.11 or newer
-- A compatible checkout or installation of [Rinari CLI](https://github.com/Xainner/Rinari-CLI)
-- Windows WebView2 when developing on Windows
-
-Install the frontend dependencies:
+- Node.js compatible with the Vite toolchain and npm.
+- Rust stable and native Tauri build dependencies for your platform.
+- Python 3.11+ and uv when running the engine from source.
+- A compatible [Rinari CLI](https://github.com/Xainner/Rinari-CLI) checkout.
+- Windows WebView2 for Windows development.
 
 ```bash
+git clone https://github.com/Xainner/Rinari-Code.git
+cd Rinari-Code
 npm ci
 ```
 
-If Rinari CLI is checked out next to the parent `Apps` directory, start the desktop app on PowerShell with:
+Point the desktop host at your engine checkout. Example for PowerShell:
 
 ```powershell
 $env:RINARI_ENGINE_BIN = "uv"
 $env:RINARI_ENGINE_ARGS = "run rinari"
-$env:RINARI_ENGINE_CWD = "../../Rinari-CLI"
+$env:RINARI_ENGINE_CWD = "C:\dev\Rinari-CLI"
 npm run tauri dev
 ```
 
-If `rinari` is already available on `PATH`:
+Replace the path with your checkout location. The host also supports configured installations and packaged engine resources.
 
-run `npm run tauri dev` directly; the host resolves `rinari` from `PATH`.
-
-Without an override, the host also checks configured development paths and packaged engine resources.
-
-## Quality checks
+### Validate
 
 ```bash
+npm test
+npm run protocol:check
 npm run build
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-Create the Windows installer with:
+Protocol checks require the schema matching the engine revision in the manifest. When changing the shared contract, update the engine first, regenerate desktop types and validate both repositories.
+
+### Package for Windows
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/package-engine.ps1 -CliRepo ../../Rinari-CLI
+powershell -ExecutionPolicy Bypass -File scripts/package-engine.ps1 -CliRepo C:\dev\Rinari-CLI
 npm run tauri build
 ```
 
-The packaging workflow builds the compatible Rinari Engine bundle and then produces the Tauri installer.
+The packaging step builds the engine bundle; Tauri then produces the installer. See the [packaging decision](docs/adr/0001-engine-packaging.md) and [release guide](docs/releases.md).
 
-## Project status
+## Documentation
 
-Rinari Code is under active development. The engine protocol and the desktop workflow are usable, but interfaces and packaging details may still evolve before a stable v1 release. See [Releases](https://github.com/Xainner/Rinari-Code/releases) for published builds.
+| Guide | Contents |
+| :--- | :--- |
+| [Implementation blueprint](AGENTS.md) | Architecture, ownership and contributor rules |
+| [Activity timeline](docs/activity-timeline.md) | Execution-event presentation |
+| [Engine packaging](docs/adr/0001-engine-packaging.md) | Engine distribution and compatibility |
+| [Releases](docs/releases.md) | Build and release process |
+| [Technical debt](docs/debt.md) | Known limitations and follow-up work |
+| [Rinari Engine](https://github.com/Xainner/Rinari-CLI) | Canonical harness and terminal client |
 
-Design decisions and maintenance notes live in [`docs/`](docs/).
+---
 
-## Related project
+<div align="center">
 
-- [Rinari CLI](https://github.com/Xainner/Rinari-CLI) — the canonical Rinari engine and terminal client.
+**One engine. Terminal and desktop.**
+
+[Rinari CLI](https://github.com/Xainner/Rinari-CLI) · [Releases](https://github.com/Xainner/Rinari-Code/releases) · [Issues](https://github.com/Xainner/Rinari-Code/issues)
+
+</div>
