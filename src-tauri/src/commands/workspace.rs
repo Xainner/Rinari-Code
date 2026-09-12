@@ -3,7 +3,7 @@
 use tauri::State;
 
 use super::run_engine;
-use rinari_code_lib::engine::{CommandError, EngineSupervisor};
+use rinari_agent_lib::engine::{CommandError, EngineSupervisor};
 
 #[tauri::command]
 pub(crate) async fn task_tree(
@@ -145,7 +145,10 @@ pub(crate) async fn attachment_prepare(
     session_id: String,
     attachments: serde_json::Value,
 ) -> Result<serde_json::Value, CommandError> {
-    run_engine(supervisor, move |engine| engine.attachment_prepare(&session_id, attachments)).await
+    run_engine(supervisor, move |engine| {
+        engine.attachment_prepare(&session_id, attachments)
+    })
+    .await
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -154,7 +157,10 @@ pub(crate) async fn attachment_preview(
     uri: String,
     max_bytes: Option<u32>,
 ) -> Result<serde_json::Value, CommandError> {
-    run_engine(supervisor, move |engine| engine.attachment_preview(&uri, max_bytes)).await
+    run_engine(supervisor, move |engine| {
+        engine.attachment_preview(&uri, max_bytes)
+    })
+    .await
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -163,7 +169,10 @@ pub(crate) async fn attachment_prepare_start(
     session_id: String,
     attachments: serde_json::Value,
 ) -> Result<serde_json::Value, CommandError> {
-    run_engine(supervisor, move |engine| engine.attachment_prepare_start(&session_id, attachments)).await
+    run_engine(supervisor, move |engine| {
+        engine.attachment_prepare_start(&session_id, attachments)
+    })
+    .await
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -171,7 +180,10 @@ pub(crate) async fn attachment_prepare_get(
     supervisor: State<'_, EngineSupervisor>,
     job_id: String,
 ) -> Result<serde_json::Value, CommandError> {
-    run_engine(supervisor, move |engine| engine.attachment_prepare_get(&job_id)).await
+    run_engine(supervisor, move |engine| {
+        engine.attachment_prepare_get(&job_id)
+    })
+    .await
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -179,7 +191,10 @@ pub(crate) async fn attachment_prepare_cancel(
     supervisor: State<'_, EngineSupervisor>,
     job_id: String,
 ) -> Result<serde_json::Value, CommandError> {
-    run_engine(supervisor, move |engine| engine.attachment_prepare_cancel(&job_id)).await
+    run_engine(supervisor, move |engine| {
+        engine.attachment_prepare_cancel(&job_id)
+    })
+    .await
 }
 
 #[tauri::command]

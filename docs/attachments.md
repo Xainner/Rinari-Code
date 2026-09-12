@@ -1,6 +1,6 @@
 # Attachments, OCR and vision
 
-Rinari Code prepares every attachment in Rinari Engine before starting a turn.
+Rinari Agent prepares every attachment in Rinari Engine before starting a turn.
 The engine imports an immutable copy into the artifact store, validates its
 type and size, extracts document text, and returns stable source and derived
 artifact references. Preparation can be cancelled or retried, and its state is

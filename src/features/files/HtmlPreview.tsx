@@ -115,7 +115,7 @@ export default function HtmlPreview({
             .catch(() => {})
           handle = null
           throw new Error(
-            'La vista previa debe usar un origen local separado de Rinari Code.',
+            'La vista previa debe usar un origen local separado de Rinari Agent.',
           )
         }
         revision = next.revision

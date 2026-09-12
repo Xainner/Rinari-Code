@@ -1,6 +1,6 @@
 # Narrative activity timeline
 
-Rinari Code presents observable work as a chronological narrative attached to each turn. It never presents provider-private reasoning, scratchpads, hidden prompts, credentials, or raw policy internals.
+Rinari Agent presents observable work as a chronological narrative attached to each turn. It never presents provider-private reasoning, scratchpads, hidden prompts, credentials, or raw policy internals.
 
 | Event family | Default view | Technical names enabled | Notes |
 | --- | --- | --- | --- |

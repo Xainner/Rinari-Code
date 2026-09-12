@@ -1,6 +1,6 @@
-# Rinari Code — Master Implementation Work Plan
+# Rinari Agent — Master Implementation Work Plan
 
-> **Status:** Implementation blueprint / source of truth for Rinari Code v1  
+> **Status:** Implementation blueprint / source of truth for Rinari Agent v1
 > **Date:** 2026-09-08  
 > **Rinari-CLI baseline:** `Xainner/Rinari-CLI` @ `110ad4ee55dbea1f5bd1565b35af4b65f049dfd2`  \
 > **Luma UI baseline:** `Xainner/Luma` @ `6c58af5392abe8ebe9f703653b1b094d7353fdbd`  
@@ -11,14 +11,14 @@
 
 ## 0. Executive decision
 
-Rinari Code is **not** a new agent implementation and **not** a rewrite of Rinari-CLI in Rust.
+Rinari Agent is **not** a new agent implementation and **not** a rewrite of Rinari-CLI in Rust.
 
 The product architecture is:
 
 ```text
 Rinari Engine    → intelligence / harness / state / execution
 Rinari CLI       → terminal client
-Rinari Code      → desktop client
+Rinari Agent      → desktop client
 ```
 
 The same engine must own:
@@ -46,7 +46,7 @@ The same engine must own:
 - LSP/AST/search;
 - persistent operational state.
 
-Rinari Code owns the **desktop experience**, native integration and presentation of engine state.
+Rinari Agent owns the **desktop experience**, native integration and presentation of engine state.
 
 The foundational rule is:
 
@@ -54,13 +54,13 @@ The foundational rule is:
 DO NOT IMPLEMENT THE RINARI HARNESS TWICE.
 ```
 
-If a capability exists in Rinari-CLI, Rinari Code must consume it through the engine contract rather than recreate its business logic in React or Rust.
+If a capability exists in Rinari-CLI, Rinari Agent must consume it through the engine contract rather than recreate its business logic in React or Rust.
 
 ---
 
 # 1. Product vision
 
-Rinari Code should feel like an **agent workspace**, not merely a chat application embedded in Tauri.
+Rinari Agent should feel like an **agent workspace**, not merely a chat application embedded in Tauri.
 
 The center of the product remains the conversation with Rinari, but the desktop surface makes the harness visible and controllable:
 
@@ -100,7 +100,7 @@ Rinari personality
 
 Do **not** try to become a full VS Code replacement in v1.
 
-Rinari Code wins because it is the best interface to **Rinari**, not because it ships another general-purpose editor.
+Rinari Agent wins because it is the best interface to **Rinari**, not because it ships another general-purpose editor.
 
 ---
 
@@ -153,7 +153,7 @@ The selected baseline already contains the major harness hardening work needed f
 - artifacts;
 - context/compaction.
 
-Rinari Code should therefore expose the existing engine rather than rebuild those systems.
+Rinari Agent should therefore expose the existing engine rather than rebuild those systems.
 
 ## 3.2 Luma baseline
 
@@ -204,7 +204,7 @@ The current Rinari Soul 2.0 is intentionally restrained:
 - no exclusivity;
 - personality always below truth/correctness.
 
-The desired Rinari Code product direction intentionally changes part of that identity toward an anime-inspired, playful, teasing and mock-jealous Rinari.
+The desired Rinari Agent product direction intentionally changes part of that identity toward an anime-inspired, playful, teasing and mock-jealous Rinari.
 
 This must be handled as a **versioned Soul evolution**, not as UI prompt injection.
 
@@ -240,19 +240,19 @@ Maintain two repositories:
 Rinari-CLI
 └── engine + CLI + shared state
 
-Rinari-Code
+Rinari-Agent
 └── Tauri + Rust host + React desktop UI
 ```
 
-Do not copy the Python engine into Rinari-Code.
+Do not copy the Python engine into Rinari-Agent.
 
-Do not create a monorepo solely for Rinari Code v1.
+Do not create a monorepo solely for Rinari Agent v1.
 
 ## 4.2 Cross-repository contract
 
 Rinari-CLI owns a versioned **Engine Protocol**.
 
-Rinari-Code depends only on the public protocol, not internal Python imports.
+Rinari-Agent depends only on the public protocol, not internal Python imports.
 
 This allows:
 
@@ -322,7 +322,7 @@ Do not parse Rich/plain CLI output.
 
 Do not launch one `rinari` process per tool action.
 
-One Rinari Code window should normally supervise one persistent engine process that can service multiple sessions.
+One Rinari Agent window should normally supervise one persistent engine process that can service multiple sessions.
 
 ## 6.2 Transport
 
@@ -370,7 +370,7 @@ Example:
 }
 ```
 
-Rinari Code must refuse incompatible major protocol versions with a useful upgrade message.
+Rinari Agent must refuse incompatible major protocol versions with a useful upgrade message.
 
 ## 6.4 Request envelope
 
@@ -757,12 +757,12 @@ Names can be adjusted, but the capability surface must be explicit and versioned
 
 ---
 
-# 8. Rinari Code repository structure
+# 8. Rinari Agent repository structure
 
 Recommended initial structure:
 
 ```text
-Rinari-Code/
+Rinari-Agent/
 ├── src/
 │   ├── app/
 │   │   ├── App.tsx
@@ -878,7 +878,7 @@ KaTeX
 
 Do not replace working Luma primitives merely to match a preference list.
 
-## 9.3 Add for Rinari Code
+## 9.3 Add for Rinari Agent
 
 ### High priority
 
@@ -1046,7 +1046,7 @@ Never silently switch to a fake/local alternate engine implementation.
 
 ## 12.1 Extract, do not fork blindly
 
-Create Rinari Code's frontend from Luma's visual system and selected components.
+Create Rinari Agent's frontend from Luma's visual system and selected components.
 
 Rename semantic identity from Luma to Rinari while preserving the successful visual language.
 
@@ -1116,7 +1116,7 @@ Luma reasoning UI
 
 ## 12.4 Refactor App.tsx
 
-Do not carry Luma's large orchestration-heavy `App.tsx` into Rinari Code.
+Do not carry Luma's large orchestration-heavy `App.tsx` into Rinari Agent.
 
 Split by feature/service from the beginning.
 
@@ -1204,7 +1204,7 @@ Settings
 
 # 14. First-run onboarding — no login
 
-Rinari Code does not need Luma-style application login.
+Rinari Agent does not need Luma-style application login.
 
 First run should answer only what is necessary to make the engine usable.
 
@@ -1213,7 +1213,7 @@ Suggested wizard:
 ## Step 1 — Welcome
 
 ```text
-Welcome to Rinari Code
+Welcome to Rinari Agent
 ```
 
 Detect:
@@ -1440,7 +1440,7 @@ Do not store provider secrets in:
 - React localStorage;
 - sessionStorage;
 - plain Tauri Store;
-- Rinari Code SQLite;
+- Rinari Agent SQLite;
 - frontend source;
 - logs.
 
@@ -1465,7 +1465,7 @@ Goal:
 - Windows Credential Manager / native backend;
 - macOS Keychain;
 - Linux Secret Service/KWallet where available;
-- same secrets accessible to Rinari CLI and Rinari Code through Rinari Engine.
+- same secrets accessible to Rinari CLI and Rinari Agent through Rinari Engine.
 
 Do not make Tauri Stronghold the only provider credential store if it prevents CLI from using the same configuration.
 
@@ -2578,7 +2578,7 @@ This should become a signature feature.
 Target command:
 
 ```bash
-rinari code .
+rinari desktop .
 ```
 
 or in REPL:
@@ -2587,7 +2587,7 @@ or in REPL:
 /open-code
 ```
 
-Open Rinari Code with:
+Open Rinari Agent with:
 
 - same project;
 - same session;
@@ -2609,7 +2609,7 @@ Launch terminal with resume identifier.
 
 ## 42.3 Single instance
 
-Use Tauri single-instance behavior so repeated `rinari code ...` invocations route to the existing application and open/focus requested project/session.
+Use Tauri single-instance behavior so repeated `rinari desktop ...` invocations route to the existing application and open/focus requested project/session. Preserve `rinari code` as a compatibility alias.
 
 ---
 
@@ -2636,7 +2636,7 @@ checkpoints
 budgets/usage state where persisted
 ```
 
-## Rinari Code-owned state
+## Rinari Agent-owned state
 
 Only desktop presentation preferences, e.g.:
 
@@ -2739,7 +2739,7 @@ Acceptance questions:
 
 ## 45.1 Recommended release principle
 
-Bundle a known-compatible engine version with Rinari Code.
+Bundle a known-compatible engine version with Rinari Agent.
 
 Allow an advanced development override to point to another engine executable.
 
@@ -2750,7 +2750,7 @@ Do not use arbitrary external engine versions by default.
 Maintain:
 
 ```text
-Rinari Code version
+Rinari Agent version
 Engine protocol major
 Bundled engine version
 ```
@@ -2801,7 +2801,7 @@ Engine keeps its own structured diagnostics.
 Provide a user-facing diagnostics screen:
 
 ```text
-Rinari Code
+Rinari Agent
 Engine
 Providers
 MCP
@@ -2974,7 +2974,7 @@ Existing CI remains authoritative for engine/harness.
 
 Add protocol-specific suites.
 
-## Rinari-Code CI
+## Rinari-Agent CI
 
 PR checks:
 
@@ -3023,7 +3023,7 @@ The phases below are ordered to avoid building UI on unstable contracts.
 
 ### Goals
 
-- create `Rinari-Code` repo;
+- create `Rinari-Agent` repo;
 - establish Tauri/React baseline;
 - prove engine sidecar distribution path;
 - prove dynamic Rinari plugin compatibility strategy;
@@ -3068,7 +3068,7 @@ The phases below are ordered to avoid building UI on unstable contracts.
 - approval resolve;
 - engine diagnostics.
 
-### Rinari-Code work
+### Rinari-Agent work
 
 - Rust protocol parser;
 - request correlation;
@@ -3166,7 +3166,7 @@ The phases below are ordered to avoid building UI on unstable contracts.
 
 ### Exit criteria
 
-- Rinari Code can replace CLI for ordinary chat/project turns;
+- Rinari Agent can replace CLI for ordinary chat/project turns;
 - same persistent engine sessions appear after restart;
 - long conversations remain responsive.
 
@@ -3331,7 +3331,7 @@ The phases below are ordered to avoid building UI on unstable contracts.
 
 - Rinari Profiles;
 - global/project/session override UI;
-- `rinari code .`;
+- `rinari desktop .` (and the compatibility alias `rinari code .`);
 - `/open-code`;
 - Open session in Terminal;
 - single-instance routing;
@@ -3366,7 +3366,7 @@ The phases below are ordered to avoid building UI on unstable contracts.
 
 ### Exit criteria
 
-Rinari Code is distributable as a real desktop product, not only a dev build.
+Rinari Agent is distributable as a real desktop product, not only a dev build.
 
 ---
 
@@ -3446,12 +3446,12 @@ src/rinari/events/ or tracing layer     desktop-safe event projection
 docs/commands.md                        engine transport + handoff commands
 docs/soul.md                            Soul 3.0 contract
 docs/harness.md                         desktop/engine protocol architecture
-TODO.md                                 Rinari Code integration milestones
+TODO.md                                 Rinari Agent integration milestones
 ```
 
 Avoid invasive changes to ToolRuntime/AgentLoop unless the protocol reveals a missing public event/state boundary.
 
-## 55.2 Rinari-Code
+## 55.2 Rinari-Agent
 
 Initial high-value frontend files:
 
@@ -3590,7 +3590,7 @@ Avoid blocking the entire app because one optional extension failed.
 Maintain visible versions:
 
 ```text
-Rinari Code
+Rinari Agent
 Rinari Engine
 Engine Protocol
 Default Soul
@@ -3604,7 +3604,7 @@ Soul changes have independent versioning from Engine Protocol.
 
 # 61. Migration compatibility
 
-Rinari Code must respect an existing Rinari CLI installation/home.
+Rinari Agent must respect an existing Rinari CLI installation/home.
 
 Do not assume first launch means empty state.
 
@@ -3667,13 +3667,13 @@ An implementation agent following this document must:
 
 ---
 
-# 64. Definition of Done — Rinari Code v1
+# 64. Definition of Done — Rinari Agent v1
 
-Rinari Code v1 is DONE only when all of the following are true.
+Rinari Agent v1 is DONE only when all of the following are true.
 
 ## Architecture
 
-- [ ] Rinari Code uses Rinari Engine, not duplicate harness logic.
+- [ ] Rinari Agent uses Rinari Engine, not duplicate harness logic.
 - [ ] Engine Protocol v1 is versioned and tested.
 - [ ] Desktop can reconstruct state from RuntimeSnapshot.
 - [ ] Engine crash/restart has a defined recovery path.
@@ -3789,7 +3789,7 @@ It is:
                        │
               ┌────────┴────────┐
               │                 │
-          Rinari CLI        Rinari Code
+          Rinari CLI        Rinari Agent
           terminal           desktop
               │                 │
               └────────┬────────┘
@@ -3809,4 +3809,4 @@ The CLI and Code are two high-quality interfaces to one coherent Rinari.
 
 A user should be able to start in terminal, continue in desktop, switch models or agents, inspect changes visually, configure a custom Soul, review verification, and return to terminal **without creating a second version of Rinari or losing operational state**.
 
-That interoperability, combined with the visible harness state and Rinari's configurable identity, should be treated as the central product identity of Rinari Code.
+That interoperability, combined with the visible harness state and Rinari's configurable identity, should be treated as the central product identity of Rinari Agent.

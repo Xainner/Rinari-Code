@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from 'react'
-import { ArrowUp, Box, Brain, Check, Eye, FileText, Image as ImageIcon, LoaderCircle, Paperclip, RefreshCw, Shield, Square, X } from 'lucide-react'
+import { ArrowUp, Box, Brain, Check, Eye, FileText, Image as ImageIcon, LoaderCircle, Paperclip, RefreshCw, Search, Shield, Square, X } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { useI18n } from '../../i18n'
 import { useComposerStore } from '../../stores/composer'
@@ -7,6 +7,7 @@ import { useUIStore } from '../../stores/ui'
 import { engineApi, type ModelSummary } from '../../services/engine'
 import type { AttachmentRef } from '../../types'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
+import { REASONING_LEVELS, supportsEffort, type ReasoningEffort } from '../../lib/reasoning'
 
 export type ComposerPlacement = 'centered' | 'bottom'
 
@@ -26,8 +27,8 @@ interface ComposerProps {
   onOpenProviders: () => void
   sessionMode: string | null
   onModeChange: (mode: string) => void
-  reasoningEffort: 'off' | 'low' | 'medium' | 'high'
-  onReasoningChange: (effort: 'off' | 'low' | 'medium' | 'high') => void
+  reasoningEffort: ReasoningEffort
+  onReasoningChange: (effort: ReasoningEffort) => void
   permissionProfile: 'read-only' | 'workspace' | 'full-access'
   effectivePermissionProfile: 'read-only' | 'workspace' | 'full-access'
   permissionProfilesV2: boolean
@@ -36,7 +37,6 @@ interface ComposerProps {
 }
 
 const MODES = ['plan', 'build', 'review'] as const
-const REASONING_LEVELS = ['off', 'low', 'medium', 'high'] as const
 
 /**
  * Composer: una sola unidad visual (textarea + toolbar con modelo).
@@ -74,6 +74,8 @@ export default function Composer({
   const preparationGenerationRef = useRef(new Map<string, number>())
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [modelOpen, setModelOpen] = useState(false)
+  const [modelQuery, setModelQuery] = useState('')
+  const [attachmentOpen, setAttachmentOpen] = useState(false)
   const [permissionOpen, setPermissionOpen] = useState(false)
   const [reasoningOpen, setReasoningOpen] = useState(false)
   const [allowUnconfirmedVision, setAllowUnconfirmedVision] = useState(false)
@@ -82,7 +84,15 @@ export default function Composer({
   const [previewText, setPreviewText] = useState<string | undefined>()
   const [previewLoading, setPreviewLoading] = useState(false)
   const [attachmentNotice, setAttachmentNotice] = useState<string | undefined>()
+  const reasoningCapabilities = activeModel?.capabilities ?? models.find(model => model.alias === activeAlias)?.capabilities
+  useEffect(() => {
+    if (!supportsEffort(reasoningCapabilities, reasoningEffort)) onReasoningChange('off')
+  }, [reasoningCapabilities, reasoningEffort, onReasoningChange])
   const providers = [...new Set(models.map(model => model.provider ?? 'Otros'))]
+  const normalizedModelQuery = modelQuery.trim().toLowerCase()
+  const matchingModels = normalizedModelQuery
+    ? models.filter((model) => [model.alias, model.provider, model.provider_model_id].filter(Boolean).join(' ').toLowerCase().includes(normalizedModelQuery))
+    : models
   const attachments = useComposerStore((s) => s.attachments)
   const addStoredAttachment = useComposerStore((s) => s.addAttachment)
   const updateStoredAttachment = useComposerStore((s) => s.updateAttachment)
@@ -293,6 +303,16 @@ export default function Composer({
     }
   }
 
+  function beginWorkspaceAttachment() {
+    setAttachmentOpen(false)
+    const next = text.match(/(?:^|\s)@[^\s]*$/) ? text : `${text}${text && !text.endsWith(' ') ? ' ' : ''}@`
+    useComposerStore.getState().setText(next)
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+      autosize()
+    })
+  }
+
   function chooseWorkspaceFile(file: { path: string; relative_path: string; name: string }) {
     addAttachment({ id: `att_${Date.now().toString(36)}_${file.path}`, path: file.path, name: file.relative_path, source: 'workspace', kind: /\.(png|jpe?g|webp)$/i.test(file.path) ? 'image' : undefined, status: 'ready' })
     useComposerStore.getState().setText(text.replace(/(?:^|\s)@[^\s]*$/, (match) => `${match.startsWith(' ') ? ' ' : ''}@${file.relative_path} `))
@@ -361,9 +381,24 @@ export default function Composer({
           className="composer-textarea block max-h-[240px] min-h-13 w-full resize-none border-0 bg-transparent text-[15px] leading-relaxed text-[var(--text)] outline-none placeholder:text-[var(--text-subtle)] focus:outline-none focus-visible:outline-none"
         />
         <div className="mt-1 flex items-center gap-1.5">
-          <button type="button" onClick={() => void chooseFiles()} disabled={isStreaming} aria-label="Adjuntar archivos" title="Adjuntar archivos" className="flex size-8 cursor-pointer items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text)] disabled:opacity-40">
-            <Paperclip size={15} />
-          </button>
+          <Popover open={attachmentOpen} onOpenChange={setAttachmentOpen}>
+            <PopoverTrigger asChild>
+              <button type="button" disabled={isStreaming} aria-label="Adjuntar archivos" title="Añadir al mensaje" className="flex size-8 cursor-pointer items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text)] disabled:opacity-40">
+                <Paperclip size={15} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-60 p-1.5">
+              <p className="px-2.5 pt-1.5 pb-1 text-[10px] font-semibold tracking-wider text-[var(--text-subtle)] uppercase">Añadir al mensaje</p>
+              <button type="button" onClick={() => { setAttachmentOpen(false); void chooseFiles() }} className="flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)]">
+                <FileText size={15} className="mt-0.5 shrink-0 text-[var(--text-muted)]" />
+                <span><span className="block text-[13px] text-[var(--text)]">Adjuntar desde el equipo</span><span className="block text-[11px] text-[var(--text-subtle)]">Imagen, documento o archivo local</span></span>
+              </button>
+              <button type="button" onClick={beginWorkspaceAttachment} className="flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)]">
+                <Search size={15} className="mt-0.5 shrink-0 text-[var(--text-muted)]" />
+                <span><span className="block text-[13px] text-[var(--text)]">Buscar en el proyecto</span><span className="block text-[11px] text-[var(--text-subtle)]">Encuentra un archivo del workspace</span></span>
+              </button>
+            </PopoverContent>
+          </Popover>
           <div
             role="group"
             aria-label={t('mode.change')}
@@ -391,7 +426,7 @@ export default function Composer({
               )
             })}
           </div>
-          <Popover open={modelOpen} onOpenChange={(open) => { setModelOpen(open); if (open) onDiscoverModels() }}>
+          <Popover open={modelOpen} onOpenChange={(open) => { setModelOpen(open); if (open) { setModelQuery(''); onDiscoverModels() } }}>
             <PopoverTrigger asChild>
               <button
                 type="button"
@@ -410,6 +445,12 @@ export default function Composer({
                 maxHeight: 'min(32rem, var(--radix-popover-content-available-height))',
               }}
             >
+              <div className="shrink-0 border-b border-[var(--border)] p-1.5">
+                <label className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] px-2.5 py-1.5 focus-within:border-[var(--border-strong)]">
+                  <Search size={13} aria-hidden="true" className="text-[var(--text-subtle)]" />
+                  <input autoFocus value={modelQuery} onChange={(event) => setModelQuery(event.target.value)} placeholder={t('composer.searchModels')} className="min-w-0 flex-1 border-0 bg-transparent text-xs text-[var(--text)] outline-none placeholder:text-[var(--text-subtle)]" />
+                </label>
+              </div>
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
                 {models.length === 0 && (
                   <button
@@ -420,9 +461,10 @@ export default function Composer({
                     {t('composer.noModelsSetup')}
                   </button>
                 )}
-                {providers.map(provider => <section key={provider} aria-label={provider}>
+                {models.length > 0 && matchingModels.length === 0 && <p className="px-2.5 py-6 text-center text-xs text-[var(--text-subtle)]">No se encontraron modelos.</p>}
+                {providers.filter(provider => matchingModels.some(model => (model.provider ?? 'Otros') === provider)).map(provider => <section key={provider} aria-label={provider}>
                   <h3 className="px-2.5 pt-3 pb-1 text-[11px] font-semibold text-[var(--text-subtle)]">{provider}</h3>
-                  {models.filter(model => (model.provider ?? 'Otros') === provider).map((model) => (
+                  {matchingModels.filter(model => (model.provider ?? 'Otros') === provider).map((model) => (
                   <button
                     key={model.id}
                     type="button"
@@ -500,8 +542,9 @@ export default function Composer({
                 <button
                   key={level}
                   type="button"
+                  disabled={!supportsEffort(activeModel?.capabilities ?? models.find(model => model.alias === activeAlias)?.capabilities, level)}
                   onClick={() => { setReasoningOpen(false); onReasoningChange(level) }}
-                  className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)]"
+                  className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block text-[13px] font-medium text-[var(--text)]">
@@ -516,6 +559,7 @@ export default function Composer({
                   )}
                 </button>
               ))}
+              <p className="px-2.5 py-2 text-[11px] text-[var(--text-subtle)]">{t('thinking.compatibility')}</p>
             </PopoverContent>
           </Popover>
           <span className="flex-1" />

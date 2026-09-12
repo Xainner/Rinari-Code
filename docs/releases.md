@@ -1,7 +1,7 @@
-# Releases y auto-update (estilo Hermes)
+# Releases y auto-update de Rinari Agent
 
-Rinari Code se auto-actualiza desde GitHub Releases (Estrategia A: el
-instalador trae Code + engine empaquetado; un update trae ambos).
+Rinari Agent se auto-actualiza desde GitHub Releases (el
+instalador trae Agent + engine empaquetado; un update trae ambos).
 
 ## Cómo publicar una versión
 
@@ -15,7 +15,7 @@ instalador trae Code + engine empaquetado; un update trae ambos).
    `engine_git_sha` (+ `engine_version` si cambió) en ese archivo; el
    workflow y `scripts/package-engine.ps1` fallan si no coinciden.
 3. Commit + push a `main`.
-4. Tag y push del tag: `git tag v0.1.1 && git push origin v0.1.1`
+4. Tag y push del tag: `git tag v0.1.2 && git push origin v0.1.2`
    (el workflow valida que el tag coincida con `package.json`).
 5. GitHub Actions construye el instalador Windows + `latest.json`
    firmado y deja el release en **draft**.
@@ -35,8 +35,12 @@ instalador trae Code + engine empaquetado; un update trae ambos).
 
 ## Notas
 
+- Migración de identidad y gates: [identity-migration.md](identity-migration.md).
+- Las rutas históricas de la clave privada se conservan deliberadamente; no generar
+  otra clave por el cambio de marca. Los secretos de GitHub conservan sus nombres.
+
 - Endpoint del updater:
-  `https://github.com/Xainner/Rinari-Code/releases/latest/download/latest.json`
+  `https://github.com/Xainner/Rinari-Agent/releases/latest/download/latest.json`
   (requiere repo público).
 - Sin releases publicados, `check()` falla en silencio: la app sigue
   normal, sin toasts.

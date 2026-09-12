@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
-import { isTauri } from '@tauri-apps/api/core'
 import { dispatchAction, type DesktopAction } from './services/actions'
 import { open as openFolderDialog } from '@tauri-apps/plugin-dialog'
 import { toast } from 'sonner'
@@ -11,6 +10,8 @@ import { useUIStore } from './stores/ui'
 import { useEngineSession } from './features/engine/useEngineSession'
 import AppShell from './components/app-shell/AppShell'
 import FileWorkspace from './features/files/FileWorkspace'
+import BrowserPanel from './features/browser/BrowserPanel'
+import ProcessesPanel from './features/processes/ProcessesPanel'
 import { desktopApi } from './services/desktop'
 import AppSidebar from './components/app-shell/AppSidebar'
 import ChatHeader from './components/app-shell/ChatHeader'
@@ -24,7 +25,7 @@ import ProviderWizard from './features/providers/ProviderWizard'
 import StartupSplash from './components/StartupSplash'
 import DesktopContextMenu from './components/app-shell/DesktopContextMenu'
 
-const APP_VERSION = '0.1.1'
+const APP_VERSION = '0.1.2'
 
 function App() {
   const view = useUIStore((s) => s.view)
@@ -44,6 +45,7 @@ function App() {
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
   const toggleSidebarCollapsed = useUIStore((s) => s.toggleSidebarCollapsed)
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
+  const shortcutBindings = useUIStore((s) => s.shortcutBindings)
 
   const session = useEngineSession()
   const activeRecord =
@@ -167,20 +169,18 @@ function App() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (isTauri()) return
-      const mod = e.ctrlKey || e.metaKey
-      if (mod && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        togglePalette()
-      }
-      if (mod && e.key === ',') {
-        e.preventDefault()
-        goSettings()
-      }
+      const pressed = `${e.ctrlKey || e.metaKey ? 'Ctrl+' : ''}${e.altKey ? 'Alt+' : ''}${e.shiftKey ? 'Shift+' : ''}${e.key.length === 1 ? e.key.toUpperCase() : e.key}`
+      const action = Object.entries(shortcutBindings).find(([, shortcut]) => shortcut.toUpperCase() === pressed.toUpperCase())?.[0]
+      if (!action) return
+      e.preventDefault()
+      if (action === 'palette') togglePalette()
+      if (action === 'settings') goSettings()
+      if (action === 'sidebar') toggleSidebarCollapsed()
+      if (action === 'newChat') void session.createSession().then((id) => id && goChat())
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [togglePalette, goSettings])
+  }, [shortcutBindings, togglePalette, goSettings, toggleSidebarCollapsed, goChat, session.createSession])
 
   const desktopActionRef = useRef<(action: DesktopAction) => void>(() => {})
 
@@ -199,7 +199,7 @@ function App() {
         case 'commands': setPaletteOpen(true); break
         case 'undo': case 'redo': document.execCommand(action); break
         case 'updates': void checkForUpdates().then(found => {
-          if (!found) { toast.success('Rinari Code está actualizado.'); return }
+          if (!found) { toast.success('Rinari Agent está actualizado.'); return }
           toast(`Nueva versión: ${found.version}`, { action: { label: 'Instalar', onClick: () => void installUpdateAndRelaunch().catch(error => toast.error(String(error))) } })
         }).catch(error => toast.error(String(error))); break
       }
@@ -282,6 +282,7 @@ function App() {
             projects={session.projects}
             archivedProjects={session.archivedProjects}
             activeId={session.activeSession}
+            busySessionIds={session.busySessionIds}
             onSelectSession={(id) => {
               void session.selectSession(id)
               goChat()
@@ -440,6 +441,9 @@ function App() {
           />
         )}
       </AppShell>
+
+      {view === 'chat' && session.activeSession && <ProcessesPanel key={`processes:${session.activeSession}`} sessionId={session.activeSession} />}
+      {view === 'chat' && session.activeSession && <BrowserPanel key={session.activeSession} sessionId={session.activeSession} />}
 
       <ProviderWizard
         open={wizardOpen}

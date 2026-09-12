@@ -1,11 +1,11 @@
-//! Engine lifecycle + runtime snapshot + `rinari code` handoff parsing.
+//! Engine lifecycle + runtime snapshot + `rinari desktop` handoff parsing.
 use std::sync::Arc;
 
 #[cfg(not(debug_assertions))]
 use tauri::Manager;
 use tauri::{AppHandle, Emitter, State};
 
-use rinari_code_lib::engine::{
+use rinari_agent_lib::engine::{
     protocol::EngineEvent, CommandError, EngineStatus, EngineSupervisor,
 };
 
@@ -83,7 +83,7 @@ pub(crate) async fn snapshot_get(
     super::run_engine(supervisor, |engine| engine.snapshot_get()).await
 }
 
-/// `rinari code [path] [--session id]` handoff: explicit args only.
+/// `rinari desktop [path] [--session id]` handoff: explicit args only.
 #[derive(Debug, Clone, serde::Serialize)]
 pub(crate) struct OpenRequest {
     pub(crate) project: Option<String>,
@@ -119,7 +119,7 @@ mod open_request_tests {
     #[test]
     fn parses_project_and_session_flags() {
         let argv = vec![
-            "rinari-code".to_string(),
+            "rinari-agent".to_string(),
             "--project".to_string(),
             "C:/work/demo".to_string(),
             "--session".to_string(),
@@ -132,7 +132,7 @@ mod open_request_tests {
 
     #[test]
     fn ignores_unrelated_flags() {
-        let argv = vec!["rinari-code".to_string(), "--devtools".to_string()];
+        let argv = vec!["rinari-agent".to_string(), "--devtools".to_string()];
         let request = parse_open_request(&argv);
         assert!(request.project.is_none());
         assert!(request.session.is_none());

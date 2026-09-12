@@ -1,8 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Rinari Code",
-  "version": "0.1.1",
-  "identifier": "com.rinari.code",
+  "productName": "Rinari Agent",
+  "version": "0.1.2",
+  "identifier": "com.rinari.agent",
+  "mainBinaryName": "rinari-agent",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "Rinari Code",
+        "title": "Rinari Agent",
         "width": 800,
         "height": 600
       }
@@ -26,6 +27,15 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,
+    "windows": {
+      "nsis": {
+        "template": "installer/installer.nsi",
+        "installerHooks": "installer/identity.nsh"
+      },
+      "wix": {
+        "upgradeCode": "7276052a-b876-5a53-bd4c-affa5a291124"
+      }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -42,7 +52,7 @@
       "active": true,
       "dialog": false,
       "endpoints": [
-        "https://github.com/Xainner/Rinari-Code/releases/latest/download/latest.json"
+        "https://github.com/Xainner/Rinari-Agent/releases/latest/download/latest.json"
       ],
       "pubkey": "RWSfnz4u8prCPMwLd3dqwMBt51eWxrXO0vk6e6w6ZfsNuIld4vCWmApS"
     }

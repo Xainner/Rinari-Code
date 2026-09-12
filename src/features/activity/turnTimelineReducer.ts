@@ -69,13 +69,11 @@ function defaultTimeline(turnId: string, sessionId: string, now: number): TurnTi
 function itemId(event: string, payload: Record<string, unknown>): string {
   if (event.startsWith('turn.changes.')) return `changeset:${payload.id || payload.changeset_id || 'turn'}`
   if (event.startsWith('question.')) return `question:${payload.request_id}`
+  if (event.startsWith('agent.') && payload.agent_id) return `agent:${payload.agent_id}`
   if (payload.tool_call_id) return `tool:${payload.tool_call_id}`
   if (event.startsWith('model.')) return `model:${payload.model_call_id || 'legacy'}`
   if (payload.approval_id) return `approval:${payload.approval_id}`
-  if (payload.agent_id) {
-    const phase = event === 'agent.started' ? 'started' : 'terminal'
-    return `agent:${payload.agent_id}:${phase}`
-  }
+  if (payload.agent_id) return `agent:${payload.agent_id}`
   if (event.startsWith('verification.')) return 'verification:completion-gate'
   if (event === 'governor.compact') return `context:${payload.activity_seq ?? 0}`
   return `system:${payload.activity_seq ?? event}`
@@ -279,16 +277,26 @@ function mergeEventItem(
     return { id, type: 'question', activitySeq, occurredAt, request: payload as unknown as import('../../services/desktop').QuestionRequest }
   }
   if (event.startsWith('agent.')) {
+    const prior = current?.type === 'agent' ? current : undefined
+    let children = prior?.items ?? []
+    if (event === 'agent.activity' && typeof payload.child_event === 'string' && !payload.child_event.startsWith('agent.')) {
+      const childPayload = { ...payload }
+      delete childPayload.agent_id
+      delete childPayload.child_event
+      const childId = itemId(payload.child_event, childPayload)
+      const child = mergeEventItem(children.find(item => item.id === childId), payload.child_event, childPayload, now)
+      if (child) children = children.some(item => item.id === childId)
+        ? children.map(item => item.id === childId ? child : item) : [...children, child]
+    }
     return {
-      id,
-      type: 'agent',
-      activitySeq,
-      occurredAt,
+      id, type: 'agent', activitySeq: prior?.activitySeq ?? activitySeq, occurredAt: prior?.occurredAt ?? occurredAt,
       agentId: text(payload.agent_id),
-      phase: event === 'agent.started' ? 'started' : 'terminal',
-      status: event === 'agent.started' ? 'running' : event === 'agent.completed' ? 'completed' : 'failed',
-      agent: text(payload.agent) || 'Agent',
-      objective: text(payload.objective) || undefined,
+      phase: event === 'agent.completed' || event === 'agent.failed' ? 'terminal' : prior?.phase ?? 'started',
+      status: event === 'agent.completed' ? 'completed' : event === 'agent.failed' ? 'failed' : prior?.status ?? 'running',
+      agent: text(payload.agent) || prior?.agent || 'Agent',
+      objective: text(payload.objective) || prior?.objective,
+      items: children, summary: text(payload.summary) || text(payload.error) || prior?.summary,
+      cwd: text(payload.cwd) || prior?.cwd, profile: text(payload.profile) || prior?.profile,
     }
   }
   if (event === 'governor.compact') {

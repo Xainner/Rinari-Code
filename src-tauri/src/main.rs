@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-// Rinari Code entry point. Owns the Tauri surface: plugins, event
+// Rinari Agent entry point. Owns the Tauri surface: plugins, event
 // forwarding, command registration, run(). Path per call:
 // Tauri command → EngineSupervisor → EngineTransport → Engine Protocol.
 // No harness logic here; the engine (Python) owns sessions, tools,
@@ -15,10 +15,17 @@ mod menu;
 use tauri::{Emitter, Manager};
 
 use commands::engine::parse_open_request;
-use rinari_code_lib::engine::EngineSupervisor;
+use rinari_agent_lib::engine::EngineSupervisor;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    if let Err(error) = rinari_agent_lib::identity::migrate_legacy_profiles() {
+        let message = format!("Rinari Agent could not migrate your desktop profile.\n\n{error}\n\nClose Rinari Code and retry. Your original data has not been removed.");
+        eprintln!("{message}");
+        #[cfg(windows)]
+        show_migration_error(&message);
+        return;
+    }
     tauri::Builder::default()
         .menu(menu::build)
         .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
@@ -43,6 +50,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::desktop::session_move,
             commands::desktop::workspace_preview_start,
+            commands::desktop::browser_view_get,
+            commands::desktop::workspace_process_list,
+            commands::desktop::workspace_process_read,
+            commands::desktop::workspace_process_stop,
             commands::desktop::workspace_preview_status,
             commands::desktop::workspace_preview_stop,
             commands::desktop::workspace_file_read,
@@ -159,4 +170,24 @@ pub fn run() {
 
 fn main() {
     run()
+}
+
+// This must work before Tauri/WebView creates the destination profile.
+#[cfg(windows)]
+fn show_migration_error(message: &str) {
+    #[link(name = "user32")]
+    unsafe extern "system" {
+        fn MessageBoxW(
+            window: *mut std::ffi::c_void,
+            text: *const u16,
+            caption: *const u16,
+            flags: u32,
+        ) -> i32;
+    }
+    let text: Vec<u16> = message.encode_utf16().chain(Some(0)).collect();
+    let title: Vec<u16> = "Rinari Agent".encode_utf16().chain(Some(0)).collect();
+    // Both buffers are NUL-terminated and remain alive throughout the synchronous call.
+    unsafe {
+        MessageBoxW(std::ptr::null_mut(), text.as_ptr(), title.as_ptr(), 0x10);
+    }
 }

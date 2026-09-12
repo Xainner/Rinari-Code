@@ -31,7 +31,7 @@ export default function StartupSplash({
           <Logo size={104} radius="rounded-3xl" />
         </motion.div>
         <h1 className="font-display mt-5 text-2xl font-bold tracking-tight text-[var(--text)]">
-          Rinari Code
+          Rinari Agent
         </h1>
         {failed ? (
           <>

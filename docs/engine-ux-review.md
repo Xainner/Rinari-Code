@@ -1,6 +1,6 @@
 # Revisión UX del motor (2026-09-08) — PENDIENTE DE REVISIÓN DEL USUARIO
 
-Cambios aplicados para que Rinari Code no parezca depender de un "motor"
+Cambios aplicados para que Rinari Agent no parezca depender de un "motor"
 que hay que encender a mano. Nada aquí toca el protocolo ni el engine:
 solo presentación y arranque automático.
 

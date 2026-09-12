@@ -41,7 +41,7 @@ function project(partial: Partial<ProjectSummary> & { id: string; root: string }
 describe('projectDisplayName', () => {
   it('usa la última parte de la ruta', () => {
     expect(projectDisplayName('C:\\Projects\\Rinari-CLI')).toBe('Rinari-CLI')
-    expect(projectDisplayName('/home/u/Rinari-Code')).toBe('Rinari-Code')
+    expect(projectDisplayName('/home/u/Rinari-Agent')).toBe('Rinari-Agent')
     expect(projectDisplayName('/')).toBe('/')
   })
 })

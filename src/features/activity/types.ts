@@ -96,6 +96,10 @@ export interface AgentTimelineItem extends TimelineItemBase {
   status: 'running' | 'completed' | 'failed'
   agent: string
   objective?: string
+  items?: TimelineItem[]
+  summary?: string
+  cwd?: string
+  profile?: string
 }
 
 export interface ContextTimelineItem extends TimelineItemBase {

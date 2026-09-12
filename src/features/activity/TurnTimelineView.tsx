@@ -159,18 +159,35 @@ function ActivityRow({ item, onResolveApproval }: { item: Exclude<TimelineItem, 
       </div>
     )
   }
+  if (item.type === 'agent') return (
+    <details className="group/agent my-2 rounded-xl border border-[var(--border)] p-3">
+      <summary className="flex cursor-pointer list-none items-center gap-2 text-sm text-[var(--text)]">
+        {item.status === 'running' ? <LoaderCircle size={15} className="animate-spin motion-reduce:animate-none" /> : <Bot size={15} />}
+        <span>{item.agent}</span>
+        <span className="text-xs text-[var(--text-muted)]">{item.status === 'running' ? (lang === 'es' ? 'Trabajando' : 'Working') : item.status === 'completed' ? (lang === 'es' ? 'Completado' : 'Completed') : (lang === 'es' ? 'Interrumpido o fallido' : 'Stopped or failed')}</span>
+        <span className="ml-auto text-xs">{lang === 'es' ? 'Ver actividad' : 'View activity'}</span><ChevronDown size={13} />
+      </summary>
+      <div className="mt-3 max-h-[32rem] space-y-2 overflow-auto">
+        {item.objective && <p className="text-sm text-[var(--text-muted)]">{item.objective}</p>}
+        {(item.cwd || item.profile) && <p className="break-all font-mono text-xs text-[var(--text-subtle)]">{item.profile} · {item.cwd}</p>}
+        {(item.items ?? []).map(child => child.type === 'model'
+          ? child.content ? <Markdown key={child.id}>{child.content}</Markdown> : null
+          : <ActivityRow key={child.id} item={child} onResolveApproval={onResolveApproval} />)}
+        {item.summary && !(item.items ?? []).some(child => child.type === 'model' && child.content === item.summary) && <Markdown>{item.summary}</Markdown>}
+        {!item.items?.length && !item.summary && <p className="text-xs text-[var(--text-muted)]">{lang === 'es' ? 'Esperando actividad del agente…' : 'Waiting for agent activity…'}</p>}
+      </div>
+    </details>
+  )
   if (item.type === 'changeset') return <ChangeSetRow item={item} turnActive={false} />
   if (item.type === 'question') return <details className="rounded-xl border border-[var(--border)] p-3 text-xs" open={item.request.status === 'pending'}><summary className="cursor-pointer">{item.request.status === 'pending' ? 'Esperando tu respuesta' : item.request.status === 'answered' ? 'Preguntas respondidas' : item.request.status === 'skipped' ? 'Preguntas omitidas' : 'Preguntas expiradas'}</summary><div className="mt-2 space-y-2">{item.request.questions?.map(q => <div key={q.id}><strong>{q.title}</strong>{item.request.answers?.[q.id] && <p className="mt-1 whitespace-pre-wrap">{item.request.answers[q.id]}</p>}</div>)}</div></details>
   if (item.type === 'system') return null
-  const labels = item.type === 'agent'
-    ? (item.status === 'running' ? `${lang === 'es' ? 'Inició agente' : 'Started agent'} · ${item.agent}` : `${lang === 'es' ? 'Finalizó agente' : 'Agent finished'} · ${item.agent}`)
-    : item.type === 'context'
+  const labels = item.type === 'context'
       ? (item.status === 'running' ? (lang === 'es' ? 'Compactando contexto…' : 'Compacting context…') : (lang === 'es' ? 'Contexto compactado' : 'Context compacted'))
       : item.type === 'verification'
         ? (item.status === 'running' ? (lang === 'es' ? 'Verificando…' : 'Verifying…') : item.status === 'failed' ? (lang === 'es' ? 'La verificación falló' : 'Verification failed') : (lang === 'es' ? 'Verificación completada' : 'Verification completed'))
         : ''
   if (!labels) return null
-  const Icon = item.type === 'agent' ? Bot : item.type === 'verification' ? Check : Sparkles
+  const Icon = item.type === 'verification' ? Check : Sparkles
   return <div className="flex items-center gap-2 py-1 text-[13px] text-[var(--text-muted)]"><Icon size={13} className="text-[var(--text-subtle)]" />{labels}</div>
 }
 

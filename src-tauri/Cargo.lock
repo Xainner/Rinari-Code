@@ -3020,8 +3020,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "rinari-code"
-version = "0.1.1"
+name = "rinari-agent"
+version = "0.1.2"
 dependencies = [
  "serde",
  "serde_json",

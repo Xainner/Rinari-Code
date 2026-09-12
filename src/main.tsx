@@ -13,5 +13,5 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 
 // Ventana dev distinguible de la instalada (mismo identificador/app).
 if (import.meta.env.DEV) {
-  document.title = 'Rinari Code (DEV)'
+  document.title = 'Rinari Agent (DEV)'
 }

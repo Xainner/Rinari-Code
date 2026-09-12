@@ -7,7 +7,7 @@
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 
-use rinari_code_lib::engine::{methods::Method, protocol::EngineEvent, EngineSupervisor};
+use rinari_agent_lib::engine::{methods::Method, protocol::EngineEvent, EngineSupervisor};
 
 fn count(result: &serde_json::Value, key: &str) -> usize {
     result

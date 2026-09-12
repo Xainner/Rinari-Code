@@ -63,3 +63,19 @@ describe('TurnTimelineView', () => {
     expect(screen.getByRole('button', { name: 'Deshacer' })).toBeTruthy()
   })
 })
+
+
+it('opens an agent card with its own messages and execution context', async () => {
+  view({ ...base, items: [{
+    id: 'agent:a', type: 'agent', activitySeq: 1, occurredAt: 1_100,
+    agentId: 'a', agent: 'explore', phase: 'started', status: 'running',
+    objective: 'Inspeccionar SSH', cwd: 'C:/Proyecto', profile: 'full-access',
+    items: [{ id: 'model:child', type: 'model', activitySeq: 2, occurredAt: 1_200, modelCallId: 'child', status: 'completed', content: 'Hardware encontrado', outputKind: 'progress' }],
+  }] }, 1_300)
+  const action = screen.getByText('Ver actividad')
+  await userEvent.click(action)
+  expect(action.closest('details')?.hasAttribute('open')).toBe(true)
+  expect(screen.getByText('Hardware encontrado')).toBeTruthy()
+  expect(screen.getByText('Inspeccionar SSH')).toBeTruthy()
+  expect(screen.getByText('full-access · C:/Proyecto')).toBeTruthy()
+})

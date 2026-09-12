@@ -2,7 +2,7 @@
 use tauri::State;
 
 use super::run_engine;
-use rinari_code_lib::engine::{CommandError, EngineSupervisor};
+use rinari_agent_lib::engine::{CommandError, EngineSupervisor};
 
 #[tauri::command]
 pub(crate) async fn agent_list(

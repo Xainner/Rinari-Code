@@ -1,6 +1,6 @@
 # Portable OCR runtime
 
-Rinari Engine owns document extraction and OCR. Rinari Code distributes a local
+Rinari Engine owns document extraction and OCR. Rinari Agent distributes a local
 Tesseract runtime alongside its embedded Python interpreter; it does not install
 Tesseract globally or change the user's PATH.
 

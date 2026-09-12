@@ -10,7 +10,11 @@
     "interactive_questions_v1",
     "web_preview_v1",
     "plan_read_scope_v1",
-    "tool_contracts_v1"
+    "tool_contracts_v1",
+    "agent_inheritance_v1",
+    "agent_activity_v1",
+    "browser_view_v1",
+    "desktop_processes_v1"
   ],
   "optional_capabilities": [
     "permission_profiles_v2",

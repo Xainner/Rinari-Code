@@ -1,14 +1,12 @@
 import * as React from 'react'
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu'
-import { Check } from 'lucide-react'
+import { Check, ChevronRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 const DropdownMenu = DropdownMenuPrimitive.Root
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
 const DropdownMenuGroup = DropdownMenuPrimitive.Group
 const DropdownMenuSub = DropdownMenuPrimitive.Sub
-const DropdownMenuSubTrigger = DropdownMenuPrimitive.SubTrigger
-const DropdownMenuSubContent = DropdownMenuPrimitive.SubContent
 
 const MENU_CONTENT =
   'z-50 min-w-52 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.24)] data-[state=open]:animate-[luma-zoom-in_.14s_ease-out]'
@@ -38,6 +36,35 @@ function DropdownMenuItem({
       className={cn(MENU_ITEM, inset && 'pl-8', className)}
       {...props}
     />
+  )
+}
+
+function DropdownMenuSubTrigger({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubTrigger>) {
+  return (
+    <DropdownMenuPrimitive.SubTrigger className={cn(MENU_ITEM, 'data-[state=open]:bg-[var(--bg-hover)]', className)} {...props}>
+      {children}
+      <ChevronRight className="ml-auto size-4 text-[var(--text-subtle)]" aria-hidden="true" />
+    </DropdownMenuPrimitive.SubTrigger>
+  )
+}
+
+function DropdownMenuSubContent({
+  className,
+  sideOffset = 8,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+  return (
+    <DropdownMenuPrimitive.Portal>
+      <DropdownMenuPrimitive.SubContent
+        sideOffset={sideOffset}
+        className={cn(MENU_CONTENT, 'min-w-56', className)}
+        {...props}
+      />
+    </DropdownMenuPrimitive.Portal>
   )
 }
 

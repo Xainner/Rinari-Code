@@ -11,7 +11,7 @@
 - Los enlaces de archivos y las salidas de `fs.write`/`fs.patch` abren un visor
   lateral con pestañas, Markdown/fuente, resaltado, ruta y apertura externa.
   La lectura es del motor, limitada a 512 KiB y al workspace del turno original.
-- El pie del sidebar contiene el menú Rinari Code. Archivo, Editar, Ver y Ayuda
+- El pie del sidebar contiene el menú Rinari Agent. Archivo, Editar, Ver y Ayuda
   son menús nativos de Tauri; los menús contextuales conservan edición y portapapeles.
 
 El motor requiere `desktop_workspace_v1` e `interactive_questions_v1`. El esquema

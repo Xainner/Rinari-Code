@@ -7,7 +7,7 @@ export default function SoonSettings() {
   return (
     <div className="space-y-6">
       <Section title={t('settings.soon.title')} desc={t('settings.soon.body')}>
-        <p className="text-sm text-[var(--text-subtle)]">Rinari Code v0.1.0 · Engine Protocol v1</p>
+        <p className="text-sm text-[var(--text-subtle)]">Rinari Agent v0.1.0 · Engine Protocol v1</p>
       </Section>
     </div>
   )

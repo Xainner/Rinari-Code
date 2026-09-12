@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../i18n'
@@ -162,4 +162,36 @@ it('collapses project sessions without opening the project', async () => {
   expect(props.onOpenProject).not.toHaveBeenCalled()
   await user.click(screen.getByRole('button', { name: /Rinari CLI/ }))
   expect(screen.getByText('Fix governor')).toBeTruthy()
+})
+
+it('reveals project sessions and clears search when creating from a collapsed project', async () => {
+  const props = renderSidebar({ onNewProjectChat: vi.fn() })
+  const user = userEvent.setup()
+  await user.click(screen.getByTitle('/repo/project'))
+  expect(screen.queryByText('Fix governor')).toBeNull()
+  const search = screen.getByPlaceholderText('Buscar proyectos y sesiones…')
+  await user.type(search, 'Rinari')
+  await user.click(screen.getByLabelText('Nueva sesión en Rinari CLI'))
+  expect((search as HTMLInputElement).value).toBe('')
+  expect(screen.getByText('Fix governor')).toBeTruthy()
+  expect(props.onNewProjectChat).toHaveBeenCalledWith('project')
+})
+
+it('shows work in an unselected session and its collapsed project', async () => {
+  renderSidebar({ busySessionIds: new Set(['project-session']) })
+  expect(within(screen.getByText('Research').closest('button')!).queryByRole('status')).toBeNull()
+  expect(within(screen.getByText('Fix governor').closest('button')!).getByRole('status')).toBeTruthy()
+  await userEvent.click(screen.getByTitle('/repo/project'))
+  expect(screen.queryByText('Fix governor')).toBeNull()
+  expect(screen.getByRole('status', { name: 'Proyecto con sesiones en curso' })).toBeTruthy()
+})
+
+it('removes the work indicator when engine activity ends without changing selection', () => {
+  const props = renderSidebar({ busySessionIds: new Set(['chat']) })
+  cleanup()
+  const view = render(<I18nProvider lang="es"><AppSidebar {...props} /></I18nProvider>)
+  expect(screen.getByRole('status', { name: 'Sesión en curso' })).toBeTruthy()
+  view.rerender(<I18nProvider lang="es"><AppSidebar {...props} busySessionIds={new Set()} /></I18nProvider>)
+  expect(screen.queryByRole('status')).toBeNull()
+  expect(screen.getByText('Research').closest('button')?.getAttribute('aria-current')).toBe('page')
 })

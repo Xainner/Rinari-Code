@@ -103,3 +103,27 @@ describe('narrative activity timeline', () => {
     expect(state.timelines.t1.items).toHaveLength(1)
   })
 })
+
+
+it('keeps child commands and answers inside one agent card through live updates and reload', () => {
+  const base = { turn_id: 't', session_id: 's', agent_id: 'a', agent: 'explore', occurred_at: new Date(NOW).toISOString() }
+  const rows = [
+    { ...base, event: 'agent.started', activity_seq: 1, objective: 'Inspect SSH' },
+    { ...base, event: 'agent.activity', child_event: 'tool.started', activity_seq: 2, tool_call_id: 'tc', tool: 'shell.exec' },
+    { ...base, event: 'agent.activity', child_event: 'tool.completed', activity_seq: 2, tool_call_id: 'tc', tool: 'shell.exec', presentation: { kind: 'command', status: 'success', stdout: 'Máquina lista\n', stderr: '' } },
+    { ...base, event: 'agent.activity', child_event: 'model.content.completed', activity_seq: 3, model_call_id: 'm', content: 'Child answer', output_kind: 'final' },
+    { ...base, event: 'agent.completed', activity_seq: 4, summary: 'Child answer' },
+  ]
+  let state = createInitialTimelineState()
+  for (const row of rows) state = turnTimelineReducer(state, event(row.event, row))
+  expect(state.timelines.t.items).toHaveLength(1)
+  expect(state.timelines.t.items[0]).toMatchObject({ type: 'agent', status: 'completed', items: [
+    { type: 'tool', status: 'completed', presentation: { stdout: 'Máquina lista\n' } },
+    { type: 'model', content: 'Child answer' },
+  ] })
+  const restored = turnTimelineReducer(createInitialTimelineState(), { type: 'timeline/loaded', sessionId: 's', turns: [{
+    turn_id: 't', session_id: 's', turn_index: 1, status: 'completed', started_at: '2026-09-11', completed_at: '2026-09-11', user_message: 'Inspect', items: rows, final_response: 'Parent answer',
+  }] })
+  expect(restored.timelines.t.items.filter(item => item.type === 'agent')).toEqual(state.timelines.t.items)
+  expect(restored.timelines.t.items.filter(item => item.type === 'model')).toMatchObject([{ content: 'Parent answer' }])
+})

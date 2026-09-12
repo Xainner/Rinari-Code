@@ -51,7 +51,7 @@ pub fn build(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         "Ayuda",
         true,
         &[
-            &item("about", "Acerca de Rinari Code", None)?,
+            &item("about", "Acerca de Rinari Agent", None)?,
             &item("engine", "Estado del motor", None)?,
             &item("updates", "Buscar actualizaciones", None)?,
         ],

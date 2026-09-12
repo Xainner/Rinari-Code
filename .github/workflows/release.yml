@@ -58,6 +58,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Rinari Code ${{ github.ref_name }}'
+          releaseName: 'Rinari Agent ${{ github.ref_name }}'
           releaseDraft: true
           includeUpdaterJson: true

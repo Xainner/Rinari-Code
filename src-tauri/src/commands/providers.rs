@@ -1,7 +1,7 @@
 //! Provider commands: CRUD, test, discovery, selection.
 use tauri::State;
 
-use rinari_code_lib::engine::{CommandError, EngineSupervisor};
+use rinari_agent_lib::engine::{CommandError, EngineSupervisor};
 
 #[tauri::command]
 pub(crate) async fn provider_list(

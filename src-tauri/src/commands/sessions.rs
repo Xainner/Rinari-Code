@@ -2,9 +2,9 @@
 //! start/cancel, approvals, prompt queue.
 use tauri::State;
 
-use rinari_code_lib::engine::{CommandError, EngineSupervisor};
+use rinari_agent_lib::engine::{CommandError, EngineSupervisor};
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub(crate) async fn session_list(
     supervisor: State<'_, EngineSupervisor>,
     kind: Option<String>,
@@ -54,7 +54,7 @@ pub(crate) async fn session_fork(
 ) -> Result<serde_json::Value, CommandError> {
     super::run_engine(supervisor, move |engine| {
         engine.request(
-            rinari_code_lib::engine::methods::Method::SessionFork,
+            rinari_agent_lib::engine::methods::Method::SessionFork,
             Some(serde_json::json!({ "ref": reference, "title": title })),
         )
     })
@@ -126,7 +126,7 @@ pub(crate) async fn session_mode_set(
     .await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 pub(crate) async fn session_create(
     supervisor: State<'_, EngineSupervisor>,
     cwd: Option<String>,
@@ -139,7 +139,7 @@ pub(crate) async fn session_create(
     super::run_engine(supervisor, move |engine| {
         if let Some(project_id) = project_id {
             engine.request(
-                rinari_code_lib::engine::methods::Method::SessionCreate,
+                rinari_agent_lib::engine::methods::Method::SessionCreate,
                 Some(serde_json::json!({
                     "project_id": project_id,
                     "title": title,

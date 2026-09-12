@@ -1,6 +1,6 @@
 # Auditoría de herramientas de Rinari
 
-Fecha: 2026-09-10. Alcance: checkout local de Rinari-CLI y cliente Rinari Code.
+Fecha: 2026-09-10. Alcance: checkout local de Rinari-CLI y cliente Rinari Agent.
 
 ## Resultado y límites
 

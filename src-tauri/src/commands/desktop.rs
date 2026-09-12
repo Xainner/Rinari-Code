@@ -1,4 +1,4 @@
-use rinari_code_lib::engine::{methods::Method, CommandError, EngineSupervisor};
+use rinari_agent_lib::engine::{methods::Method, CommandError, EngineSupervisor};
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 
@@ -125,4 +125,64 @@ pub(crate) async fn question_resolve(
     answers: std::collections::HashMap<String, String>,
 ) -> Result<serde_json::Value, CommandError> {
     super::run_engine(supervisor, move |engine| engine.request(Method::QuestionResolve, Some(serde_json::json!({"session_id": session_id, "request_id": request_id, "status": status, "answers": answers})))).await
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn browser_view_get(
+    supervisor: State<'_, EngineSupervisor>,
+    session_id: String,
+    target_id: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    super::run_engine(supervisor, move |engine| {
+        engine.request(
+            Method::BrowserViewGet,
+            Some(serde_json::json!({"session_id": session_id, "target_id": target_id})),
+        )
+    })
+    .await
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn workspace_process_list(
+    supervisor: State<'_, EngineSupervisor>,
+    session_id: String,
+    id: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    super::run_engine(supervisor, move |engine| {
+        engine.request(
+            Method::WorkspaceProcessList,
+            Some(serde_json::json!({"session_id": session_id, "id": id})),
+        )
+    })
+    .await
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn workspace_process_read(
+    supervisor: State<'_, EngineSupervisor>,
+    session_id: String,
+    id: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    super::run_engine(supervisor, move |engine| {
+        engine.request(
+            Method::WorkspaceProcessRead,
+            Some(serde_json::json!({"session_id": session_id, "id": id})),
+        )
+    })
+    .await
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn workspace_process_stop(
+    supervisor: State<'_, EngineSupervisor>,
+    session_id: String,
+    id: Option<String>,
+) -> Result<serde_json::Value, CommandError> {
+    super::run_engine(supervisor, move |engine| {
+        engine.request(
+            Method::WorkspaceProcessStop,
+            Some(serde_json::json!({"session_id": session_id, "id": id})),
+        )
+    })
+    .await
 }

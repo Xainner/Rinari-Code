@@ -28,7 +28,7 @@ export default function AgentsView({
   activeSessionId: string | null
   onChanged: () => void
 }) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const [agents, setAgents] = useState<AgentView[]>([])
   const [live, setLive] = useState<SessionEvent[]>([])
   const [busy, setBusy] = useState<string | null>(null)
@@ -131,7 +131,7 @@ export default function AgentsView({
         <Section key={agent.name} title={agent.name}>
           <p className="text-sm text-[var(--text-muted)]">{agent.description}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-[var(--text-subtle)]">
-            <span>{agent.profile}</span>
+            <span>{agent.profile === 'inherit' ? (lang === 'es' ? 'Permisos de la sesión' : 'Session permissions') : agent.profile}</span>
             <span>{agent.provenance}</span>
             <span>
               {t('agents.budget', { n: agent.budget.max_tool_calls })}

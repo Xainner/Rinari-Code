@@ -1,7 +1,7 @@
 //! Model commands: catalog, aliases, discovery, selection.
 use tauri::State;
 
-use rinari_code_lib::engine::{CommandError, EngineSupervisor};
+use rinari_agent_lib::engine::{CommandError, EngineSupervisor};
 
 #[tauri::command]
 pub(crate) async fn model_list(

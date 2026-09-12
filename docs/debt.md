@@ -1,4 +1,4 @@
-# Deuda explícita — Rinari Code
+# Deuda explícita — Rinari Agent
 
 Ledger vivo de recortes deliberados. Estados: `OPEN`, `PARTIAL`, `DONE` y
 `WONTFIX`. Los elementos `DONE` tienen evidencia automatizada o un smoke
@@ -63,7 +63,7 @@ documentado; lo demás no se presenta como terminado.
 
 - Rinari-CLI: 1,111 pruebas completas antes del test largo adicional; 25
   pruebas focalizadas del presupuesto después, Ruff y formato limpios.
-- Rinari Code: 37 pruebas React, 30 pruebas Rust, TypeScript/Vite, Clippy y
+- Rinari Agent: 37 pruebas React, 30 pruebas Rust, TypeScript/Vite, Clippy y
   formato limpios.
 - Sidecar: build limpio desde el SHA fijado, handshake v1 y
   `desktop_turn_runtime_v3`.

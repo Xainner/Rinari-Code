@@ -1,4 +1,4 @@
-name: code-ci
+name: agent-ci
 
 on:
   push:

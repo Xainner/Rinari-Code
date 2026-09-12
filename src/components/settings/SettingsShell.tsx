@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Cpu,
   Info,
+  Keyboard,
   Layers,
   Palette,
   Plug,
@@ -21,6 +22,7 @@ import { useUIStore, type SettingsSection } from '../../stores/ui'
 
 const NAV: Array<{ id: SettingsSection; icon: typeof Info }> = [
   { id: 'general', icon: SlidersHorizontal },
+  { id: 'shortcuts', icon: Keyboard },
   { id: 'appearance', icon: Palette },
   { id: 'providers', icon: Plug },
   { id: 'models', icon: Cpu },
@@ -130,7 +132,9 @@ export default function SettingsShell({
           {navList}
         </aside>
         <div className="min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">{children}</div>
+          <div className={`mx-auto w-full space-y-6 px-4 py-6 ${section === 'about' ? 'max-w-4xl' : 'max-w-2xl'}`}>
+            {children}
+          </div>
         </div>
       </div>
     </div>

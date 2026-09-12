@@ -1,7 +1,7 @@
 //! Project commands: recents, open, live Git status, intelligence.
 use tauri::State;
 
-use rinari_code_lib::engine::{CommandError, EngineSupervisor};
+use rinari_agent_lib::engine::{CommandError, EngineSupervisor};
 
 #[tauri::command(rename_all = "snake_case")]
 pub(crate) async fn project_list(

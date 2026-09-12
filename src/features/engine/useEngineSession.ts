@@ -18,7 +18,7 @@ import { useComposerStore } from '../../stores/composer'
  */
 export function useEngineSession() {
   const { t } = useI18n()
-  const [reasoningEffort, setReasoningEffort] = useState<'off' | 'low' | 'medium' | 'high'>('off')
+  const [reasoningEffort, setReasoningEffort] = useState<import('../../lib/reasoning').ReasoningEffort>('off')
 
   const connection = useEngineConnection()
   // El runtime avisa (turn.completed, mode/model changed) y eso refresca la
@@ -201,6 +201,7 @@ export function useEngineSession() {
     messages,
     approvals: runtime.approvals,
     busy,
+    busySessionIds: runtime.busySessions,
     reasoningEffort,
     setReasoningEffort,
     ready: connection.ready,

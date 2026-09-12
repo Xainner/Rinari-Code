@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import Logo from '../Logo'
+import { ArrowUpRight, Check, Code2, Copy, Cpu, Download, GitBranch, Layers, LoaderCircle, Sparkles } from 'lucide-react'
+import { copyText } from '../../lib/clipboard'
 import { useI18n } from '../../i18n'
 import { engineApi, type EngineStatus } from '../../services/engine'
 import { checkForUpdates, installUpdateAndRelaunch } from '../../services/updates'
-import { Section } from './parts'
+import './about.css'
 import engineManifest from '../../../engine-manifest.json'
 
 /** Settings > Acerca de: identidad y versiones visibles (Code/engine/protocolo). */
@@ -12,6 +13,26 @@ export default function AboutSettings({ version }: { version: string }) {
   const { t } = useI18n()
   const [status, setStatus] = useState<EngineStatus | null>(null)
   const [checking, setChecking] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!copied) return
+    const timer = window.setTimeout(() => setCopied(false), 2500)
+    return () => window.clearTimeout(timer)
+  }, [copied])
+
+  async function onCopyDiagnostics() {
+    const ok = await copyText([
+      `Rinari Agent: ${version}`,
+      `Rinari Engine: ${status?.engine_version ?? 'unknown'}`,
+      `Engine Protocol: ${status?.protocol_version ?? 'unknown'}`,
+      `Engine state: ${status?.state ?? 'unknown'}`,
+      `Engine pin: ${engineManifest.engine_git_sha}`,
+      'Bundled Soul: rinari-default 3.0',
+    ].join('\n'))
+    setCopied(ok)
+    if (!ok) toast.error(t('settings.about.copyFailed'))
+  }
 
   useEffect(() => {
     let alive = true
@@ -61,59 +82,60 @@ export default function AboutSettings({ version }: { version: string }) {
   }
 
   return (
-    <div className="space-y-6">
-      <Section title={t('app.name')}>
-        <div className="flex items-center gap-3">
-          <Logo size={44} radius="rounded-2xl" />
-          <div>
-            <p className="font-display text-base font-bold text-[var(--text)]">{t('app.name')}</p>
-            <p className="text-xs text-[var(--text-subtle)]">
-              {t('settings.admin.statusVersion')}: {version}
-            </p>
-          </div>
+    <div className="about-page">
+      <section className="about-hero" aria-labelledby="about-title">
+        <img className="about-character" src="/rinari-about-hero.png" alt="Rinari" width={1672} height={941} />
+        <div className="about-hero-content">
+          <span className="about-eyebrow"><Sparkles size={13} aria-hidden="true" /> {t('settings.about.eyebrow')}</span>
+          <h2 id="about-title">Rinari<span>Agent<span className="about-title-dot">.</span></span></h2>
+          <p>{t('settings.about.tagline')}</p>
+          <span className="about-version">v{version}</span>
         </div>
-        <div className="space-y-1 font-mono text-xs text-[var(--text-muted)]">
-          <div className="flex items-center justify-between">
-            <span>Rinari Code</span>
-            <span>{version}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>rinari-engine</span>
-            <span>{status?.engine_version ?? '—'}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>rinari-engine-protocol</span>
-            <span>{status?.protocol_version ?? '—'}</span>
-          </div>
-          <div className="flex items-center justify-between" title={engineManifest.engine_git_sha}>
-            <span>engine-pin</span>
-            <span>{engineManifest.engine_git_sha.slice(0, 7)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>bundled soul</span>
-            <span>rinari-default 3.0</span>
-          </div>
+      </section>
+
+      <div className="about-intro">
+        <h3>{t('settings.about.heading')}</h3>
+        <p>{t('settings.about.description')}</p>
+      </div>
+
+      <section className="about-panel" aria-labelledby="about-system-title">
+        <div className="about-panel-heading">
+          <h3 id="about-system-title">{t('settings.about.system')}</h3>
+          <button className="about-copy" type="button" onClick={() => void onCopyDiagnostics()} aria-live="polite">
+            {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+            {t(copied ? 'settings.about.copied' : 'settings.about.copy')}
+          </button>
         </div>
-        <p className="text-sm text-[var(--text-muted)]">{t('settings.about.body')}</p>
-        <button
-          type="button"
-          disabled={checking}
-          onClick={() => void onCheckUpdates()}
-          className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:border-[var(--accent-2)] disabled:opacity-50"
-        >
+        <dl className="about-version-grid">
+          {[
+            { icon: Layers, label: 'Rinari Agent', value: version, hint: t('settings.about.desktop') },
+            { icon: Cpu, label: 'Rinari Engine', value: status?.engine_version ?? '—', hint: t('settings.about.runtime') },
+            { icon: GitBranch, label: 'Engine Protocol', value: status?.protocol_version ?? '—', hint: t('settings.about.protocol') },
+            { icon: Sparkles, label: t('settings.about.soul'), value: '3.0', hint: 'rinari-default' },
+          ].map(({ icon: Icon, label, value, hint }) => (
+            <div className="about-version-item" key={label}>
+              <dt><Icon size={16} aria-hidden="true" />{label}</dt>
+              <dd>{value}<span>{hint}</span></dd>
+            </div>
+          ))}
+        </dl>
+        <div className="about-build"><span>{t('settings.about.build')}</span><code title={engineManifest.engine_git_sha}>{engineManifest.engine_git_sha.slice(0, 7)}</code></div>
+      </section>
+
+      <section className="about-update" aria-labelledby="about-update-title">
+        <div><h3 id="about-update-title">{t('settings.about.updates')}</h3><p>{t('settings.about.updatesHint')}</p></div>
+        <button className="about-update-button" type="button" disabled={checking} onClick={() => void onCheckUpdates()}>
+          {checking ? <LoaderCircle className="motion-safe:animate-spin" size={15} aria-hidden="true" /> : <Download size={15} aria-hidden="true" />}
           {checking ? t('update.checking') : t('update.check')}
         </button>
-        <p className="text-sm">
-          <a
-            href="https://github.com/Xainner/Rinari-Code"
-            target="_blank"
-            rel="noreferrer"
-            className="text-[var(--accent-2)] underline underline-offset-2 hover:brightness-110"
-          >
-            {t('settings.about.repo')}: Xainner/Rinari-Code
-          </a>
-        </p>
-      </Section>
+      </section>
+
+      <a className="about-repository" href="https://github.com/Xainner/Rinari-Agent" target="_blank" rel="noreferrer">
+        <span className="about-repository-icon"><Code2 size={20} aria-hidden="true" /></span>
+        <span><strong>{t('settings.about.repo')}</strong><span>Xainner / Rinari-Agent</span></span>
+        <ArrowUpRight size={18} aria-hidden="true" />
+      </a>
+      <footer className="about-footer"><span>Rinari Agent</span><span>{t('settings.about.credit')}</span></footer>
     </div>
   )
 }

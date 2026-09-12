@@ -9,7 +9,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use rinari_code_lib::engine::{methods::Method, protocol::EngineEvent, EngineSupervisor};
+use rinari_agent_lib::engine::{methods::Method, protocol::EngineEvent, EngineSupervisor};
 
 fn fixture() -> String {
     format!(

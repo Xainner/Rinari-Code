@@ -26,7 +26,7 @@ export default function AppShell({ sidebar, header, children, banner }: AppShell
           'hidden shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-sidebar)] lg:flex',
           collapsed ? 'w-[72px]' : 'w-65',
         )}
-        aria-label="Rinari Code"
+        aria-label="Rinari Agent"
       >
         {sidebar}
       </aside>
@@ -35,7 +35,7 @@ export default function AppShell({ sidebar, header, children, banner }: AppShell
         <Drawer.Portal>
           <Drawer.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden" />
           <Drawer.Content
-            aria-label="Rinari Code"
+            aria-label="Rinari Agent"
             className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-[var(--border)] bg-[var(--bg-sidebar)] outline-none lg:hidden"
           >
             {sidebar}

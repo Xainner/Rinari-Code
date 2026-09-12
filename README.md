@@ -1,14 +1,14 @@
 <div align="center">
 
-<img src="docs/assets/readme-banner.png" alt="Rinari Code" width="100%" />
+<img src="docs/assets/readme-banner.png" alt="Rinari Agent" width="100%" />
 
-# Rinari Code
+# Rinari Agent
 
 **The desktop workspace for the Rinari agent harness.**
 
 Conversations · Execution activity · Projects · Verification
 
-[![CI](https://github.com/Xainner/Rinari-Code/actions/workflows/code-ci.yml/badge.svg)](https://github.com/Xainner/Rinari-Code/actions/workflows/code-ci.yml)
+[![CI](https://github.com/Xainner/Rinari-Agent/actions/workflows/agent-ci.yml/badge.svg)](https://github.com/Xainner/Rinari-Agent/actions/workflows/agent-ci.yml)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827)
 ![Rust](https://img.shields.io/badge/Host-Rust-DEA584?logo=rust&logoColor=white)
@@ -19,23 +19,26 @@ Conversations · Execution activity · Projects · Verification
 
 ---
 
-Rinari Code brings conversations, tool activity and project state into a native desktop interface. Follow execution as it happens, respond to approvals, inspect changes and continue work across persistent sessions.
+Rinari Agent brings conversations, tool activity and project state into a native desktop interface. Follow execution as it happens, respond to approvals, inspect changes and continue work across persistent sessions.
 
 **The harness lives in [Rinari Engine](https://github.com/Xainner/Rinari-CLI).** This repository supplies its desktop client: a React interface, a Rust host and native integration through Tauri.
 
-> **Status:** Active development toward stable v1. Check [Releases](https://github.com/Xainner/Rinari-Code/releases) for published builds. Source code may include work beyond the latest release.
+> **Status:** Active development toward stable v1. Check [Releases](https://github.com/Xainner/Rinari-Agent/releases) for published builds. Source code may include work beyond the latest release.
 
 ## Get started
 
-1. Check the available builds and release notes in [Releases](https://github.com/Xainner/Rinari-Code/releases).
-2. Launch Rinari Code and configure a provider and model.
+1. Check the available builds and release notes in [Releases](https://github.com/Xainner/Rinari-Agent/releases).
+2. Launch Rinari Agent and configure a provider and model.
 3. Open a project or start a conversation, choose a mode and send a task.
 
 With Rinari CLI and the desktop client installed:
 
 ```bash
-rinari code .
+rinari desktop .
 ```
+
+Requires the updated Rinari CLI. `rinari code` remains a compatibility alias;
+use `RINARI_AGENT_BIN` to point to the desktop executable when it is not on PATH.
 
 For a source build, follow [Development](#development).
 
@@ -88,8 +91,8 @@ documented in [Attachments, OCR and vision](docs/attachments.md).
 - Windows WebView2 for Windows development.
 
 ```bash
-git clone https://github.com/Xainner/Rinari-Code.git
-cd Rinari-Code
+git clone https://github.com/Xainner/Rinari-Agent.git
+cd Rinari-Agent
 npm ci
 ```
 
@@ -143,6 +146,6 @@ The packaging step builds the engine bundle; Tauri then produces the installer. 
 
 **One engine. Terminal and desktop.**
 
-[Rinari CLI](https://github.com/Xainner/Rinari-CLI) · [Releases](https://github.com/Xainner/Rinari-Code/releases) · [Issues](https://github.com/Xainner/Rinari-Code/issues)
+[Rinari CLI](https://github.com/Xainner/Rinari-CLI) · [Releases](https://github.com/Xainner/Rinari-Agent/releases) · [Issues](https://github.com/Xainner/Rinari-Agent/issues)
 
 </div>

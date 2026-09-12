@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import {
   Archive,
   ArchiveRestore,
   ChevronDown,
+  Command,
+  Copy,
   Cpu,
   FolderGit2,
   FolderOpen,
   MessageSquare,
+  LoaderCircle,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
@@ -61,6 +65,7 @@ export interface AppSidebarProps {
   projects: ProjectSummary[]
   archivedProjects: ProjectSummary[]
   activeId: string
+  busySessionIds?: ReadonlySet<string>
   onSelectSession: (id: string) => void
   /** Ir al home del proyecto (vista workspace). */
   onOpenProject: (root: string) => void
@@ -117,6 +122,7 @@ export function AppSidebar({
   projects,
   archivedProjects,
   activeId,
+  busySessionIds,
   onSelectSession,
   onOpenProject,
   onCloseSession,
@@ -170,6 +176,7 @@ export function AppSidebar({
 
   const row = (session: SessionSummary, opts?: { closed?: boolean }) => {
     const active = session.id === activeId
+    const working = busySessionIds?.has(session.id) === true
     return (
       <li key={session.id} className="group relative" onContextMenu={e => { e.preventDefault(); setSessionMenu(session.id) }}>
         <div
@@ -181,6 +188,7 @@ export function AppSidebar({
           <button
             type="button"
             onClick={() => onSelectSession(session.id)}
+            aria-current={active ? 'page' : undefined}
             className="flex min-w-0 flex-1 items-center gap-2.5 py-2 text-left"
           >
             {active && (
@@ -189,11 +197,13 @@ export function AppSidebar({
                 className="absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-[var(--accent)]"
               />
             )}
-            <MessageSquare
+            {working ? <span role="status" aria-label={t('sidebar.sessionWorking')} title={t('sidebar.sessionWorking')}>
+              <LoaderCircle size={14} aria-hidden="true" className="shrink-0 text-[var(--accent)] motion-safe:animate-spin" />
+            </span> : <MessageSquare
               size={14}
               aria-hidden="true"
-              className="shrink-0 text-[var(--text-subtle)]"
-            />
+              className={cn('shrink-0 transition-colors', active ? 'text-[var(--accent)]' : 'text-[var(--text-subtle)]')}
+            />}
             <span
               className={cn(
                 'block min-w-0 flex-1 truncate text-sm',
@@ -215,6 +225,14 @@ export function AppSidebar({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              <div className="px-2.5 py-1.5 font-mono text-[10px] break-all text-[var(--text-subtle)]">{session.id}</div>
+              <DropdownMenuItem onSelect={() => {
+                void navigator.clipboard.writeText(session.id).then(() => toast.success('ID de sesión copiado')).catch(() => toast.error('No se pudo copiar el ID de sesión'))
+              }}><Copy size={13} /> Copiar ID de sesión</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => {
+                const reference = `Sesión: ${session.id}\nTítulo: ${sessionLabel(session, t('sidebar.newChat'))}${session.project_id ? `\nProyecto: ${session.project_id}` : ''}${session.project_root ? `\nWorkspace: ${session.project_root}` : ''}`
+                void navigator.clipboard.writeText(reference).then(() => toast.success('Referencia de sesión copiada')).catch(() => toast.error('No se pudo copiar la referencia'))
+              }}><Copy size={13} /> Copiar referencia</DropdownMenuItem>
               {opts?.closed ? (
                 <DropdownMenuItem onSelect={() => onRestoreSession(session.id)}>
                   <ArchiveRestore size={13} /> {t('sidebar.restore')}
@@ -227,7 +245,7 @@ export function AppSidebar({
                   }}>
                     <Pencil size={13} /> {t('sidebar.rename')}
                   </DropdownMenuItem>
-                  {onMoveSession && <DropdownMenuSub><DropdownMenuSubTrigger>Mover a proyecto…</DropdownMenuSubTrigger><DropdownMenuSubContent>
+                  {onMoveSession && <DropdownMenuSub><DropdownMenuSubTrigger><FolderGit2 size={13} /> Mover a proyecto…</DropdownMenuSubTrigger><DropdownMenuSubContent>
                     <DropdownMenuItem disabled={session.kind === 'CHAT'} onSelect={() => onMoveSession(session.id, null)}>Espacio general</DropdownMenuItem>
                     {projects.filter(project => !project.archived).map(project => <DropdownMenuItem key={project.id} disabled={project.id === session.project_id} onSelect={() => onMoveSession(session.id, project.id)}>{project.name || projectDisplayName(project.root)}</DropdownMenuItem>)}
                   </DropdownMenuSubContent></DropdownMenuSub>}
@@ -286,6 +304,7 @@ export function AppSidebar({
 
   return (
     <div className="flex h-full w-full flex-col gap-4 overflow-hidden px-3 pt-4 pb-3 lg:w-64">
+      <div className="shrink-0 space-y-1">
       <div className="flex items-center gap-1">
         <button
           type="button"
@@ -305,9 +324,19 @@ export function AppSidebar({
           <PanelLeftClose size={15} />
         </button>
       </div>
+        <button
+          type="button"
+          onClick={onSearch}
+          aria-label={t('sidebar.commands')}
+          className="flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text)]"
+        >
+          <Command size={15} aria-hidden="true" className="shrink-0 text-[var(--text-subtle)]" />
+          <span className="min-w-0 flex-1 truncate">{t('sidebar.commands')}</span>
+        </button>
+      </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-0.5">
-        <label className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-[var(--accent)]/40">
+        <label className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-2.5 py-1.5 transition-colors focus-within:border-[var(--border-strong)]">
           <Search size={13} aria-hidden="true" className="text-[var(--text-subtle)]" />
           <input
             value={query}
@@ -354,8 +383,17 @@ export function AppSidebar({
                       {items.length}
                     </span>
                   )}
+                  {items.some(item => busySessionIds?.has(item.id)) && (
+                    <span role="status" aria-label={t('sidebar.projectWorking')} title={t('sidebar.projectWorking')}>
+                      <LoaderCircle size={13} aria-hidden="true" className="text-[var(--accent)] motion-safe:animate-spin" />
+                    </span>
+                  )}
                 </button>
-                {onNewProjectChat && <button type="button" aria-label={`Nueva sesión en ${project.name || projectDisplayName(project.root)}`} title="Nueva sesión en este proyecto" onClick={() => onNewProjectChat(project.id)} className="rounded-md p-1 text-[var(--text-subtle)] hover:bg-[var(--bg-hover)]"><Plus size={14} /></button>}
+                {onNewProjectChat && <button type="button" aria-label={`Nueva sesión en ${project.name || projectDisplayName(project.root)}`} title="Nueva sesión en este proyecto" onClick={() => {
+                  setQuery('')
+                  setCollapsedProjects(current => { const next = new Set(current); next.delete(project.id); return next })
+                  onNewProjectChat(project.id)
+                }} className="rounded-md p-1 text-[var(--text-subtle)] hover:bg-[var(--bg-hover)]"><Plus size={14} /></button>}
                 <DropdownMenu open={projectMenu === project.id} onOpenChange={open => setProjectMenu(open ? project.id : null)}>
                   <DropdownMenuTrigger asChild>
                     <button type="button" aria-label={t('project.options')} className="rounded-md p-1 text-[var(--text-subtle)] opacity-0 group-hover/project:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100">
@@ -408,9 +446,20 @@ export function AppSidebar({
         )}
 
         <section aria-label={t('sidebar.chats')}>
-          <p className="mb-1 px-2 text-[11px] font-semibold tracking-widest text-[var(--text-subtle)] uppercase">
-            {t('sidebar.chats')}
-          </p>
+          <div className="mb-1 flex items-center justify-between px-2">
+            <p className="text-[11px] font-semibold tracking-widest text-[var(--text-subtle)] uppercase">
+              {t('sidebar.chats')}
+            </p>
+            <button
+              type="button"
+              aria-label={t('sidebar.newGeneralChat')}
+              title={t('sidebar.newGeneralChat')}
+              onClick={() => { setQuery(''); onNewChat() }}
+              className="rounded-md p-1 text-[var(--text-subtle)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)]"
+            >
+              <Plus size={14} aria-hidden="true" />
+            </button>
+          </div>
           <ul className="space-y-0.5">
             {model.chats.map((session) => row(session))}
             {model.chats.length === 0 && (

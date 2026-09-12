@@ -37,8 +37,8 @@ interface ChatViewProps {
   historyNote: { total: number; hasMore: boolean } | null
   sessionMode: string | null
   onModeChange: (mode: string) => void
-  reasoningEffort: 'off' | 'low' | 'medium' | 'high'
-  onReasoningChange: (effort: 'off' | 'low' | 'medium' | 'high') => void
+  reasoningEffort: import('../lib/reasoning').ReasoningEffort
+  onReasoningChange: (effort: import('../lib/reasoning').ReasoningEffort) => void
   permissionProfile: 'read-only' | 'workspace' | 'full-access'
   effectivePermissionProfile: 'read-only' | 'workspace' | 'full-access'
   permissionProfilesV2: boolean

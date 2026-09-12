@@ -234,7 +234,17 @@ impl EngineSupervisor {
             self.set_state(EngineState::Failed, Some(error.to_string()));
             CommandError::from(error)
         })?;
-        if [REQUIRED_CAPABILITY, "tool_contracts_v1", "desktop_workspace_v1", "interactive_questions_v1", "web_preview_v1", "plan_read_scope_v1"].iter().any(|cap| hello.capabilities.get(*cap) != Some(&true)) {
+        if [
+            REQUIRED_CAPABILITY,
+            "tool_contracts_v1",
+            "desktop_workspace_v1",
+            "interactive_questions_v1",
+            "web_preview_v1",
+            "plan_read_scope_v1",
+        ]
+        .iter()
+        .any(|cap| hello.capabilities.get(*cap) != Some(&true))
+        {
             transport.shutdown();
             let message = concat!(
                 "The active Rinari Engine is outdated and does not support the desktop turn ",
@@ -408,13 +418,7 @@ impl EngineSupervisor {
         reasoning_effort: Option<&str>,
         attachments: Option<Value>,
     ) -> Result<Value, CommandError> {
-        self.turn_start_with_vision(
-            session_id,
-            message,
-            reasoning_effort,
-            attachments,
-            false,
-        )
+        self.turn_start_with_vision(session_id, message, reasoning_effort, attachments, false)
     }
 
     pub fn turn_start_with_vision(
@@ -875,11 +879,22 @@ impl EngineSupervisor {
         self.request(Method::ArtifactRead, Some(Value::Object(params)))
     }
 
-    pub fn attachment_prepare(&self, session_id: &str, attachments: Value) -> Result<Value, CommandError> {
-        self.request(Method::AttachmentPrepare, Some(json!({"session_id": session_id, "attachments": attachments})))
+    pub fn attachment_prepare(
+        &self,
+        session_id: &str,
+        attachments: Value,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            Method::AttachmentPrepare,
+            Some(json!({"session_id": session_id, "attachments": attachments})),
+        )
     }
 
-    pub fn attachment_preview(&self, uri: &str, max_bytes: Option<u32>) -> Result<Value, CommandError> {
+    pub fn attachment_preview(
+        &self,
+        uri: &str,
+        max_bytes: Option<u32>,
+    ) -> Result<Value, CommandError> {
         let mut params = serde_json::Map::new();
         params.insert("uri".to_string(), Value::String(uri.to_string()));
         if let Some(max_bytes) = max_bytes {
@@ -888,16 +903,29 @@ impl EngineSupervisor {
         self.request(Method::AttachmentPreview, Some(Value::Object(params)))
     }
 
-    pub fn attachment_prepare_start(&self, session_id: &str, attachments: Value) -> Result<Value, CommandError> {
-        self.request(Method::AttachmentPrepareStart, Some(json!({"session_id": session_id, "attachments": attachments})))
+    pub fn attachment_prepare_start(
+        &self,
+        session_id: &str,
+        attachments: Value,
+    ) -> Result<Value, CommandError> {
+        self.request(
+            Method::AttachmentPrepareStart,
+            Some(json!({"session_id": session_id, "attachments": attachments})),
+        )
     }
 
     pub fn attachment_prepare_get(&self, job_id: &str) -> Result<Value, CommandError> {
-        self.request(Method::AttachmentPrepareGet, Some(json!({"job_id": job_id})))
+        self.request(
+            Method::AttachmentPrepareGet,
+            Some(json!({"job_id": job_id})),
+        )
     }
 
     pub fn attachment_prepare_cancel(&self, job_id: &str) -> Result<Value, CommandError> {
-        self.request(Method::AttachmentPrepareCancel, Some(json!({"job_id": job_id})))
+        self.request(
+            Method::AttachmentPrepareCancel,
+            Some(json!({"job_id": job_id})),
+        )
     }
 
     pub fn context_get(&self, reference: &str) -> Result<Value, CommandError> {
@@ -1247,5 +1275,72 @@ mod tests {
         assert_eq!(program, python.to_string_lossy());
         assert_eq!(args, vec!["-m", "rinari", "engine", "--stdio"]);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[ignore = "requires the packaged Python engine; uses an isolated temporary home"]
+    fn packaged_engine_browser_catalog_roundtrip() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let (program, _) = sidecar_command(root).expect("package the engine first");
+        let code = concat!(
+            "import os,runpy,sys,tempfile\n",
+            "with tempfile.TemporaryDirectory(prefix='rinari-agent-browser-bridge-') as home:\n",
+            " os.environ['RINARI_HOME']=home\n",
+            " os.environ['RINARI_KEYRING']='0'\n",
+            " sys.argv=['rinari','engine','--stdio']\n",
+            " runpy.run_module('rinari',run_name='__main__')\n"
+        );
+        let supervisor = EngineSupervisor::new();
+        supervisor
+            .start_with(&program, &["-c".into(), code.into()], None)
+            .expect("real packaged engine handshake");
+        let result = supervisor.request(Method::ToolList, None);
+        let agents = supervisor
+            .request(Method::AgentList, None)
+            .expect("packaged agent registry");
+        assert!(agents["agents"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|agent| agent["profile"] == "inherit"));
+        supervisor.request(Method::ProviderCreate, Some(serde_json::json!({"alias": "bridge-test", "type": "openai", "endpoint": "http://127.0.0.1:9/v1", "secret": "test-not-a-real-key"}))).expect("temporary provider");
+        supervisor.request(Method::ModelAdd, Some(serde_json::json!({"provider": "bridge-test", "provider_model_id": "test", "alias": "test"}))).expect("temporary model");
+        supervisor
+            .request(
+                Method::ProviderUse,
+                Some(serde_json::json!({"ref": "bridge-test"})),
+            )
+            .expect("select temporary provider");
+        let created = supervisor
+            .request(
+                Method::SessionCreate,
+                Some(serde_json::json!({"chat": true})),
+            )
+            .expect("temporary session");
+        let frame = supervisor
+            .request(
+                Method::BrowserViewGet,
+                Some(serde_json::json!({"session_id": created["session"]["id"]})),
+            )
+            .expect("browser view bridge");
+        assert_eq!(frame["state"], "disconnected");
+        let processes = supervisor
+            .request(
+                Method::WorkspaceProcessList,
+                Some(serde_json::json!({"session_id": created["session"]["id"]})),
+            )
+            .expect("process panel bridge");
+        assert!(processes["processes"].as_array().unwrap().is_empty());
+        supervisor.shutdown();
+        let tools = result.expect("real tool catalog");
+        let rows = tools["tools"].as_array().expect("tool rows");
+        for name in [
+            "browser.launch",
+            "browser.connect",
+            "browser.status",
+            "browser.screenshot",
+        ] {
+            assert!(rows.iter().any(|row| row["name"] == name), "missing {name}");
+        }
     }
 }

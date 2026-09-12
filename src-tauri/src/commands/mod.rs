@@ -4,7 +4,7 @@
 
 use tauri::State;
 
-use rinari_code_lib::engine::{CommandError, EngineSupervisor};
+use rinari_agent_lib::engine::{CommandError, EngineSupervisor};
 
 /// Execute a blocking engine request away from Tauri's window/event thread.
 ///
@@ -25,8 +25,8 @@ where
         .map_err(|error| CommandError::from(format!("engine worker failed: {error}")))?
 }
 
-pub mod desktop;
 pub mod agents;
+pub mod desktop;
 pub mod ecosystem;
 pub mod engine;
 pub mod models;

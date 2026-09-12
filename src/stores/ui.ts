@@ -16,6 +16,7 @@ export type View = 'chat' | 'settings' | 'engine' | 'workspace' | 'project'
 /** Secciones de Ajustes. Las marcadas con * llegan en fases posteriores. */
 export type SettingsSection =
   | 'general'
+  | 'shortcuts'
   | 'appearance'
   | 'providers'
   | 'models'
@@ -28,6 +29,16 @@ export type SettingsSection =
   | 'terminal'
   | 'advanced'
   | 'about'
+
+export type ShortcutAction = 'newChat' | 'palette' | 'settings' | 'sidebar'
+export type ShortcutBindings = Record<ShortcutAction, string>
+
+export const DEFAULT_SHORTCUT_BINDINGS: ShortcutBindings = {
+  newChat: 'Ctrl+N',
+  palette: 'Ctrl+K',
+  settings: 'Ctrl+,',
+  sidebar: 'Ctrl+B',
+}
 
 function readBool(key: string, fallback: boolean): boolean {
   try {
@@ -59,6 +70,23 @@ function readCollapsed(): boolean {
   return readBool('rinari.sidebarCollapsed', false)
 }
 
+function readShortcutBindings(): ShortcutBindings {
+  try {
+    const stored = JSON.parse(localStorage.getItem('rinari.shortcutBindings') ?? '{}') as Partial<ShortcutBindings>
+    return { ...DEFAULT_SHORTCUT_BINDINGS, ...stored }
+  } catch {
+    return DEFAULT_SHORTCUT_BINDINGS
+  }
+}
+
+function writeShortcutBindings(bindings: ShortcutBindings): void {
+  try {
+    localStorage.setItem('rinari.shortcutBindings', JSON.stringify(bindings))
+  } catch {
+    /* ignore */
+  }
+}
+
 interface UIState {
   view: View
   settingsSection: SettingsSection
@@ -76,6 +104,7 @@ interface UIState {
   showSuggestions: boolean
   /** Revela identificadores de protocolo junto a las etiquetas narrativas. */
   showTechnicalActivityNames: boolean
+  shortcutBindings: ShortcutBindings
   /** Home del proyecto abierto (root). Solo con view 'project'. */
   projectRoot: string | null
   goChat: () => void
@@ -97,6 +126,8 @@ interface UIState {
   setAutoFollow: (on: boolean) => void
   setShowSuggestions: (on: boolean) => void
   setShowTechnicalActivityNames: (on: boolean) => void
+  setShortcutBinding: (action: ShortcutAction, shortcut: string) => void
+  resetShortcutBindings: () => void
 }
 
 const initialAccent = typeof window === 'undefined' ? 'nebula' : getStoredAccent()
@@ -124,6 +155,7 @@ export const useUIStore = create<UIState>((set) => ({
     typeof window === 'undefined' ? true : readBool('rinari.showSuggestions', true),
   showTechnicalActivityNames:
     typeof window === 'undefined' ? false : readBool('rinari.showTechnicalActivityNames', false),
+  shortcutBindings: typeof window === 'undefined' ? DEFAULT_SHORTCUT_BINDINGS : readShortcutBindings(),
   goChat: () => set({ view: 'chat', sidebarOpen: false, projectRoot: null }),
   goEngine: () => set({ view: 'engine', sidebarOpen: false, projectRoot: null }),
   goWorkspace: () => set({ view: 'workspace', sidebarOpen: false, projectRoot: null }),
@@ -181,5 +213,14 @@ export const useUIStore = create<UIState>((set) => ({
   setShowTechnicalActivityNames: (on) => {
     writeBool('rinari.showTechnicalActivityNames', on)
     set({ showTechnicalActivityNames: on })
+  },
+  setShortcutBinding: (action, shortcut) => set((state) => {
+    const shortcutBindings = { ...state.shortcutBindings, [action]: shortcut }
+    writeShortcutBindings(shortcutBindings)
+    return { shortcutBindings }
+  }),
+  resetShortcutBindings: () => {
+    writeShortcutBindings(DEFAULT_SHORTCUT_BINDINGS)
+    set({ shortcutBindings: DEFAULT_SHORTCUT_BINDINGS })
   },
 }))

@@ -12,20 +12,20 @@ const entries: Array<[DesktopAction, string]> = [
   ['appearance', 'Apariencia'],
   ['engine', 'Estado del motor'],
   ['updates', 'Buscar actualizaciones'],
-  ['about', 'Acerca de Rinari Code'],
+  ['about', 'Acerca de Rinari Agent'],
 ]
 export default function ApplicationMenu({ collapsed = false }: { collapsed?: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          aria-label="Menú de Rinari Code"
+          aria-label="Menú de Rinari Agent"
           className="flex w-full items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-3 text-sm hover:bg-[var(--bg-hover)]"
         >
           <Settings2 size={16} />
           {!collapsed && (
             <>
-              <span className="flex-1 text-left font-semibold">Rinari Code</span>
+              <span className="flex-1 text-left font-semibold">Rinari Agent</span>
               <ChevronUp size={14} />
             </>
           )}
