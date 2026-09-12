@@ -1,0 +1,5320 @@
+{
+  "generated_on": "2026-09-10",
+  "catalog_count": 105,
+  "scope": "Built-in inspection catalog; live permissions remain engine-owned",
+  "tools": [
+    {
+      "name": "agent.cancel",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "agent_id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "cancelled": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local_reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "agent.message",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "agent_id",
+          "text"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "accepted": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local_reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "agent.result",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "agent.spawn",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "objective": {
+            "type": "string"
+          },
+          "context": {
+            "type": "object"
+          },
+          "use_worktree": {
+            "type": "boolean"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "agent",
+          "objective"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "limits": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local_reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "agent.status",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          }
+        }
+      },
+      "output_schema": {
+        "type": [
+          "object",
+          "array"
+        ]
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "agent.synthesize",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "agent_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "agent_ids"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "conflicts": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "agent.wait",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "agent_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
+          },
+          "timeout_s": {
+            "type": "number"
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "agent_id"
+            ]
+          },
+          {
+            "required": [
+              "agent_ids"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "timed_out": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "artifact.metadata",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "uri": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "uri"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "uri": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer"
+          },
+          "mime_type": {
+            "type": "string"
+          },
+          "modified_ns": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "artifact.read",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "uri": {
+            "type": "string"
+          },
+          "start_byte": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32768
+          }
+        },
+        "required": [
+          "uri"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "uri": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "start_byte": {
+            "type": "integer"
+          },
+          "end_byte": {
+            "type": "integer"
+          },
+          "size_bytes": {
+            "type": "integer"
+          },
+          "next_start_byte": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "browser.a11y",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "nodes": {
+            "type": "array"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.check",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "checked": {
+            "type": "boolean"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "selector",
+          "checked"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "checked": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "remote-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.click",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "clicked": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "remote-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.close",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "closed": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.connect",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "endpoint"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "connected": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.console",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.cookies",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "cookies": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.download",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "wait_s": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 60
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.drag",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "from_selector": {
+            "type": "string"
+          },
+          "from_x": {
+            "type": "number"
+          },
+          "from_y": {
+            "type": "number"
+          },
+          "to_x": {
+            "type": "number"
+          },
+          "to_y": {
+            "type": "number"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "to_x",
+          "to_y"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "object"
+          },
+          "to": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "remote-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.evaluate",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "expression": {
+            "type": "string"
+          },
+          "await_promise": {
+            "type": "boolean"
+          },
+          "max_chars": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 8000
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "expression"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "remote-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.fill",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "selector",
+          "value"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "filled": {
+            "type": "string"
+          },
+          "chars": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "remote-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.launch",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.navigate",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "frame_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "loader_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "remote-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.network",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.open",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "remote-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.screenshot",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.scroll",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "dx": {
+            "type": "number"
+          },
+          "dy": {
+            "type": "number"
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "scrolled": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "remote-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.select",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "selector",
+          "value"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "selected": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "remote-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.set_cookie",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "name",
+          "value"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "set": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "remote-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.snapshot",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "html",
+              "semantic"
+            ],
+            "default": "html"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "html": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.status",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "managed": {
+            "type": "boolean"
+          },
+          "targets": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.tabs",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "tabs": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.tabs_close",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "target_id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "closed": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.type",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "press_enter": {
+            "type": "boolean"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "selector",
+          "text"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "typed": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "remote-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "browser.upload",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "selector",
+          "path"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "communication",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "browser"
+        ]
+      }
+    },
+    {
+      "name": "capability.activate",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Exact tool names to expose."
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "turn",
+              "session"
+            ],
+            "default": "turn"
+          },
+          "ttl_rounds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32,
+            "default": 4,
+            "description": "Model rounds a turn-scoped activation survives."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the task needs these."
+          }
+        },
+        "required": [
+          "names"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "activated": {
+            "type": "array"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": false,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "capability.deactivate",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "names"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "deactivated": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": false,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "capability.search",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "What you want to do (service, verb)."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 10
+          },
+          "load": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "results": {
+            "type": "array"
+          },
+          "matched": {
+            "type": "boolean"
+          },
+          "loaded": {
+            "type": "array"
+          },
+          "load_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "context.list_pins",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "pins": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "context_retrieval"
+        ]
+      }
+    },
+    {
+      "name": "context.pin",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "file",
+              "symbol",
+              "memory",
+              "artifact",
+              "term"
+            ]
+          },
+          "ref": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "source",
+          "ref"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "context_retrieval"
+        ]
+      }
+    },
+    {
+      "name": "context.retrieve",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "max_tokens": {
+            "type": "integer",
+            "minimum": 128,
+            "maximum": 16000
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "results": {
+            "type": "array"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "context_retrieval"
+        ]
+      }
+    },
+    {
+      "name": "context.unpin",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "file",
+              "symbol",
+              "memory",
+              "artifact",
+              "term"
+            ]
+          },
+          "ref": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "source",
+          "ref"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "unpinned": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "context_retrieval"
+        ]
+      }
+    },
+    {
+      "name": "fs.diff",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "string"
+          },
+          "b": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "string"
+          },
+          "b": {
+            "type": "string"
+          },
+          "diff": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "changes": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "fs.glob",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "next_offset": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "fs.list",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "revision": {
+            "type": "string"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "entries": {
+            "type": "array"
+          },
+          "total_entries": {
+            "type": "integer"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "next_offset": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "fs.patch",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "old_string": {
+            "type": "string"
+          },
+          "new_string": {
+            "type": "string"
+          },
+          "replace_all": {
+            "type": "boolean"
+          },
+          "files": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "expected_hash": {
+                  "type": "string"
+                },
+                "edits": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "old_string": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "new_string": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "old_string",
+                      "new_string"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "maxItems": 20
+                }
+              },
+              "required": [
+                "path",
+                "edits"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "expected_hash": {
+            "type": "string",
+            "description": "SHA-256 of the file previously read."
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "path",
+              "old_string",
+              "new_string"
+            ]
+          },
+          {
+            "required": [
+              "files"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "replacements": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "fs.read",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 16,
+            "uniqueItems": true
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "path"
+            ]
+          },
+          {
+            "required": [
+              "paths"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "fs.read_lines",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "end": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array"
+          },
+          "total_lines": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "next_line": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "fs.search_text",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "include": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array"
+          },
+          "files_searched": {
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "fs.stat",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 16,
+            "uniqueItems": true
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "path"
+            ]
+          },
+          {
+            "required": [
+              "paths"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer"
+          },
+          "modified": {
+            "type": "string"
+          },
+          "executable": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "fs.write",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "create_parents": {
+            "type": "boolean"
+          },
+          "expected_hash": {
+            "type": "string",
+            "description": "SHA-256 of the current file, or missing for create-only."
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "bytes_written": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "git.branch",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "current": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "branches": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "git.diff",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "cached": {
+            "type": "boolean"
+          },
+          "stat": {
+            "type": "boolean",
+            "default": false
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "diff": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "git.log",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "git.show",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "stat": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "git.status",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "branch": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dirty": {
+            "type": "boolean"
+          },
+          "files": {
+            "type": "array"
+          },
+          "total_files": {
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "http.request",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "DELETE",
+              "GET",
+              "HEAD",
+              "OPTIONS",
+              "PATCH",
+              "POST",
+              "PUT"
+            ]
+          },
+          "headers": {
+            "type": "object"
+          },
+          "query": {
+            "type": "object"
+          },
+          "body": {
+            "type": "string"
+          },
+          "body_json": {
+            "type": "object"
+          },
+          "auth": {
+            "type": "object",
+            "description": "{type: bearer|basic|header|query, ref: secret-ref} (+ username for basic, + name for header/query)"
+          },
+          "timeout_s": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 120
+          },
+          "max_retries": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "follow_redirects": {
+            "type": "boolean"
+          },
+          "max_bytes": {
+            "type": "integer"
+          },
+          "save_as": {
+            "type": "string",
+            "description": "Filename (artifact dir) to store the response body."
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "headers": {
+            "type": "object"
+          },
+          "text": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "http.sse",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "headers": {
+            "type": "object"
+          },
+          "query": {
+            "type": "object"
+          },
+          "auth": {
+            "type": "object"
+          },
+          "event_filter": {
+            "type": "string"
+          },
+          "last_event_id": {
+            "type": "string",
+            "maxLength": 1024
+          },
+          "max_events": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "timeout_s": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 120
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "events": {
+            "type": "array"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "stopped_early": {
+            "type": "boolean"
+          },
+          "timed_out": {
+            "type": "boolean"
+          },
+          "elapsed_ms": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "lsp.definition",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column_encoding": {
+            "type": "string",
+            "enum": [
+              "utf-16",
+              "unicode"
+            ],
+            "default": "utf-16",
+            "description": "unicode counts code points; output columns use UTF-16."
+          }
+        },
+        "required": [
+          "path",
+          "line"
+        ]
+      },
+      "output_schema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "lsp"
+        ]
+      }
+    },
+    {
+      "name": "lsp.diagnostics",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "include_state": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "output_schema": {
+        "type": [
+          "array",
+          "object"
+        ]
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "lsp"
+        ]
+      }
+    },
+    {
+      "name": "lsp.hover",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column_encoding": {
+            "type": "string",
+            "enum": [
+              "utf-16",
+              "unicode"
+            ],
+            "default": "utf-16",
+            "description": "unicode counts code points; output columns use UTF-16."
+          }
+        },
+        "required": [
+          "path",
+          "line"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "contents": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "lsp"
+        ]
+      }
+    },
+    {
+      "name": "lsp.references",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column_encoding": {
+            "type": "string",
+            "enum": [
+              "utf-16",
+              "unicode"
+            ],
+            "default": "utf-16",
+            "description": "unicode counts code points; output columns use UTF-16."
+          }
+        },
+        "required": [
+          "path",
+          "line"
+        ]
+      },
+      "output_schema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "lsp"
+        ]
+      }
+    },
+    {
+      "name": "lsp.rename",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column_encoding": {
+            "type": "string",
+            "enum": [
+              "utf-16",
+              "unicode"
+            ],
+            "default": "utf-16",
+            "description": "unicode counts code points; output columns use UTF-16."
+          },
+          "new_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "line",
+          "new_name"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "changes": {
+            "type": "object"
+          },
+          "document_changes": {
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "lsp"
+        ]
+      }
+    },
+    {
+      "name": "lsp.signature",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column_encoding": {
+            "type": "string",
+            "enum": [
+              "utf-16",
+              "unicode"
+            ],
+            "default": "utf-16",
+            "description": "unicode counts code points; output columns use UTF-16."
+          }
+        },
+        "required": [
+          "path",
+          "line"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "signatures": {
+            "type": "array"
+          },
+          "active_signature": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "active_parameter": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "lsp"
+        ]
+      }
+    },
+    {
+      "name": "lsp.symbols",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "output_schema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "lsp"
+        ]
+      }
+    },
+    {
+      "name": "memory.episodic",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "summary"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "session_ref": {
+            "type": "string"
+          },
+          "summary_chars": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "memory"
+        ]
+      }
+    },
+    {
+      "name": "memory.forget",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "project",
+              "pattern"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "scope",
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "forgotten": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-destructive",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "memory"
+        ]
+      }
+    },
+    {
+      "name": "memory.recall",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "project",
+              "pattern",
+              "episodic"
+            ]
+          },
+          "query": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "pattern_scope": {
+            "type": "string",
+            "enum": [
+              "global",
+              "user"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "scope"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string"
+          },
+          "records": {
+            "type": "array"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "memory"
+        ]
+      }
+    },
+    {
+      "name": "memory.remember",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "project",
+              "pattern"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "preference",
+              "rule",
+              "fact",
+              "fact",
+              "rule",
+              "convention"
+            ]
+          },
+          "pattern_scope": {
+            "type": "string",
+            "enum": [
+              "global",
+              "user"
+            ]
+          },
+          "topic": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "scope",
+          "topic",
+          "text"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "memory"
+        ]
+      }
+    },
+    {
+      "name": "memory.update",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "project"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "expected_version": {
+            "type": "string",
+            "description": "updated_at from recall; reject a concurrent update"
+          },
+          "text": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "provenance": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "scope",
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "memory"
+        ]
+      }
+    },
+    {
+      "name": "process.list",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "running_only": {
+            "type": "boolean"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "processes": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "processes"
+        ]
+      }
+    },
+    {
+      "name": "process.output",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "object",
+            "properties": {
+              "stdout": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "stderr": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "max_chars": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64000
+          }
+        },
+        "required": [
+          "handle"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "stdout": {
+            "type": "string"
+          },
+          "stderr": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "object"
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "processes"
+        ]
+      }
+    },
+    {
+      "name": "process.signal",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "signal": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "handle",
+          "signal"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "signal": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "processes"
+        ]
+      }
+    },
+    {
+      "name": "process.start",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "argv": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 256
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "env": {
+            "type": "object"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "command"
+            ]
+          },
+          {
+            "required": [
+              "argv"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "pid": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "running": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "processes"
+        ]
+      }
+    },
+    {
+      "name": "process.wait",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "timeout_s": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "handle"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "timed_out": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "processes"
+        ]
+      }
+    },
+    {
+      "name": "pty.read",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_chars": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32000
+          },
+          "timeout_s": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 60
+          }
+        },
+        "required": [
+          "handle"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": false,
+      "supports_request_id": false,
+      "availability": {
+        "available": false,
+        "reason": "POSIX PTY unavailable on Windows; use process.start.",
+        "requires": [
+          "POSIX"
+        ]
+      }
+    },
+    {
+      "name": "pty.resize",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "columns": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 500
+          }
+        },
+        "required": [
+          "handle",
+          "rows",
+          "columns"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "integer"
+          },
+          "columns": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": false,
+        "reason": "POSIX PTY unavailable on Windows; use process.start.",
+        "requires": [
+          "POSIX"
+        ]
+      }
+    },
+    {
+      "name": "pty.start",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "env": {
+            "type": "object"
+          },
+          "columns": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 500
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "command"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "running": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": false,
+        "reason": "POSIX PTY unavailable on Windows; use process.start.",
+        "requires": [
+          "POSIX"
+        ]
+      }
+    },
+    {
+      "name": "pty.terminate",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "handle"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-destructive",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": false,
+        "reason": "POSIX PTY unavailable on Windows; use process.start.",
+        "requires": [
+          "POSIX"
+        ]
+      }
+    },
+    {
+      "name": "pty.write",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "data": {
+            "type": "string"
+          },
+          "submit_line": {
+            "type": "boolean",
+            "default": true
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "handle",
+          "data"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "written": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": false,
+        "reason": "POSIX PTY unavailable on Windows; use process.start.",
+        "requires": [
+          "POSIX"
+        ]
+      }
+    },
+    {
+      "name": "search.files",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "next_offset": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "search.hybrid",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "include": {
+            "type": "string"
+          },
+          "max_results": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "search.references",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "include": {
+            "type": "string"
+          },
+          "max_results": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "include_definitions": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "search.regex",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "include": {
+            "type": "string"
+          },
+          "max_results": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array"
+          },
+          "files_searched": {
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "search.symbols",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "include": {
+            "type": "string"
+          },
+          "max_results": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "shell.exec",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "argv": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 256
+          },
+          "background": {
+            "type": "boolean",
+            "default": false
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "timeout_s": {
+            "type": "number",
+            "minimum": 1
+          },
+          "env": {
+            "type": "object"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "command"
+            ]
+          },
+          {
+            "required": [
+              "argv"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "exit_code": {
+            "type": "integer"
+          },
+          "stdout": {
+            "type": "string"
+          },
+          "stderr": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "running": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "skills.activate",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local_reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "skills.deactivate",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "removed": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local_reversible",
+      "idempotent": true,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "skills.list",
+      "input_schema": {
+        "type": "object"
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "skills": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "skills.show",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "required_tools": {
+            "type": "array"
+          },
+          "optional_tools": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "ssh.inspect",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string",
+            "enum": [
+              "system",
+              "gpu",
+              "cpu",
+              "memory",
+              "disks",
+              "hardware"
+            ],
+            "default": "hardware"
+          }
+        },
+        "required": [
+          "target_id"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          },
+          "sections": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "user.ask",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "questions"
+        ],
+        "properties": {
+          "questions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "title"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                },
+                "options": {
+                  "type": "array",
+                  "maxItems": 6,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "label"
+                    ],
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "description": {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      "recommended": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "answers": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": false,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "verify.evaluate",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "required_kinds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unresolved": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "blocked_reason": {
+            "type": "string"
+          },
+          "task_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "require_evidence": {
+            "type": "boolean"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string"
+          },
+          "reasons": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "validation"
+        ]
+      }
+    },
+    {
+      "name": "verify.plan",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "changed_files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "user_constraints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "changed_files"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "checks": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "validation"
+        ]
+      }
+    },
+    {
+      "name": "verify.record",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "test",
+              "lint",
+              "typecheck",
+              "build",
+              "schema",
+              "manual",
+              "custom"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "error",
+              "skipped"
+            ]
+          },
+          "command": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "artifact_ref": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional deduplication key; reuse only for the same operation in this live runtime (last 256 requests)."
+          }
+        },
+        "required": [
+          "kind",
+          "result"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": false,
+      "supports_request_id": true,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": [
+          "validation"
+        ]
+      }
+    },
+    {
+      "name": "web.cite",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string",
+            "description": "Stable source_id from this runtime; reuses its exact snapshot."
+          },
+          "refresh": {
+            "type": "boolean",
+            "description": "Bypass the 30-second session snapshot cache."
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "source_id"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "citation": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "web.download",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "local-reversible",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "web.extract_markdown",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string",
+            "description": "Stable source_id from this runtime; reuses its exact snapshot."
+          },
+          "refresh": {
+            "type": "boolean",
+            "description": "Bypass the 30-second session snapshot cache."
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "source_id"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "markdown": {
+            "type": "string"
+          },
+          "characters": {
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "web.extract_metadata",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string",
+            "description": "Stable source_id from this runtime; reuses its exact snapshot."
+          },
+          "refresh": {
+            "type": "boolean",
+            "description": "Bypass the 30-second session snapshot cache."
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "source_id"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "charset": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "meta": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "web.extract_text",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string",
+            "description": "Stable source_id from this runtime; reuses its exact snapshot."
+          },
+          "refresh": {
+            "type": "boolean",
+            "description": "Bypass the 30-second session snapshot cache."
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "source_id"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "characters": {
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "web.fetch",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string",
+            "description": "Stable source_id from this runtime; reuses its exact snapshot."
+          },
+          "refresh": {
+            "type": "boolean",
+            "description": "Bypass the 30-second session snapshot cache."
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "source_id"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "web.find",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string",
+            "description": "Stable source_id; reuses its exact snapshot."
+          },
+          "pattern": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "source_id"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "hits": {
+            "type": "array"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "web.links",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string",
+            "description": "Stable source_id from this runtime; reuses its exact snapshot."
+          },
+          "refresh": {
+            "type": "boolean",
+            "description": "Bypass the 30-second session snapshot cache."
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "source_id"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "links": {
+            "type": "array"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "web.open",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string",
+            "description": "Stable source_id from this runtime; reuses its exact snapshot."
+          },
+          "refresh": {
+            "type": "boolean",
+            "description": "Bypass the 30-second session snapshot cache."
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "source_id"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "links": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "web.search",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "queries": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 4
+          },
+          "max_results": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "query"
+            ]
+          },
+          {
+            "required": [
+              "queries"
+            ]
+          }
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "results": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    },
+    {
+      "name": "web.sources",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "sources": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      },
+      "side_effects": "none",
+      "idempotent": true,
+      "supports_request_id": false,
+      "availability": {
+        "available": null,
+        "reason": "Permissions and resource availability are checked at execution.",
+        "requires": []
+      }
+    }
+  ]
+}

@@ -6,6 +6,13 @@ const NOW = 1_700_000_000_000
 const event = (name: string, payload: Record<string, unknown>) => engineEventAction({ type: 'event', event: name, payload }, NOW)!
 
 describe('narrative activity timeline', () => {
+  it('retains the mode of the turn independently of later session changes', () => {
+    let state = turnTimelineReducer(createInitialTimelineState(), event('turn.started', { turn_id: 'plan', session_id: 's1', mode: 'plan' }))
+    state = turnTimelineReducer(state, event('turn.completed', { turn_id: 'plan', session_id: 's1' }))
+    state = turnTimelineReducer(state, event('turn.started', { turn_id: 'build', session_id: 's1', mode: 'build' }))
+    expect(state.timelines.plan.mode).toBe('plan')
+    expect(state.timelines.build.mode).toBe('build')
+  })
   it('merges model deltas and completion into one logical call', () => {
     let state = createInitialTimelineState()
     state = turnTimelineReducer(state, event('turn.started', { turn_id: 't1', session_id: 's1' }))

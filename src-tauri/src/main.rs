@@ -10,6 +10,7 @@
 // Command handlers live in `commands/` (bin crate, Tauri-linked); the
 // engine client lives in the lib crate (Tauri-free, unit-testable).
 mod commands;
+mod menu;
 
 use tauri::{Emitter, Manager};
 
@@ -19,6 +20,8 @@ use rinari_code_lib::engine::EngineSupervisor;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .menu(menu::build)
+        .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -38,6 +41,14 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(EngineSupervisor::new())
         .invoke_handler(tauri::generate_handler![
+            commands::desktop::session_move,
+            commands::desktop::workspace_preview_start,
+            commands::desktop::workspace_preview_status,
+            commands::desktop::workspace_preview_stop,
+            commands::desktop::workspace_file_read,
+            commands::desktop::workspace_file_open,
+            commands::desktop::question_list,
+            commands::desktop::question_resolve,
             commands::engine::engine_status,
             commands::engine::engine_start,
             commands::engine::engine_shutdown,
@@ -82,6 +93,11 @@ pub fn run() {
             commands::workspace::workspace_file_search,
             commands::workspace::artifact_list,
             commands::workspace::artifact_read,
+            commands::workspace::attachment_prepare,
+            commands::workspace::attachment_preview,
+            commands::workspace::attachment_prepare_start,
+            commands::workspace::attachment_prepare_get,
+            commands::workspace::attachment_prepare_cancel,
             commands::workspace::context_get,
             commands::workspace::usage_get,
             commands::agents::agent_list,

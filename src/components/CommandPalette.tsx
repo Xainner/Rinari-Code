@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import type { SessionSummary } from '../services/engine'
 import type { Language } from '../types'
+import { dispatchAction } from '../services/actions'
 import type { Theme } from '../lib/theme'
 import { useI18n } from '../i18n'
 import type { SettingsSection } from '../stores/ui'
@@ -125,6 +126,7 @@ export default function CommandPalette({
                 <Plus />
                 {t('sidebar.newChat')}
               </Command.Item>
+              {([['open-folder', 'Abrir carpeta'], ['files', 'Panel de archivos'], ['sidebar', 'Barra lateral'], ['updates', 'Buscar actualizaciones'], ['about', 'Acerca de Rinari Code']] as const).map(([action, label]) => <Command.Item key={action} value={label} onSelect={() => run(() => dispatchAction(action))} className={itemClass}><Monitor />{label}</Command.Item>)}
               <Command.Item
                 value={t('engine.restart')}
                 onSelect={() => run(onEngineRestart)}

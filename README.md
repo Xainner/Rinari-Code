@@ -74,6 +74,9 @@ The host supervises a long-lived engine process. A negotiated protocol exposes r
 
 The compatible engine revision is pinned in [engine-manifest.json](engine-manifest.json). Generated TypeScript and Rust types keep the desktop bridge aligned with the engine schema.
 
+File preparation, PDF page selection, OCR and model vision admission are
+documented in [Attachments, OCR and vision](docs/attachments.md).
+
 ## Development
 
 ### Prerequisites

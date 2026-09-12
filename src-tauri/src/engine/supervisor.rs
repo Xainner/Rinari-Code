@@ -234,7 +234,7 @@ impl EngineSupervisor {
             self.set_state(EngineState::Failed, Some(error.to_string()));
             CommandError::from(error)
         })?;
-        if hello.capabilities.get(REQUIRED_CAPABILITY) != Some(&true) {
+        if [REQUIRED_CAPABILITY, "tool_contracts_v1", "desktop_workspace_v1", "interactive_questions_v1", "web_preview_v1", "plan_read_scope_v1"].iter().any(|cap| hello.capabilities.get(*cap) != Some(&true)) {
             transport.shutdown();
             let message = concat!(
                 "The active Rinari Engine is outdated and does not support the desktop turn ",
@@ -408,6 +408,23 @@ impl EngineSupervisor {
         reasoning_effort: Option<&str>,
         attachments: Option<Value>,
     ) -> Result<Value, CommandError> {
+        self.turn_start_with_vision(
+            session_id,
+            message,
+            reasoning_effort,
+            attachments,
+            false,
+        )
+    }
+
+    pub fn turn_start_with_vision(
+        &self,
+        session_id: &str,
+        message: &str,
+        reasoning_effort: Option<&str>,
+        attachments: Option<Value>,
+        allow_unconfirmed_vision: bool,
+    ) -> Result<Value, CommandError> {
         self.request(
             Method::SessionTurnStart,
             Some(json!({
@@ -415,6 +432,7 @@ impl EngineSupervisor {
                 "message": message,
                 "reasoning_effort": reasoning_effort,
                 "attachments": attachments.unwrap_or_else(|| Value::Array(vec![])),
+                "allow_unconfirmed_vision": allow_unconfirmed_vision,
             })),
         )
     }
@@ -855,6 +873,31 @@ impl EngineSupervisor {
             params.insert("max_bytes".to_string(), Value::Number(max_bytes.into()));
         }
         self.request(Method::ArtifactRead, Some(Value::Object(params)))
+    }
+
+    pub fn attachment_prepare(&self, session_id: &str, attachments: Value) -> Result<Value, CommandError> {
+        self.request(Method::AttachmentPrepare, Some(json!({"session_id": session_id, "attachments": attachments})))
+    }
+
+    pub fn attachment_preview(&self, uri: &str, max_bytes: Option<u32>) -> Result<Value, CommandError> {
+        let mut params = serde_json::Map::new();
+        params.insert("uri".to_string(), Value::String(uri.to_string()));
+        if let Some(max_bytes) = max_bytes {
+            params.insert("max_bytes".to_string(), Value::Number(max_bytes.into()));
+        }
+        self.request(Method::AttachmentPreview, Some(Value::Object(params)))
+    }
+
+    pub fn attachment_prepare_start(&self, session_id: &str, attachments: Value) -> Result<Value, CommandError> {
+        self.request(Method::AttachmentPrepareStart, Some(json!({"session_id": session_id, "attachments": attachments})))
+    }
+
+    pub fn attachment_prepare_get(&self, job_id: &str) -> Result<Value, CommandError> {
+        self.request(Method::AttachmentPrepareGet, Some(json!({"job_id": job_id})))
+    }
+
+    pub fn attachment_prepare_cancel(&self, job_id: &str) -> Result<Value, CommandError> {
+        self.request(Method::AttachmentPrepareCancel, Some(json!({"job_id": job_id})))
     }
 
     pub fn context_get(&self, reference: &str) -> Result<Value, CommandError> {

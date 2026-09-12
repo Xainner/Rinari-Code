@@ -2,9 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   Attachment as ProtocolAttachment,
+  ToolSummary as ProtocolToolSummary,
   ProjectSummary as ProtocolProjectSummary,
   SessionSummary as ProtocolSessionSummary,
 } from '../types/protocol.generated'
+import type { AttachmentRef } from '../types'
 
 export type EngineState =
   | "stopped"
@@ -36,7 +38,27 @@ export interface EngineEventMsg {
 }
 
 export type SessionSummary = ProtocolSessionSummary
-export type AttachmentInput = ProtocolAttachment
+export type AttachmentInput = ProtocolAttachment & {
+  page_range?: string | null
+  visual_pages?: number[] | null
+  images?: Array<{ uri: string; sha256?: string }> | null
+}
+
+export interface PreparedAttachmentResult {
+  id: string
+  name: string
+  content_type?: string
+  size?: number
+  uri?: string
+  sha256?: string
+  kind?: string
+  derived_uri?: string
+  ocr?: boolean
+  truncated?: boolean
+  warning?: string
+  images?: Array<{ uri: string; sha256?: string }>
+  data_url?: string
+}
 
 export interface HistoryMessage {
   id: string;
@@ -48,6 +70,21 @@ export interface HistoryMessage {
   name: string | null;
   created_at: string;
   turn_id?: string | null;
+  images?: Array<{ uri: string; sha256: string }> | null;
+  attachments?: Array<{
+    id?: string;
+    uri: string;
+    sha256?: string;
+    name?: string;
+    content_type?: string;
+    size?: number;
+    kind?: string;
+    derived_uri?: string;
+    images?: Array<{ uri: string; sha256?: string }>;
+    ocr?: boolean;
+    truncated?: boolean;
+    warning?: string;
+  }> | null;
 }
 
 export interface TimelineEvent {
@@ -60,6 +97,7 @@ export interface TimelineEvent {
 }
 
 export interface TimelineTurn {
+  mode?: string | null;
   turn_id: string;
   session_id: string;
   turn_index: number;
@@ -297,16 +335,7 @@ export interface PluginInfo {
   diagnostics: Array<{ code: string; message: string }>;
 }
 
-export interface NativeTool {
-  name: string;
-  description: string;
-  capabilities: string[] | null;
-  permissions: string[] | null;
-  risk: string;
-  side_effects: string;
-  namespace: string;
-  always_loaded: boolean;
-}
+export type NativeTool = ProtocolToolSummary;
 
 export interface ArtifactSummary {
   uri: string;
@@ -586,6 +615,16 @@ export const engineApi = {
       "artifact_read",
       { uri, max_bytes: max_bytes ?? null },
     ),
+  attachmentPrepare: (session_id: string, attachments: AttachmentInput[]) =>
+    invoke<{ attachments: PreparedAttachmentResult[] }>('attachment_prepare', { session_id, attachments }),
+  attachmentPreview: (uri: string, max_bytes?: number) =>
+    invoke<Record<string, unknown>>('attachment_preview', { uri, max_bytes: max_bytes ?? null }),
+  attachmentPrepareStart: (session_id: string, attachments: AttachmentInput[]) =>
+    invoke<Record<string, unknown>>('attachment_prepare_start', { session_id, attachments }),
+  attachmentPrepareGet: (job_id: string) =>
+    invoke<Record<string, unknown>>('attachment_prepare_get', { job_id }),
+  attachmentPrepareCancel: (job_id: string) =>
+    invoke<Record<string, unknown>>('attachment_prepare_cancel', { job_id }),
   contextGet: (reference: string) =>
     invoke<{ context: SessionContext }>("context_get", { reference }),
   usageGet: (reference?: string) =>
@@ -626,7 +665,13 @@ export const engineApi = {
     }),
   initialOpenRequest: () =>
     invoke<{ project: string | null; session: string | null }>("initial_open_request"),
-  startTurn: (sessionId: string, message: string, reasoningEffort?: string | null, attachments: AttachmentInput[] = []) => {
+  startTurn: (
+    sessionId: string,
+    message: string,
+    reasoningEffort?: string | null,
+    attachments: Array<AttachmentInput | AttachmentRef> = [],
+    allowUnconfirmedVision = false,
+  ) => {
     // Fail-fast con texto inconfundible: si esto salta, el bug está en la
     // UI (nunca debería invocar sin sesión); si salta el mensaje del
     // backend "(app 0.1.1)", el bug está en el puente Tauri.
@@ -637,7 +682,11 @@ export const engineApi = {
       session_id: sessionId,
       message,
       reasoning_effort: reasoningEffort ?? null,
-      attachments,
+      // The UI keeps camelCase metadata (derivedUri/pageRange) while the
+      // engine protocol is snake_case. Normalize at this boundary so an
+      // imported document can never arrive as a display-only reference.
+      attachments: attachmentInputs(attachments),
+      allow_unconfirmed_vision: allowUnconfirmedVision,
     })
   },
   cancelTurn: (sessionId: string) =>
@@ -827,6 +876,135 @@ export const engineApi = {
       provider: provider ?? null,
     }),
 };
+
+function attachmentInputs(attachments: Array<AttachmentRef | AttachmentInput>): AttachmentInput[] {
+  return attachments.map((item) => {
+    const pageRange = (item as AttachmentRef).pageRange ?? (item as AttachmentInput).page_range
+    const visualPages = (item as AttachmentRef).visualPages ?? (item as AttachmentInput).visual_pages
+    const images = item.images
+    return {
+      id: item.id,
+      path: item.path,
+      name: item.name,
+      mime_type: item.mime_type ?? null,
+      size: item.size ?? null,
+      source: item.source,
+      data_url: item.data_url ?? null,
+      uri: item.uri ?? null,
+      sha256: item.sha256 ?? null,
+      ocr: item.ocr ?? false,
+      derived_uri: (item as AttachmentRef).derivedUri ?? (item as AttachmentInput).derived_uri ?? null,
+      ...(pageRange ? { page_range: pageRange } : {}),
+      ...(visualPages && visualPages.length > 0 ? { visual_pages: visualPages } : {}),
+      ...(images && images.length > 0 ? { images } : {}),
+    }
+  })
+}
+
+function isTerminalPreparationStatus(status: string): boolean {
+  return ['ready', 'completed', 'complete', 'done', 'success', 'error', 'failed', 'cancelled', 'canceled'].includes(status)
+}
+
+function mapPreparedAttachment(item: PreparedAttachmentResult, attachments: AttachmentRef): AttachmentRef {
+  return {
+    ...attachments,
+    // The engine artifact ID is content-derived and can repeat across
+    // sessions. Keep the per-selection client ID for async draft ownership.
+    id: attachments.id,
+    // The original name/path are intentionally retained from the selected
+    // file. ArtifactStore names are implementation details and must not leak
+    // into the composer or history.
+    path: attachments.path,
+    name: item.name || attachments.name,
+    mime_type: item.content_type || attachments.mime_type,
+    size: item.size ?? attachments.size,
+    kind: (item.kind as AttachmentRef['kind']) || attachments.kind,
+    uri: item.uri || item.images?.[0]?.uri || attachments.uri,
+    sha256: item.sha256 || attachments.sha256,
+    derivedUri: item.derived_uri || attachments.derivedUri,
+    images: item.images || attachments.images,
+    ocr: item.ocr ?? attachments.ocr,
+    truncated: item.truncated ?? attachments.truncated,
+    warning: item.warning || attachments.warning,
+    previewUrl: attachments.previewUrl,
+    data_url: undefined,
+    status: 'ready',
+    error: undefined,
+  }
+}
+
+async function addEnginePreview(item: AttachmentRef): Promise<AttachmentRef> {
+  if (item.kind !== 'image' || !item.uri) return item
+  try {
+    const preview = await engineApi.attachmentPreview(item.uri, 512 * 1024)
+    if (typeof preview.base64 === 'string' && typeof preview.mime_type === 'string') {
+      return { ...item, previewUrl: `data:${preview.mime_type};base64,${preview.base64}` }
+    }
+    if (typeof preview.data_url === 'string') return { ...item, previewUrl: preview.data_url }
+  } catch {
+    // Stable artifact references remain usable when preview is unavailable.
+  }
+  return item
+}
+
+function mapPreparedAttachments(prepared: PreparedAttachmentResult[], originals: AttachmentRef[]): Promise<AttachmentRef[]> {
+  return Promise.all(prepared.map(async (item, index) => {
+    // Preparation preserves request order. Artifact IDs are not client IDs,
+    // and filenames need not be unique across selected directories.
+    const original = originals[index]
+    if (!original) throw new Error('El motor no devolvió el adjunto seleccionado')
+    return addEnginePreview(mapPreparedAttachment(item, original))
+  }))
+}
+
+/** Import selected files through the engine and return stable attachment refs. */
+export async function prepareAttachmentRefs(sessionId: string, attachments: AttachmentRef[]): Promise<AttachmentRef[]> {
+  const prepared = await engineApi.attachmentPrepare(sessionId, attachmentInputs(attachments))
+  return mapPreparedAttachments(prepared.attachments, attachments)
+}
+
+export interface AttachmentPreparationOptions {
+  onJobId?: (jobId: string) => void
+  signal?: AbortSignal
+  pollMs?: number
+}
+
+/**
+ * Start preparation through the persisted engine job API. This is used by the
+ * composer so OCR/PDF work can be cancelled while the UI remains responsive.
+ * The synchronous method above remains useful for the turn boundary and for
+ * older engines that only advertise attachment.prepare.
+ */
+export async function prepareAttachmentRefsWithJob(
+  sessionId: string,
+  attachments: AttachmentRef[],
+  options: AttachmentPreparationOptions = {},
+): Promise<AttachmentRef[]> {
+  const started = await engineApi.attachmentPrepareStart(sessionId, attachmentInputs(attachments))
+  const jobId = typeof started.job_id === 'string' ? started.job_id : null
+  if (!jobId) {
+    const inline = Array.isArray(started.attachments) ? started.attachments as PreparedAttachmentResult[] : null
+    if (inline) return mapPreparedAttachments(inline, attachments)
+    return prepareAttachmentRefs(sessionId, attachments)
+  }
+  options.onJobId?.(jobId)
+  let state = started
+  const pollMs = Math.max(50, options.pollMs ?? 120)
+  while (true) {
+    if (options.signal?.aborted) throw new DOMException('Attachment preparation cancelled', 'AbortError')
+    const status = String(state.status ?? 'preparing').toLowerCase()
+    if (isTerminalPreparationStatus(status)) {
+      if (['error', 'failed', 'cancelled', 'canceled'].includes(status)) {
+        throw new Error(typeof state.error === 'string' ? state.error : `Preparación de adjuntos: ${status}`)
+      }
+      const prepared = Array.isArray(state.attachments) ? state.attachments as PreparedAttachmentResult[] : []
+      if (prepared.length === 0) throw new Error('El motor terminó la preparación sin adjuntos')
+      return mapPreparedAttachments(prepared, attachments)
+    }
+    await new Promise<void>((resolve) => globalThis.setTimeout(resolve, pollMs))
+    state = await engineApi.attachmentPrepareGet(jobId)
+  }
+}
 
 export function onEngineEvent(callback: (event: EngineEventMsg) => void): Promise<UnlistenFn> {
   return listen<EngineEventMsg>(ENGINE_EVENT, (wrapper) => callback(wrapper.payload));

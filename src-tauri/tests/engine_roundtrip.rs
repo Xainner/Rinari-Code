@@ -661,6 +661,21 @@ fn turn_start_forwards_reasoning_effort() {
 }
 
 #[test]
+fn turn_start_forwards_unconfirmed_vision() {
+    let harness = start_fake("stream");
+    let session_id = create_session(&harness);
+
+    let accept = harness
+        .supervisor
+        .turn_start_with_vision(&session_id, "describe", Some("low"), None, true)
+        .expect("turn accepted");
+    assert_eq!(accept["allow_unconfirmed_vision"].as_bool(), Some(true));
+
+    let _ = wait_for(&harness, Duration::from_secs(15), is("turn.completed"));
+    harness.supervisor.shutdown();
+}
+
+#[test]
 fn desktop_session_permissions_files_and_attachments_roundtrip() {
     let harness = start_fake("stream");
     let created = harness
@@ -910,4 +925,11 @@ fn provider_crud_roundtrip() {
     assert_eq!(list["active_alias"], "b");
 
     assert_eq!(format!("{:?}", supervisor.shutdown().state), "Stopped");
+}
+
+#[test]
+fn legacy_engine_is_rejected_before_desktop_requests() {
+    let supervisor = EngineSupervisor::new();
+    let error = supervisor.start_with("python", &[fixture(), "--scenario=legacy".into()], None).expect_err("old engine must be rejected");
+    assert_eq!(error.code, "ENGINE_INCOMPATIBLE");
 }

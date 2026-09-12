@@ -7,9 +7,11 @@ import { highlightToHtml } from '../lib/highlight'
 import { containsMath } from '../lib/math-detect'
 import { copyText } from '../lib/clipboard'
 
+import { FileLink, fileUrlTransform } from '../features/files/FileWorkspace'
+
 const MathMarkdown = lazy(() => import('./MathMarkdown'))
 
-function CodeBlock({ code, language }: { code: string; language: string }) {
+export function CodeBlock({ code, language }: { code: string; language: string }) {
   const { t } = useI18n()
   const [copied, setCopied] = useState(false)
   const [html, setHtml] = useState<string | null>(null)
@@ -80,9 +82,7 @@ export const markdownComponents: ComponentProps<typeof ReactMarkdown>['component
   },
   a({ children, ...props }) {
     return (
-      <a {...props} target="_blank" rel="noreferrer">
-        {children}
-      </a>
+      <FileLink href={props.href}>{children}</FileLink>
     )
   },
   table({ children }) {
@@ -113,7 +113,7 @@ function Markdown({ children }: { children: string }) {
 
 function BaseMarkdown({ children }: { children: string }) {
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+    <ReactMarkdown urlTransform={fileUrlTransform} remarkPlugins={[remarkGfm]} components={markdownComponents}>
       {children}
     </ReactMarkdown>
   )

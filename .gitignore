@@ -31,3 +31,7 @@ src-tauri/2
 
 # Local review/fix notes (never commit)
 fixes/
+
+# Python packaging helpers
+__pycache__/
+*.py[cod]

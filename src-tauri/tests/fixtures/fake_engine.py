@@ -23,6 +23,9 @@ import threading
 import time
 
 CAPABILITIES = {
+    "tool_contracts_v1": True,
+    "interactive_questions_v1": True,
+    "desktop_workspace_v1": True, "web_preview_v1": True, "plan_read_scope_v1": True,
     "chat": True,
     "projects": True,
     "browser": True,
@@ -714,7 +717,8 @@ class FakeEngine:
         respond(req_id, result={"status": "started", "turn_id": turn_id,
                                "session_id": session_id,
                                "reasoning_effort": params.get("reasoning_effort"),
-                               "attachments": params.get("attachments", [])})
+                               "attachments": params.get("attachments", []),
+                               "allow_unconfirmed_vision": params.get("allow_unconfirmed_vision", False)})
         worker = threading.Thread(target=self._run_scenario,
                                   args=(turn_id, session_id), daemon=True)
         worker.start()
@@ -1170,8 +1174,10 @@ def main(argv):
     for arg in argv[1:]:
         if arg.startswith("--scenario="):
             scenario = arg.split("=", 1)[1]
-    if scenario not in ("stream", "slow", "approval", "die"):
+    if scenario not in ("stream", "slow", "approval", "die", "legacy"):
         raise SystemExit(f"unknown scenario: {scenario}")
+    if scenario == "legacy":
+        CAPABILITIES.pop("interactive_questions_v1")
     sys.stdout.write(json.dumps({
         "type": "hello", "protocol": "rinari-engine", "protocol_version": 1,
         "engine_version": "fake-1.0", "capabilities": CAPABILITIES}) + "\n")

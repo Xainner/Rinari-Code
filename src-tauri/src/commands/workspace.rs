@@ -139,6 +139,49 @@ pub(crate) async fn artifact_read(
     .await
 }
 
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn attachment_prepare(
+    supervisor: State<'_, EngineSupervisor>,
+    session_id: String,
+    attachments: serde_json::Value,
+) -> Result<serde_json::Value, CommandError> {
+    run_engine(supervisor, move |engine| engine.attachment_prepare(&session_id, attachments)).await
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn attachment_preview(
+    supervisor: State<'_, EngineSupervisor>,
+    uri: String,
+    max_bytes: Option<u32>,
+) -> Result<serde_json::Value, CommandError> {
+    run_engine(supervisor, move |engine| engine.attachment_preview(&uri, max_bytes)).await
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn attachment_prepare_start(
+    supervisor: State<'_, EngineSupervisor>,
+    session_id: String,
+    attachments: serde_json::Value,
+) -> Result<serde_json::Value, CommandError> {
+    run_engine(supervisor, move |engine| engine.attachment_prepare_start(&session_id, attachments)).await
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn attachment_prepare_get(
+    supervisor: State<'_, EngineSupervisor>,
+    job_id: String,
+) -> Result<serde_json::Value, CommandError> {
+    run_engine(supervisor, move |engine| engine.attachment_prepare_get(&job_id)).await
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub(crate) async fn attachment_prepare_cancel(
+    supervisor: State<'_, EngineSupervisor>,
+    job_id: String,
+) -> Result<serde_json::Value, CommandError> {
+    run_engine(supervisor, move |engine| engine.attachment_prepare_cancel(&job_id)).await
+}
+
 #[tauri::command]
 pub(crate) async fn context_get(
     supervisor: State<'_, EngineSupervisor>,

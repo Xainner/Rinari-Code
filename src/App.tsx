@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
+import { isTauri } from '@tauri-apps/api/core'
+import { dispatchAction, type DesktopAction } from './services/actions'
 import { open as openFolderDialog } from '@tauri-apps/plugin-dialog'
 import { toast } from 'sonner'
 import { I18nProvider, translate, type I18nKey } from './i18n'
@@ -8,6 +10,8 @@ import { checkForUpdates, installUpdateAndRelaunch } from './services/updates'
 import { useUIStore } from './stores/ui'
 import { useEngineSession } from './features/engine/useEngineSession'
 import AppShell from './components/app-shell/AppShell'
+import FileWorkspace from './features/files/FileWorkspace'
+import { desktopApi } from './services/desktop'
 import AppSidebar from './components/app-shell/AppSidebar'
 import ChatHeader from './components/app-shell/ChatHeader'
 import ChatView from './components/ChatView'
@@ -18,6 +22,7 @@ import WorkspaceView from './features/workspace/WorkspaceView'
 import ProjectHome from './features/projects/ProjectHome'
 import ProviderWizard from './features/providers/ProviderWizard'
 import StartupSplash from './components/StartupSplash'
+import DesktopContextMenu from './components/app-shell/DesktopContextMenu'
 
 const APP_VERSION = '0.1.1'
 
@@ -162,6 +167,7 @@ function App() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (isTauri()) return
       const mod = e.ctrlKey || e.metaKey
       if (mod && e.key.toLowerCase() === 'k') {
         e.preventDefault()
@@ -175,6 +181,38 @@ function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [togglePalette, goSettings])
+
+  const desktopActionRef = useRef<(action: DesktopAction) => void>(() => {})
+
+  useEffect(() => {
+    const handle = (action: DesktopAction) => {
+      switch (action) {
+        case 'new-chat': void session.createSession().then(id => id && goChat()); break
+        case 'open-folder': void openFolderDialog({ directory: true }).then(path => { if (typeof path === 'string') void handleOpenProjectPath(path).then(ok => ok && goChat()) }); break
+        case 'close-session': if (session.activeSession) void session.closeSession(session.activeSession); break
+        case 'settings': goSettings(); break
+        case 'appearance': goSettings('appearance'); break
+        case 'about': goSettings('about'); break
+        case 'engine': goEngine(); break
+        case 'sidebar': toggleSidebarCollapsed(); break
+        case 'files': window.dispatchEvent(new Event('rinari-files-toggle')); break
+        case 'commands': setPaletteOpen(true); break
+        case 'undo': case 'redo': document.execCommand(action); break
+        case 'updates': void checkForUpdates().then(found => {
+          if (!found) { toast.success('Rinari Code está actualizado.'); return }
+          toast(`Nueva versión: ${found.version}`, { action: { label: 'Instalar', onClick: () => void installUpdateAndRelaunch().catch(error => toast.error(String(error))) } })
+        }).catch(error => toast.error(String(error))); break
+      }
+    }
+    desktopActionRef.current = handle
+  })
+
+  useEffect(() => {
+    const local = (event: Event) => desktopActionRef.current((event as CustomEvent<DesktopAction>).detail)
+    window.addEventListener('rinari-action', local)
+    const native = listen<DesktopAction>('rinari-menu-action', event => desktopActionRef.current(event.payload))
+    return () => { window.removeEventListener('rinari-action', local); void native.then(stop => stop()) }
+  }, [])
 
   // El shell abre cuando el engine está usable. Sesiones y catálogo son
   // subsistemas independientes: si fallan, se degradan con retry local.
@@ -198,6 +236,7 @@ function App() {
 
   return (
     <I18nProvider lang={lang}>
+      <DesktopContextMenu />
       <AppShell
         banner={degradedDetail !== null && (
           <div
@@ -229,7 +268,9 @@ function App() {
             onOpenProjectHome={
               session.activeProjectRoot ? () => goProject(session.activeProjectRoot as string) : null
             }
-            onNewChat={() => void session.createSession().then(() => goChat())}
+            onNewProjectChat={(id) => void session.createSession(id).then(created => created && goChat())}
+            onMoveSession={(id, projectId) => void desktopApi.moveSession(id, projectId).then(() => session.refreshSessions()).catch(error => toast.error(String(error)))}
+            onNewChat={() => dispatchAction('new-chat')}
             onOpenFolder={() =>
               void openFolderDialog({ directory: true }).then((picked) => {
                 if (typeof picked === 'string') void handleOpenProjectPath(picked).then((ok) => ok && goChat())
@@ -294,16 +335,20 @@ function App() {
         }
       >
         {view === 'chat' && (
-          <ChatView
+          <FileWorkspace sessionId={session.activeSession}><ChatView
             messages={session.messages}
             sessionId={session.activeSession}
             isStreaming={session.busy}
             engineReady={session.ready}
             onSend={session.send}
+            onPrepareAttachments={session.prepareAttachments}
+            onCancelAttachmentPreparation={session.cancelAttachmentPreparation}
+            onImplementPlan={session.implementPlan}
             onStop={() => void session.cancelTurn()}
             onOpenProviders={() => goSettings('providers')}
             models={session.models}
             activeAlias={session.activeModel?.alias ?? null}
+            activeModel={session.activeModel}
             onUseModel={(model) => void session.useModel(model)}
             onDiscoverModels={() => void session.discoverCatalog()}
             sessionMode={activeRecord?.mode ?? null}
@@ -322,7 +367,7 @@ function App() {
                 ? (session.historyInfo[session.activeSession] ?? null)
                 : null
             }
-          />
+          /></FileWorkspace>
         )}
         {view === 'engine' && <EngineConsole session={session} />}
         {view === 'workspace' && (
@@ -417,7 +462,7 @@ function App() {
           void session.selectSession(id)
           goChat()
         }}
-        onNewSession={() => void session.createSession().then(() => goChat())}
+        onNewSession={() => dispatchAction('new-chat')}
         onOpenSettings={(section) => goSettings(section)}
         onOpenEngine={goEngine}
         onOpenWorkspace={goWorkspace}

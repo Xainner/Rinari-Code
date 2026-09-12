@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useI18n } from '../../i18n'
-import { commandMessage, engineApi, type ModelSummary } from '../../services/engine'
+import { commandMessage, engineApi, prepareAttachmentRefs, prepareAttachmentRefsWithJob, type ModelSummary } from '../../services/engine'
 import type { AttachmentRef } from '../../types'
 import { useCatalog } from './useCatalog'
 import { useEngineConnection } from './useEngineConnection'
 import { useProjects } from '../projects/useProjects'
 import { useSessionList } from './useSessionList'
 import { useTurnRuntime } from './useTurnRuntime'
+import { useComposerStore } from '../../stores/composer'
 
 /**
  * Composición del estado de engine. Cada dominio vive en su hook:
@@ -32,6 +33,7 @@ export function useEngineSession() {
   })
   const projects = useProjects({ engineReady: connection.ready })
   const catalog = useCatalog()
+  const attachmentJobsRef = useRef(new Map<string, string>())
 
   useEffect(() => {
     sessionsChangedRef.current = sessions.refreshSessions
@@ -79,7 +81,7 @@ export function useEngineSession() {
   }
 
   /** Envía: crea sesión si no hay activa, añade el mensaje y abre el turno. */
-  async function send(text: string, attachments: AttachmentRef[] = []): Promise<boolean> {
+  async function send(text: string, attachments: AttachmentRef[] = [], allowUnconfirmedVision = false): Promise<boolean> {
     const trimmed = text.trim()
     const currentId = sessions.activeSession
     const busy = currentId !== '' && runtime.busySessions.has(currentId)
@@ -94,10 +96,19 @@ export function useEngineSession() {
       toast.error(t('chat.noSession'))
       return false
     }
+    let preparedAttachments = attachments
+    if (attachments.length > 0) {
+      try {
+        preparedAttachments = await prepareAttachmentRefs(sessionId, attachments)
+      } catch (err) {
+        toast.error(commandMessage(err))
+        return false
+      }
+    }
     runtime.dispatch({
       type: 'message/sent',
       sessionId,
-      message: { id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`, role: 'user', content: trimmed, createdAt: Date.now() },
+      message: { id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`, role: 'user', content: trimmed, createdAt: Date.now(), attachments: preparedAttachments },
     })
     runtime.dispatch({ type: 'busy/set', sessionId, busy: true })
     try {
@@ -105,7 +116,8 @@ export function useEngineSession() {
         sessionId,
         trimmed,
         reasoningEffort === 'off' ? null : reasoningEffort,
-        attachments,
+        preparedAttachments,
+        allowUnconfirmedVision,
       )
       runtime.dispatch({ type: 'turn/ack', turnId: started.turn_id, sessionId, now: Date.now() })
       return true
@@ -114,6 +126,36 @@ export function useEngineSession() {
       runtime.dispatch({ type: 'busy/set', sessionId, busy: false })
       return false
     }
+  }
+
+  async function prepareAttachments(attachments: AttachmentRef[]): Promise<AttachmentRef[]> {
+    if (attachments.length === 0) return attachments
+    let sessionId = sessions.activeSession
+    if (!sessionId) {
+      const draftSessionKey = useComposerStore.getState().sessionKey
+      const created = await sessions.createSession()
+      if (!created) return attachments
+      sessionId = created
+      // Attachments can be selected from the start screen before a session
+      // exists. Move that draft into the newly created session immediately;
+      // otherwise the Composer's session effect could replace it during the
+      // asynchronous preparation job.
+      useComposerStore.getState().moveDraft(draftSessionKey, created)
+    }
+    const ids = attachments.map((attachment) => attachment.id)
+    try {
+      return await prepareAttachmentRefsWithJob(sessionId, attachments, {
+        onJobId: (jobId) => ids.forEach((id) => attachmentJobsRef.current.set(id, jobId)),
+      })
+    } finally {
+      ids.forEach((id) => attachmentJobsRef.current.delete(id))
+    }
+  }
+
+  async function cancelAttachmentPreparation(attachments: AttachmentRef[]): Promise<void> {
+    const jobs = new Set(attachments.map((attachment) => attachmentJobsRef.current.get(attachment.id)).filter((id): id is string => Boolean(id)))
+    attachments.forEach((attachment) => attachmentJobsRef.current.delete(attachment.id))
+    await Promise.allSettled([...jobs].map((jobId) => engineApi.attachmentPrepareCancel(jobId)))
   }
 
   async function cancelTurn(): Promise<void> {
@@ -169,6 +211,19 @@ export function useEngineSession() {
     restartEngine,
     createSession: sessions.createSession,
     send,
+    prepareAttachments,
+    cancelAttachmentPreparation,
+    implementPlan: async () => {
+      if (!sessions.activeSession || runtime.busySessions.has(sessions.activeSession)) return false
+      try {
+        await engineApi.setSessionMode(sessions.activeSession, 'build')
+        await sessions.refreshSessions()
+        return await send('Implementa el plan propuesto en el turno anterior. Continúa en BUILD y verifica los cambios.')
+      } catch (err) {
+        toast.error(commandMessage(err))
+        return false
+      }
+    },
     cancelTurn,
     resolveApproval: runtime.resolveApproval,
     providers: catalog.providers,

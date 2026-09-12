@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
-import { ArrowUp, Box, Brain, Check, FileText, Paperclip, Shield, Square, X } from 'lucide-react'
+import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from 'react'
+import { ArrowUp, Box, Brain, Check, Eye, FileText, Image as ImageIcon, LoaderCircle, Paperclip, RefreshCw, Shield, Square, X } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { useI18n } from '../../i18n'
 import { useComposerStore } from '../../stores/composer'
 import { useUIStore } from '../../stores/ui'
-import type { ModelSummary } from '../../services/engine'
+import { engineApi, type ModelSummary } from '../../services/engine'
 import type { AttachmentRef } from '../../types'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 
@@ -12,11 +12,15 @@ export type ComposerPlacement = 'centered' | 'bottom'
 
 interface ComposerProps {
   placement: ComposerPlacement
-  onSend: (text: string, attachments?: AttachmentRef[]) => Promise<boolean>
+  onSend: (text: string, attachments?: AttachmentRef[], allowUnconfirmedVision?: boolean) => Promise<boolean>
+  onPrepareAttachments?: (attachments: AttachmentRef[]) => Promise<AttachmentRef[]>
+  onCancelAttachmentPreparation?: (attachments: AttachmentRef[]) => Promise<void>
+  sessionId?: string
   isStreaming: boolean
   onStop: () => void
   models: ModelSummary[]
   activeAlias: string | null
+  activeModel?: ModelSummary | null
   onUseModel: (model: ModelSummary) => void
   onDiscoverModels: () => void
   onOpenProviders: () => void
@@ -43,10 +47,14 @@ const REASONING_LEVELS = ['off', 'low', 'medium', 'high'] as const
 export default function Composer({
   placement,
   onSend,
+  onPrepareAttachments,
+  onCancelAttachmentPreparation,
+  sessionId,
   isStreaming,
   onStop,
   models,
   activeAlias,
+  activeModel,
   onUseModel,
   onDiscoverModels,
   onOpenProviders,
@@ -63,10 +71,48 @@ export default function Composer({
   const { t } = useI18n()
   const text = useComposerStore((s) => s.text)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const preparationGenerationRef = useRef(new Map<string, number>())
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [attachments, setAttachments] = useState<AttachmentRef[]>([])
+  const [modelOpen, setModelOpen] = useState(false)
+  const [permissionOpen, setPermissionOpen] = useState(false)
+  const [reasoningOpen, setReasoningOpen] = useState(false)
+  const [allowUnconfirmedVision, setAllowUnconfirmedVision] = useState(false)
+  const [previewAttachment, setPreviewAttachment] = useState<AttachmentRef | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>()
+  const [previewText, setPreviewText] = useState<string | undefined>()
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [attachmentNotice, setAttachmentNotice] = useState<string | undefined>()
+  const providers = [...new Set(models.map(model => model.provider ?? 'Otros'))]
+  const attachments = useComposerStore((s) => s.attachments)
+  const addStoredAttachment = useComposerStore((s) => s.addAttachment)
+  const updateStoredAttachment = useComposerStore((s) => s.updateAttachment)
+  const removeStoredAttachment = useComposerStore((s) => s.removeAttachment)
+  const updateAttachmentById = useComposerStore((s) => s.updateAttachmentById)
+  const replaceAttachmentById = useComposerStore((s) => s.replaceAttachmentById)
+  const removeAttachmentsById = useComposerStore((s) => s.removeAttachmentsById)
+  const restoreSubmission = useComposerStore((s) => s.restoreSubmission)
+  const switchDraftSession = useComposerStore((s) => s.switchSession)
   const [fileMatches, setFileMatches] = useState<Array<{ path: string; relative_path: string; name: string }>>([])
   const mention = text.match(/(?:^|\s)@([^\s]*)$/)?.[1] ?? null
+  const visionCapability = activeModel?.capabilities?.vision ?? models.find((model) => model.alias === activeAlias)?.capabilities?.vision
+  const imageAttachments = attachments.filter((file) => file.kind === 'image' || file.mime_type?.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(file.name))
+  const visualAttachments = attachments.filter((file) =>
+    (file.images?.length ?? 0) > 0
+    || (file.kind === 'pdf' && (file.visualPages?.length ?? 0) > 0)
+    || (imageAttachments.includes(file) && file.ocr !== true),
+  )
+  const visionUnavailable = visualAttachments.length > 0 && visionCapability === false
+  const visionUnknown = visualAttachments.length > 0 && visionCapability == null && !allowUnconfirmedVision
+
+  useEffect(() => {
+    // A capability decision belongs to the selected model. Never carry an
+    // explicit confirmation to a different model.
+    setAllowUnconfirmedVision(false)
+  }, [activeAlias])
+
+  useEffect(() => {
+    switchDraftSession(sessionId || 'draft')
+  }, [sessionId, switchDraftSession])
 
   useEffect(() => {
     if (mention === null) {
@@ -107,20 +153,26 @@ export default function Composer({
   }
 
   async function handleSend() {
-    const content = useComposerStore.getState().text
-    if (isStreaming || isSubmitting || (!content.trim() && attachments.length === 0)) return
-    useComposerStore.getState().clear()
+    const initial = useComposerStore.getState()
+    const content = initial.text
+    const submissionSessionKey = initial.sessionKey
+    const attachmentIds = attachments.map((item) => item.id)
+    if (isStreaming || isSubmitting || visionUnavailable || visionUnknown || attachments.some((item) => item.status === 'preparing' || item.status === 'error') || (!content.trim() && attachments.length === 0)) return
+    initial.clear()
     autosize()
     textareaRef.current?.focus()
     setIsSubmitting(true)
     try {
       const outgoing = attachments
-      const ok = await onSend(content.trim() || 'Revisa los archivos adjuntos.', outgoing)
-      if (ok) setAttachments([])
-      if (!ok && useComposerStore.getState().text === '') {
-        useComposerStore.getState().setText(content)
+      const ok = await onSend(content.trim() || 'Revisa los archivos adjuntos.', outgoing, allowUnconfirmedVision)
+      if (ok) removeAttachmentsById(attachmentIds)
+      if (!ok) {
+        restoreSubmission(submissionSessionKey, attachmentIds, content)
         requestAnimationFrame(autosize)
       }
+    } catch {
+      restoreSubmission(submissionSessionKey, attachmentIds, content)
+      requestAnimationFrame(autosize)
     } finally {
       setIsSubmitting(false)
     }
@@ -128,12 +180,106 @@ export default function Composer({
 
   const canSend = !!text.trim() || attachments.length > 0
 
+  async function prepareOne(item: AttachmentRef) {
+    if (!onPrepareAttachments) return
+    const generation = (preparationGenerationRef.current.get(item.id) ?? 0) + 1
+    preparationGenerationRef.current.set(item.id, generation)
+    const pending = { ...item, status: 'preparing' as const, error: undefined }
+    updateAttachmentById(item.id, pending)
+    try {
+      const prepared = await onPrepareAttachments([pending])
+      if (preparationGenerationRef.current.get(item.id) !== generation) return
+      replaceAttachmentById(item.id, prepared)
+    } catch (error) {
+      if (preparationGenerationRef.current.get(item.id) !== generation) return
+      updateAttachmentById(item.id, { status: 'error', error: error instanceof Error ? error.message : 'No se pudo preparar el adjunto' })
+    }
+  }
+
   function addAttachment(item: AttachmentRef) {
-    setAttachments((current) => current.some((file) => file.path === item.path) ? current : [...current, item].slice(0, 8))
+    if (attachments.length >= 8 && !attachments.some((current) => current.path === item.path && current.name === item.name)) {
+      setAttachmentNotice('Puedes adjuntar hasta ocho archivos por envío.')
+      return
+    }
+    setAttachmentNotice(undefined)
+    const pending = onPrepareAttachments
+      ? { ...item, status: 'preparing' as const, error: undefined }
+      : item
+    addStoredAttachment(pending)
+    if (onPrepareAttachments) void prepareOne(pending)
+  }
+
+  function useOcrForImages() {
+    for (const file of imageAttachments) {
+      if (!file.ocr) void prepareOne({ ...file, ocr: true })
+    }
+  }
+
+  async function cancelAttachment(file: AttachmentRef) {
+    // Invalidate local ownership before awaiting the engine so a completion
+    // racing with cancellation cannot put the attachment back.
+    preparationGenerationRef.current.set(file.id, (preparationGenerationRef.current.get(file.id) ?? 0) + 1)
+    removeAttachmentsById([file.id])
+    await onCancelAttachmentPreparation?.([file])
+  }
+
+  async function openAttachmentPreview(file: AttachmentRef) {
+    setPreviewAttachment(file)
+    setPreviewUrl(file.previewUrl)
+    setPreviewText(undefined)
+    if (file.previewUrl || !(file.derivedUri || file.uri)) return
+    setPreviewLoading(true)
+    try {
+      const result = await engineApi.attachmentPreview(file.derivedUri || file.uri || '', 512 * 1024)
+      if (typeof result.base64 === 'string' && typeof result.mime_type === 'string') {
+        setPreviewUrl(`data:${result.mime_type};base64,${result.base64}`)
+      } else if (typeof result.data_url === 'string') {
+        setPreviewUrl(result.data_url)
+      } else if (typeof result.text === 'string') {
+        setPreviewText(result.text)
+      }
+    } catch {
+      setPreviewText('No se pudo abrir la vista previa de este adjunto.')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  function addBrowserFile(file: File) {
+    if (file.size > 25 * 1024 * 1024) {
+      setAttachmentNotice(`${file.name} supera el límite de 25 MiB por documento.`)
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') return
+      addAttachment({
+        id: `att_${Date.now().toString(36)}_${file.name}`,
+        path: file.name,
+        name: file.name,
+        mime_type: file.type || undefined,
+        size: file.size,
+        source: 'native',
+        kind: file.type.startsWith('image/') ? 'image' : undefined,
+        data_url: reader.result,
+        previewUrl: file.type.startsWith('image/') ? reader.result : undefined,
+        status: 'ready',
+      })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    for (const file of Array.from(event.dataTransfer.files)) addBrowserFile(file)
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    for (const file of Array.from(event.clipboardData.files)) addBrowserFile(file)
   }
 
   async function chooseFiles() {
-    const selected = await open({ multiple: true, directory: false, title: 'Adjuntar archivos de texto o código' })
+    const selected = await open({ multiple: true, directory: false, title: 'Adjuntar archivos' })
     const paths = typeof selected === 'string' ? [selected] : selected ?? []
     for (const path of paths) {
       addAttachment({
@@ -141,12 +287,14 @@ export default function Composer({
         path,
         name: path.split(/[/\\]/).pop() ?? path,
         source: 'native',
+        kind: /\.(png|jpe?g|webp)$/i.test(path) ? 'image' : undefined,
+        status: 'ready',
       })
     }
   }
 
   function chooseWorkspaceFile(file: { path: string; relative_path: string; name: string }) {
-    addAttachment({ id: `att_${Date.now().toString(36)}_${file.path}`, path: file.path, name: file.relative_path, source: 'workspace' })
+    addAttachment({ id: `att_${Date.now().toString(36)}_${file.path}`, path: file.path, name: file.relative_path, source: 'workspace', kind: /\.(png|jpe?g|webp)$/i.test(file.path) ? 'image' : undefined, status: 'ready' })
     useComposerStore.getState().setText(text.replace(/(?:^|\s)@[^\s]*$/, (match) => `${match.startsWith(' ') ? ' ' : ''}@${file.relative_path} `))
     setFileMatches([])
     requestAnimationFrame(autosize)
@@ -154,18 +302,30 @@ export default function Composer({
 
   return (
     <div className="relative">
-      <div className="rounded-[26px] border border-[var(--border)] bg-[var(--bg-elevated)] p-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.24)] transition-colors focus-within:border-[var(--accent-2)]/50">
+      <div onDrop={handleDrop} onDragOver={(event) => event.preventDefault()} className="rounded-[26px] border border-[var(--border)] bg-[var(--bg-elevated)] p-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.24)] transition-colors focus-within:border-[var(--accent-2)]/50">
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5 px-1">
             {attachments.map((file) => (
-              <span key={file.path} className="inline-flex max-w-[240px] items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] px-2 py-1 text-[11px] text-[var(--text-muted)]">
-                <FileText size={12} className="shrink-0" />
-                <span className="truncate">{file.name}</span>
-                <button type="button" aria-label={`Quitar ${file.name}`} onClick={() => setAttachments((current) => current.filter((item) => item.path !== file.path))} className="cursor-pointer rounded p-0.5 hover:bg-[var(--bg-hover)]"><X size={11} /></button>
+              <span key={`${file.path}:${file.name}`} className="inline-flex max-w-[320px] items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] px-2 py-1 text-[11px] text-[var(--text-muted)]">
+                <button type="button" onClick={() => void openAttachmentPreview(file)} className="inline-flex min-w-0 items-center gap-1.5 rounded px-0.5 text-left hover:text-[var(--text)]" title="Abrir vista previa">
+                  {file.previewUrl ? <img src={file.previewUrl} alt="" className="size-7 rounded object-cover" /> : file.kind === 'image' ? <ImageIcon size={12} className="shrink-0" /> : <FileText size={12} className="shrink-0" />}
+                  <span className="truncate">{file.name}</span>
+                </button>
+                {file.ocr && <span className="rounded bg-[var(--accent-2)]/10 px-1 text-[10px] text-[var(--accent-2)]">OCR</span>}
+                {file.warning && <span title={file.warning} className="text-amber-300">⚠</span>}
+                {file.kind === 'pdf' && <details className="relative"><summary className="cursor-pointer rounded px-1 text-[10px] text-[var(--text-subtle)] hover:text-[var(--text)]">PDF</summary><div className="absolute top-full right-0 z-40 mt-1 w-56 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-2 shadow-xl"><label className="block text-[10px] text-[var(--text-subtle)]">Páginas (ej. 1-3,5)<input disabled={file.status === 'preparing'} defaultValue={file.pageRange ?? ''} onChange={(event) => updateStoredAttachment(file.path, { pageRange: event.target.value || undefined })} className="mt-1 w-full rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-1.5 py-1 font-mono text-[11px] text-[var(--text)] outline-none disabled:opacity-50" /></label><label className="mt-2 block text-[10px] text-[var(--text-subtle)]">Páginas visuales (máx. 4)<input disabled={file.status === 'preparing'} defaultValue={file.visualPages?.join(',') ?? ''} onChange={(event) => updateStoredAttachment(file.path, { visualPages: event.target.value.split(',').map((value) => Number(value.trim())).filter((value) => Number.isInteger(value) && value > 0).slice(0, 4) })} className="mt-1 w-full rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-1.5 py-1 font-mono text-[11px] text-[var(--text)] outline-none disabled:opacity-50" /></label><button type="button" disabled={file.status === 'preparing'} onClick={() => void prepareOne(useComposerStore.getState().attachments.find((candidate) => candidate.id === file.id) ?? file)} className="mt-2 rounded border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-50">Repreparar PDF</button></div></details>}
+                {file.status === 'preparing' && <><LoaderCircle size={12} className="animate-spin text-[var(--accent-2)]" /><button type="button" aria-label={`Cancelar preparación de ${file.name}`} onClick={() => void cancelAttachment(file)} className="cursor-pointer rounded p-0.5 hover:bg-[var(--bg-hover)]"><Square size={10} /></button></>}
+                {file.status === 'error' && <><span title={file.error} className="text-red-400">{file.error || 'Error'}</span><button type="button" aria-label={`Reintentar ${file.name}`} onClick={() => void prepareOne(file)} className="cursor-pointer rounded p-0.5 hover:bg-[var(--bg-hover)]"><RefreshCw size={11} /></button></>}
+                <button type="button" aria-label={`Quitar ${file.name}`} onClick={() => removeStoredAttachment(file.path)} className="cursor-pointer rounded p-0.5 hover:bg-[var(--bg-hover)]"><X size={11} /></button>
               </span>
             ))}
           </div>
         )}
+        {attachmentNotice && <div className="mb-2 rounded-lg border border-red-400/30 bg-red-400/5 px-2.5 py-2 text-[11px] text-red-300">{attachmentNotice}</div>}
+        {visionUnavailable && <div className="mb-2 rounded-lg border border-amber-400/30 bg-amber-400/5 px-2.5 py-2 text-[11px] text-amber-200">Este modelo no declara visión. Usa OCR para enviar solo texto extraído o cambia de modelo.</div>}
+        {visionUnknown && <div className="mb-2 rounded-lg border border-amber-400/30 bg-amber-400/5 px-2.5 py-2 text-[11px] text-amber-200">La capacidad de visión de este modelo es desconocida. Elige OCR, cambia de modelo o confirma explícitamente el envío visual.</div>}
+        {allowUnconfirmedVision && visualAttachments.length > 0 && <div className="mb-2 flex items-center gap-2 rounded-lg border border-[var(--accent-2)]/30 bg-[var(--accent-2)]/5 px-2.5 py-2 text-[11px] text-[var(--text-muted)]"><span className="flex-1">Se enviará contenido visual aunque el modelo no haya declarado visión.</span><button type="button" onClick={() => setAllowUnconfirmedVision(false)} className="rounded px-1.5 py-0.5 hover:bg-[var(--bg-hover)]">Cancelar confirmación</button></div>}
+        {(visionUnavailable || visionUnknown) && imageAttachments.some((file) => !file.ocr) && <div className="mb-2 flex flex-wrap gap-1.5"><button type="button" onClick={useOcrForImages} className="rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-[11px] text-[var(--text-muted)] hover:text-[var(--text)]">Usar OCR para estas imágenes</button>{visionUnknown && <button type="button" onClick={() => setAllowUnconfirmedVision(true)} className="rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-[11px] text-[var(--text-muted)] hover:text-[var(--text)]">Confirmar envío visual</button>}</div>}
         {fileMatches.length > 0 && (
           <div className="absolute right-2 bottom-full left-2 z-30 mb-2 max-h-64 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-1.5 shadow-xl">
             {fileMatches.map((file) => (
@@ -185,6 +345,7 @@ export default function Composer({
             useComposerStore.getState().setText(e.target.value)
             autosize()
           }}
+          onPaste={handlePaste}
           onKeyDown={(e) => {
             const sendWithEnter = useUIStore.getState().enterToSend
             const mod = e.ctrlKey || e.metaKey
@@ -230,7 +391,7 @@ export default function Composer({
               )
             })}
           </div>
-          <Popover onOpenChange={(open) => { if (open) onDiscoverModels() }}>
+          <Popover open={modelOpen} onOpenChange={(open) => { setModelOpen(open); if (open) onDiscoverModels() }}>
             <PopoverTrigger asChild>
               <button
                 type="button"
@@ -253,17 +414,19 @@ export default function Composer({
                 {models.length === 0 && (
                   <button
                     type="button"
-                    onClick={onOpenProviders}
+                    onClick={() => { setModelOpen(false); onOpenProviders() }}
                     className="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text)]"
                   >
                     {t('composer.noModelsSetup')}
                   </button>
                 )}
-                {models.map((model) => (
+                {providers.map(provider => <section key={provider} aria-label={provider}>
+                  <h3 className="px-2.5 pt-3 pb-1 text-[11px] font-semibold text-[var(--text-subtle)]">{provider}</h3>
+                  {models.filter(model => (model.provider ?? 'Otros') === provider).map((model) => (
                   <button
                     key={model.id}
                     type="button"
-                    onClick={() => onUseModel(model)}
+                    onClick={() => { setModelOpen(false); onUseModel(model) }}
                     className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)]"
                   >
                     <span className="min-w-0 flex-1">
@@ -278,13 +441,13 @@ export default function Composer({
                       <Check size={14} aria-hidden="true" className="shrink-0 text-[var(--accent-2)]" />
                     )}
                   </button>
-                ))}
+                ))}</section>)}
               </div>
               {models.length > 0 && (
                 <div className="shrink-0 border-t border-[var(--border)] pt-1">
                   <button
                     type="button"
-                    onClick={onOpenProviders}
+                    onClick={() => { setModelOpen(false); onOpenProviders() }}
                     className="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text)]"
                   >
                     {t('composer.manageModels')}
@@ -293,28 +456,28 @@ export default function Composer({
               )}
             </PopoverContent>
           </Popover>
-          <Popover>
+          <Popover open={permissionOpen} onOpenChange={setPermissionOpen}>
             <PopoverTrigger asChild>
               <button type="button" disabled={isStreaming} title="Permisos de este chat" className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--text)] disabled:opacity-40">
                 <Shield size={13} />
-                <span>{effectivePermissionProfile === 'read-only' ? 'Solo lectura' : effectivePermissionProfile === 'full-access' ? 'Acceso completo' : 'Workspace'}</span>
+                <span>{sessionMode === 'plan' || sessionMode === 'review' ? (permissionProfile === 'full-access' ? 'Lectura · Acceso completo' : permissionProfile === 'workspace' ? 'Lectura · Workspace' : 'Solo lectura') : effectivePermissionProfile === 'read-only' ? 'Solo lectura' : effectivePermissionProfile === 'full-access' ? 'Acceso completo' : 'Workspace'}</span>
               </button>
             </PopoverTrigger>
             <PopoverContent align="start" className="w-64 p-1.5">
-              {sessionMode !== 'build' && <p className="px-2.5 py-2 text-[11px] text-[var(--text-subtle)]">PLAN y REVIEW siempre usan solo lectura.</p>}
+              {sessionMode !== 'build' && <p className="px-2.5 py-2 text-[11px] text-[var(--text-subtle)]">PLAN y REVIEW no modifican archivos ni ejecutan comandos. Estos permisos definen qué carpetas pueden leer.</p>}
               {([
                 ['read-only', 'Solo lectura', 'No inicia shell ni procesos y no modifica archivos.'],
                 ['workspace', 'Workspace', 'Trabaja dentro del proyecto; pide permiso ante una mutación externa detectable.'],
                 ['full-access', 'Acceso completo', 'Permite mutaciones locales externas. Credenciales, trabajo previo y Git remoto siguen protegidos.'],
               ] as const).map(([value, label, description]) => (
-                <button key={value} type="button" disabled={sessionMode !== 'build' || (value === 'full-access' && !permissionProfilesV2)} title={value === 'full-access' && !permissionProfilesV2 ? 'Actualiza Rinari Engine para usar acceso completo con garantías v2.' : undefined} onClick={() => onPermissionChange(value)} className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)] disabled:cursor-default disabled:opacity-40">
-                  <span className="min-w-0 flex-1"><span className="block text-[13px] text-[var(--text)]">{label}</span><span className="block text-[11px] text-[var(--text-subtle)]">{description}</span></span>
+                <button key={value} type="button" disabled={isStreaming || (value === 'full-access' && !permissionProfilesV2)} title={value === 'full-access' && !permissionProfilesV2 ? 'Actualiza Rinari Engine para usar acceso completo con garantías v2.' : undefined} onClick={() => { setPermissionOpen(false); onPermissionChange(value) }} className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)] disabled:cursor-default disabled:opacity-40">
+                  <span className="min-w-0 flex-1"><span className="block text-[13px] text-[var(--text)]">{label}</span><span className="block text-[11px] text-[var(--text-subtle)]">{sessionMode === 'plan' || sessionMode === 'review' ? (value === 'full-access' ? 'Lee carpetas externas sin pedir permiso. Las credenciales siguen protegidas.' : value === 'workspace' ? 'Lee el proyecto y pide permiso para leer carpetas externas.' : 'Lee únicamente la carpeta de esta sesión.') : description}</span></span>
                   {permissionProfile === value && <Check size={14} className="mt-0.5 text-[var(--accent-2)]" />}
                 </button>
               ))}
             </PopoverContent>
           </Popover>
-          <Popover>
+          <Popover open={reasoningOpen} onOpenChange={setReasoningOpen}>
             <PopoverTrigger asChild>
               <button
                 type="button"
@@ -337,7 +500,7 @@ export default function Composer({
                 <button
                   key={level}
                   type="button"
-                  onClick={() => onReasoningChange(level)}
+                  onClick={() => { setReasoningOpen(false); onReasoningChange(level) }}
                   className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-hover)]"
                 >
                   <span className="min-w-0 flex-1">
@@ -370,7 +533,7 @@ export default function Composer({
             <button
               type="button"
               onClick={() => void handleSend()}
-              disabled={!canSend || isSubmitting}
+              disabled={!canSend || isSubmitting || visionUnavailable || visionUnknown || attachments.some((item) => item.status === 'preparing' || item.status === 'error')}
               aria-label={t('composer.send')}
               title={t('composer.send')}
               className="flex size-9 items-center justify-center rounded-full bg-[var(--accent)] text-white transition-all hover:brightness-110 active:scale-95 disabled:opacity-30 disabled:hover:brightness-100"
@@ -383,6 +546,23 @@ export default function Composer({
       <p className="mt-1.5 px-1 text-center text-[11px] text-[var(--text-subtle)]">
         {t('composer.hint')}
       </p>
+      {previewAttachment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label={`Vista previa de ${previewAttachment.name}`} onClick={() => setPreviewAttachment(null)}>
+          <div className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-3">
+              <Eye size={15} className="text-[var(--accent-2)]" />
+              <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{previewAttachment.name}</span>
+              <button type="button" aria-label="Cerrar vista previa" onClick={() => setPreviewAttachment(null)} className="rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"><X size={15} /></button>
+            </div>
+            <div className="min-h-32 overflow-auto p-4">
+              {previewLoading && <div className="flex items-center justify-center gap-2 py-10 text-sm text-[var(--text-muted)]"><LoaderCircle size={16} className="animate-spin" /> Preparando vista previa…</div>}
+              {!previewLoading && previewUrl && previewAttachment.kind === 'image' && <img src={previewUrl} alt={previewAttachment.name} className="mx-auto max-h-[65vh] max-w-full rounded-lg object-contain" />}
+              {!previewLoading && previewText !== undefined && <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-[var(--text-muted)]">{previewText}</pre>}
+              {!previewLoading && !previewUrl && previewText === undefined && <p className="py-10 text-center text-sm text-[var(--text-muted)]">No hay vista previa disponible.</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

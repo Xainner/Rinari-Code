@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
   Empaqueta el Rinari Engine como sidecar portable (ADR 0001, opción 1):
   Python empaquetado + paquete `rinari` instalado vía pip.
@@ -6,7 +6,7 @@
   Uso:
     powershell -ExecutionPolicy Bypass -File scripts/package-engine.ps1 `
       -CliRepo C:/Users/Xainner/Documents/DEV/Rinari-CLI `
-      -PythonVersion 3.12.11
+      -PythonVersion 3.12.10
 
   Salida: src-tauri/engine-dist/
     python.exe, Lib/site-packages/rinari..., ENGINE_VERSION
@@ -15,12 +15,22 @@
   RINARI_ENGINE_BIN/PATH como fallback de desarrollo).
 #>
 param(
-  [string]$CliRepo = (Join-Path (Split-Path $PSScriptRoot -Parent) "..\\Rinari-CLI"),
+  [string]$CliRepo = (Join-Path (Split-Path $PSScriptRoot -Parent) "..\\..\\Rinari-CLI"),
   [string]$PythonVersion = "3.12.10",
+  [switch]$Development,
   [string]$OutDir = (Join-Path $PSScriptRoot "..\\src-tauri\\engine-dist")
 )
 
 $ErrorActionPreference = "Stop"
+$manifest = Get-Content (Join-Path $PSScriptRoot "..\engine-manifest.json") -Raw | ConvertFrom-Json
+$sourceSha = (git -C $CliRepo rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $sourceSha -ne $manifest.engine_git_sha) {
+  throw "El checkout del engine no coincide con el pin. No se modificó el paquete existente."
+}
+$sourceDirty = [bool](git -C $CliRepo status --porcelain)
+if (($sourceDirty -or $manifest.development_build) -and -not $Development) {
+  throw "La fuente contiene cambios locales. Usa -Development para un paquete identificado como desarrollo."
+}
 
 $tag = $PythonVersion -replace "\.", ""
 $embedUrl = "https://www.python.org/ftp/python/$PythonVersion/python-$PythonVersion-embed-amd64.zip"
@@ -29,7 +39,7 @@ $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "rinari-engine-pkg"
 $repoRoot = [System.IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
 $resolvedOut = [System.IO.Path]::GetFullPath($OutDir)
 $expectedRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot "src-tauri"))
-if (-not $resolvedOut.StartsWith($expectedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+if (-not $resolvedOut.StartsWith($expectedRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
   throw "OutDir debe permanecer dentro de $expectedRoot"
 }
 if (Test-Path -LiteralPath $resolvedOut) {
@@ -71,27 +81,25 @@ Invoke-WebRequest -Uri $getPipUrl -OutFile $getPip
 if ($LASTEXITCODE -ne 0) { throw "get-pip falló" }
 
 Write-Host "--> instalar rinari + deps"
-& (Join-Path $OutDir "python.exe") -m pip install --no-warn-script-location --upgrade $wheel.FullName
+& (Join-Path $OutDir "python.exe") -m pip install --no-warn-script-location --force-reinstall $wheel.FullName
 if ($LASTEXITCODE -ne 0) { throw "pip install falló" }
 
-$engineVersion = & (Join-Path $OutDir "python.exe") -m rinari version 2>$null
+$engineVersion = & (Join-Path $OutDir "python.exe") -c "import importlib.metadata; print(importlib.metadata.version('rinari'))"
 if ($LASTEXITCODE -ne 0) { $engineVersion = "unknown" }
 "rinari=$($engineVersion.Trim())`ncli_sha=$engineSha`npython=$PythonVersion" | Set-Content (Join-Path $OutDir "ENGINE_VERSION")
+@{
+  base_git_sha = $sourceSha
+  development = [bool]$Development
+  dirty = $sourceDirty
+  wheel_sha256 = (Get-FileHash -LiteralPath $wheel.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+} | ConvertTo-Json | Set-Content -Encoding UTF8 (Join-Path $OutDir "ENGINE_SOURCE.json")
 
-Write-Host "--> humo: handshake del protocolo"
-$hello = @{ id = "pkg-smoke"; method = "engine.info"; params = @{} } | ConvertTo-Json -Compress
-$out = $hello | & (Join-Path $OutDir "python.exe") -m rinari engine --stdio 2>$null | Select-Object -First 2
-$out | ForEach-Object { Write-Host $_ }
-if (-not ($out -match '"ok":\s*true')) { throw "el engine empaquetado no responde engine.info" }
-foreach ($capability in $manifest.required_capabilities) {
-  if (-not ($out -match [regex]::Escape($capability))) {
-    throw "el engine empaquetado no expone la capacidad requerida: $capability"
-  }
-}
-foreach ($capability in $manifest.optional_capabilities) {
-  if (-not ($out -match [regex]::Escape($capability))) {
-    throw "el engine empaquetado no expone la capacidad fijada: $capability"
-  }
-}
+Write-Host "--> OCR portable con binarios e idiomas verificados"
+& (Join-Path $OutDir "python.exe") (Join-Path $PSScriptRoot "package-ocr.py") (Join-Path $OutDir "ocr")
+if ($LASTEXITCODE -ne 0) { throw "No se pudo empaquetar OCR" }
+
+Write-Host "--> humo: contrato del motor en un home temporal"
+& (Join-Path $OutDir "python.exe") (Join-Path $PSScriptRoot "check-engine-tools.py") (Join-Path $OutDir "python.exe")
+if ($LASTEXITCODE -ne 0) { throw "El motor empaquetado no cumple el contrato de herramientas" }
 
 Write-Host "OK: $OutDir"

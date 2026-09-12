@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch } from 'react'
 import { toast } from 'sonner'
 import { commandMessage, engineApi, type SessionDeleteResult, type SessionSummary } from '../../services/engine'
+import { translate } from '../../i18n'
+import { useUIStore } from '../../stores/ui'
 import { historyToMessages } from './history'
 import type { TimelineAction } from '../activity/turnTimelineReducer'
 
@@ -85,7 +87,7 @@ export function useSessionList(options: {
       setActiveSession(id)
       try {
         const opened = await engineApi.openSession(id)
-        for (const warning of opened.warnings ?? []) {
+        for (const warning of new Set(opened.warnings ?? [])) {
           // Working-tree drift is normal project state and already appears in
           // the Git surface. Do not present it as an application error.
           if (warning.startsWith('[working-tree]')) continue
@@ -95,7 +97,7 @@ export function useSessionList(options: {
             })
             continue
           }
-          toast.warning(warning)
+          toast.warning(warning, { id: `session-warning-${id}-${warning}` })
         }
       } catch (err) {
         setActiveSession(previous)
@@ -107,10 +109,12 @@ export function useSessionList(options: {
     [activeSession, loadSessionHistory],
   )
 
-  const createSession = useCallback(async (): Promise<string | null> => {
+  const createSession = useCallback(async (projectId?: string): Promise<string | null> => {
     try {
       const result = await engineApi.createSession({
-        chat: true,
+        project_id: projectId,
+        chat: !projectId,
+        title: translate(useUIStore.getState().lang, 'sidebar.newChat'),
         mode: 'build',
         permission_profile: 'workspace',
       })

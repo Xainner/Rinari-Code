@@ -5,11 +5,13 @@ import type {
   TimelineItem,
   TimelineStatus,
   ToolTimelineItem,
+  ToolPresentation,
   TurnTimeline,
   TurnTimelineState,
 } from './types'
 
 export const TRIGGERS_SESSION_REFRESH = new Set([
+  'turn.started',
   'turn.completed',
   'turn.stopped',
   'session.mode.changed',
@@ -66,6 +68,7 @@ function defaultTimeline(turnId: string, sessionId: string, now: number): TurnTi
 
 function itemId(event: string, payload: Record<string, unknown>): string {
   if (event.startsWith('turn.changes.')) return `changeset:${payload.id || payload.changeset_id || 'turn'}`
+  if (event.startsWith('question.')) return `question:${payload.request_id}`
   if (payload.tool_call_id) return `tool:${payload.tool_call_id}`
   if (event.startsWith('model.')) return `model:${payload.model_call_id || 'legacy'}`
   if (payload.approval_id) return `approval:${payload.approval_id}`
@@ -85,6 +88,38 @@ function errorMessage(value: unknown): string | undefined {
     if (typeof message === 'string') return message
   }
   return undefined
+}
+
+function presentation(value: unknown): ToolPresentation | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const raw = value as Record<string, unknown>
+  const kind = raw.kind === 'command' ? 'command' : 'tool'
+  return {
+    kind,
+    tool: text(raw.tool) || undefined,
+    status: raw.status === 'failed' || raw.status === 'running' ? raw.status : 'success',
+    stderr_warning: raw.stderr_warning === true,
+    command: typeof raw.command === 'string' || Array.isArray(raw.command)
+      ? raw.command as string | string[]
+      : undefined,
+    cwd: text(raw.cwd) || undefined,
+    exit_code: typeof raw.exit_code === 'number' ? raw.exit_code : raw.exit_code === null ? null : undefined,
+    stdout: text(raw.stdout),
+    stderr: text(raw.stderr),
+    running: typeof raw.running === 'boolean' ? raw.running : undefined,
+    truncated: raw.truncated === true,
+    capture_truncated: raw.capture_truncated === true,
+    artifacts: Array.isArray(raw.artifacts) ? raw.artifacts.filter((item): item is string => typeof item === 'string') : undefined,
+    stream_sequences: raw.stream_sequences && typeof raw.stream_sequences === 'object'
+      ? Object.fromEntries(Object.entries(raw.stream_sequences).filter(([, value]) => typeof value === 'number')) as Record<string, number>
+      : undefined,
+    data: raw.data,
+    error: raw.error && typeof raw.error === 'object' ? {
+      code: text((raw.error as Record<string, unknown>).code) || undefined,
+      message: text((raw.error as Record<string, unknown>).message) || undefined,
+      retryable: (raw.error as Record<string, unknown>).retryable === true,
+    } : undefined,
+  }
 }
 
 function mergeEventItem(
@@ -127,6 +162,28 @@ function mergeEventItem(
   }
   if (event.startsWith('tool.')) {
     const prior = current?.type === 'tool' ? current : undefined
+    if (event === 'tool.output.delta' && prior && ['completed', 'failed', 'cancelled'].includes(prior.status)) return prior
+    let nextPresentation = presentation(payload.presentation) ?? prior?.presentation
+    if (event === 'tool.output.delta') {
+      const stream = text(payload.stream)
+      const delta = text(payload.delta)
+      if ((stream === 'stdout' || stream === 'stderr') && delta) {
+        const base = nextPresentation ?? { kind: 'command' as const, tool: text(payload.tool), status: 'running' as const }
+        const existing = base[stream] ?? ''
+        const sequence = number(payload.stream_seq)
+        const previous = base.stream_sequences?.[stream] ?? 0
+        if (sequence === undefined || sequence > previous) {
+          const combined = existing + delta
+          nextPresentation = {
+            ...base,
+            status: 'running',
+            [stream]: combined.slice(0, 64_000),
+            truncated: base.truncated || combined.length > 64_000,
+            stream_sequences: { ...base.stream_sequences, [stream]: sequence ?? previous + 1 },
+          }
+        }
+      }
+    }
     const status: ToolTimelineItem['status'] = event.endsWith('completed')
       ? 'completed'
       : event.endsWith('failed')
@@ -135,6 +192,8 @@ function mergeEventItem(
           ? 'cancelled'
           : event.endsWith('started')
             ? 'running'
+            : event === 'tool.output.delta'
+              ? prior?.status === 'running' || prior?.status === 'requested' ? prior.status : 'running'
             : 'requested'
     return {
       id,
@@ -145,10 +204,12 @@ function mergeEventItem(
       tool: text(payload.tool) || prior?.tool || 'tool',
       modelCallId: text(payload.model_call_id) || prior?.modelCallId,
       status,
+      filePath: text(payload.file_path) || prior?.filePath,
       arguments: text(payload.arguments) || prior?.arguments,
       result: text(payload.result) || prior?.result,
       error: errorMessage(payload.error) ?? prior?.error,
       durationMs: number(payload.duration_ms) ?? prior?.durationMs,
+      presentation: nextPresentation,
     }
   }
   if (event.startsWith('approval.')) {
@@ -213,6 +274,9 @@ function mergeEventItem(
         : prior?.warnings ?? [],
       files,
     }
+  }
+  if (event.startsWith('question.')) {
+    return { id, type: 'question', activitySeq, occurredAt, request: payload as unknown as import('../../services/desktop').QuestionRequest }
   }
   if (event.startsWith('agent.')) {
     return {
@@ -293,6 +357,7 @@ function normalizePersistedTurn(turn: TimelineTurn): TurnTimeline {
     turnId: turn.turn_id,
     sessionId: turn.session_id,
     turnIndex: turn.turn_index,
+    mode: turn.mode,
     status: (terminalStatus(`turn.${turn.status}`) ?? 'running'),
     startedAt: parseTime(turn.started_at, 0),
     completedAt: turn.completed_at ? parseTime(turn.completed_at, 0) : undefined,
@@ -438,6 +503,7 @@ export function turnTimelineReducer(state: TurnTimelineState, action: TimelineAc
       timeline = {
         ...timeline,
         status: turn.status === 'cancelling' ? 'cancelling' : 'running',
+        mode: text(turn.mode) || timeline.mode,
         startedAt: parseTime(turn.started_at, timeline.startedAt),
       }
       const items = Array.isArray(turn.items) ? turn.items : Array.isArray(turn.activities) ? turn.activities : []
@@ -463,6 +529,7 @@ export function turnTimelineReducer(state: TurnTimelineState, action: TimelineAc
   if (event === 'turn.started') {
     timeline = {
       ...timeline,
+      mode: text(payload.mode) || timeline.mode,
       status: 'running',
       startedAt: parseTime(payload.occurred_at, timeline.startedAt),
       userMessage: text(payload.message) || timeline.userMessage,
@@ -531,6 +598,7 @@ export function engineEventAction(event: EngineEventMsg, now = Date.now()): Time
     event.event.startsWith('turn.') ||
     event.event.startsWith('model.') ||
     event.event.startsWith('tool.') ||
+    event.event.startsWith('question.') ||
     event.event.startsWith('approval.') ||
     event.event.startsWith('governor.') ||
     event.event.startsWith('agent.') ||

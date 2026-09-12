@@ -12,6 +12,7 @@ export interface ChatMessage {
   /** Fallback waiting state when no protocol-backed execution is available. */
   pending?: boolean
   turnId?: string
+  attachments?: AttachmentRef[]
 }
 
 export type SessionKind = 'chat' | 'project'
@@ -42,4 +43,18 @@ export interface AttachmentRef {
   mime_type?: string
   size?: number
   source: 'native' | 'workspace'
+  status?: 'preparing' | 'ready' | 'error'
+  error?: string
+  previewUrl?: string
+  uri?: string
+  sha256?: string
+  kind?: 'image' | 'text' | 'pdf' | 'docx' | 'xlsx'
+  derivedUri?: string
+  images?: Array<{ uri: string; sha256?: string }>
+  ocr?: boolean
+  pageRange?: string
+  visualPages?: number[]
+  truncated?: boolean
+  warning?: string
+  data_url?: string
 }

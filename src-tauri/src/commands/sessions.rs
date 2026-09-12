@@ -261,6 +261,7 @@ pub(crate) async fn turn_start(
     message: String,
     reasoning_effort: Option<String>,
     attachments: Option<serde_json::Value>,
+    allow_unconfirmed_vision: Option<bool>,
 ) -> Result<serde_json::Value, CommandError> {
     // Un solo nombre canónico: el frontend siempre manda snake_case.
     // (Se probó aceptar también camelCase, pero dos params que solo se
@@ -271,11 +272,12 @@ pub(crate) async fn turn_start(
             .into());
     }
     super::run_engine(supervisor, move |engine| {
-        engine.turn_start_with_options(
+        engine.turn_start_with_vision(
             &session_id,
             &message,
             reasoning_effort.as_deref(),
             attachments,
+            allow_unconfirmed_vision.unwrap_or(false),
         )
     })
     .await

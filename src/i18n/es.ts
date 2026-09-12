@@ -709,7 +709,10 @@ export const es = {
   /* Tools y policy (Fase 9) */
   'tools.title': 'Herramientas y permisos',
   'tools.policy': 'Policy efectiva (del engine)',
-  'tools.catalog': 'Tools nativas ({n})',
+  'tools.catalog': 'Herramientas del motor ({n})',
+  'tools.search': 'Buscar herramientas',
+  'tools.noResults': 'No hay herramientas que coincidan.',
+  'tools.catalogNote': 'Catálogo de herramientas implementadas. Su disponibilidad depende de la sesión, los permisos y las integraciones configuradas.',
   'providers.credentialOk': 'Credencial guardada',
   'providers.alias': 'Alias',
   'providers.type': 'Tipo',

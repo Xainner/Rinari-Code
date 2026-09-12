@@ -1,0 +1,41 @@
+// @vitest-environment jsdom
+import { cleanup, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, expect, it, vi } from 'vitest'
+import { I18nProvider } from '../../i18n'
+import type { ModelSummary } from '../../services/engine'
+import Composer from './Composer'
+
+afterEach(cleanup)
+it('groups models by provider and closes each selector immediately on selection', async () => {
+  const onUseModel = vi.fn(), onPermissionChange = vi.fn(), onReasoningChange = vi.fn()
+  const models = [{ id: 'a', alias: 'Alpha', provider: 'Local', provider_model_id: 'alpha' }, { id: 'b', alias: 'Beta', provider: 'Remote', provider_model_id: 'beta' }] as ModelSummary[]
+  render(<I18nProvider lang="es"><Composer placement="bottom" onSend={vi.fn()} isStreaming={false} onStop={vi.fn()} models={models} activeAlias="Alpha" onUseModel={onUseModel} onDiscoverModels={vi.fn()} onOpenProviders={vi.fn()} sessionMode="build" onModeChange={vi.fn()} reasoningEffort="off" onReasoningChange={onReasoningChange} permissionProfile="workspace" effectivePermissionProfile="workspace" permissionProfilesV2 onPermissionChange={onPermissionChange} onSearchFiles={async () => ({ root: '/', files: [] })} /></I18nProvider>)
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: 'Alpha' }))
+  expect(screen.getByRole('heading', { name: 'Local' })).toBeTruthy()
+  expect(screen.getByRole('heading', { name: 'Remote' })).toBeTruthy()
+  await user.click(screen.getByRole('button', { name: /Beta/ }))
+  expect(onUseModel).toHaveBeenCalledWith(models[1])
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await user.click(screen.getByTitle('Permisos de este chat'))
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Solo lectura/ }))
+  expect(onPermissionChange).toHaveBeenCalledWith('read-only')
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await user.click(screen.getByTitle('Razonamiento'))
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Alto/ }))
+  expect(onReasoningChange).toHaveBeenCalledWith('high')
+  expect(screen.queryByRole('dialog')).toBeNull()
+})
+
+it('allows changing read scope in PLAN while showing immutable execution', async () => {
+  const onPermissionChange = vi.fn()
+  render(<I18nProvider lang="es"><Composer placement="bottom" onSend={vi.fn()} isStreaming={false} onStop={vi.fn()} models={[]} activeAlias="" onUseModel={vi.fn()} onDiscoverModels={vi.fn()} onOpenProviders={vi.fn()} sessionMode="plan" onModeChange={vi.fn()} reasoningEffort="off" onReasoningChange={vi.fn()} permissionProfile="full-access" effectivePermissionProfile="read-only" permissionProfilesV2 onPermissionChange={onPermissionChange} onSearchFiles={async () => ({ root: '/', files: [] })} /></I18nProvider>)
+  const user = userEvent.setup()
+  expect(screen.getByTitle('Permisos de este chat').textContent).toContain('Lectura · Acceso completo')
+  await user.click(screen.getByTitle('Permisos de este chat'))
+  expect(screen.getByText(/PLAN y REVIEW no modifican archivos/)).toBeTruthy()
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Workspace/ }))
+  expect(onPermissionChange).toHaveBeenCalledWith('workspace')
+  expect(screen.queryByRole('dialog')).toBeNull()
+})

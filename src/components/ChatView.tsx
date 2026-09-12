@@ -11,6 +11,8 @@ import { useComposerStore } from '../stores/composer'
 import { useUIStore } from '../stores/ui'
 import Composer from './composer/Composer'
 import Logo from './Logo'
+import Questions from '../features/questions/Questions'
+import { FileTurnContext } from '../features/files/FileWorkspace'
 import MessageBubble from './MessageBubble'
 import ScrollToBottom from './chat/ScrollToBottom'
 
@@ -19,11 +21,15 @@ interface ChatViewProps {
   sessionId: string
   isStreaming: boolean
   engineReady: boolean
-  onSend: (text: string, attachments?: AttachmentRef[]) => Promise<boolean>
+  onSend: (text: string, attachments?: AttachmentRef[], allowUnconfirmedVision?: boolean) => Promise<boolean>
+  onPrepareAttachments?: (attachments: AttachmentRef[]) => Promise<AttachmentRef[]>
+  onCancelAttachmentPreparation?: (attachments: AttachmentRef[]) => Promise<void>
   onStop: () => void
+  onImplementPlan?: () => Promise<boolean>
   onOpenProviders: () => void
   models: ModelSummary[]
   activeAlias: string | null
+  activeModel?: ModelSummary | null
   onUseModel: (model: ModelSummary) => void
   onDiscoverModels: () => void
   timelines: Record<string, TurnTimeline>
@@ -53,10 +59,14 @@ export default function ChatView({
   isStreaming,
   engineReady,
   onSend,
+  onPrepareAttachments,
+  onCancelAttachmentPreparation,
   onStop,
+  onImplementPlan,
   onOpenProviders,
   models,
   activeAlias,
+  activeModel,
   onUseModel,
   onDiscoverModels,
   timelines,
@@ -76,9 +86,16 @@ export default function ChatView({
   const autoFollow = useUIStore((s) => s.autoFollow)
   const showSuggestions = useUIStore((s) => s.showSuggestions)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const followRef = useRef(true)
   const virtRef = useRef<VirtualizerHandle>(null)
   const [atBottom, setAtBottom] = useState(true)
   const [now, setNow] = useState(Date.now())
+  const [planStarting, setPlanStarting] = useState(false)
+  const planStartingRef = useRef(false)
+  const [dismissedPlans, setDismissedPlans] = useState<Set<string>>(() => new Set())
+  const latestTurn = Object.values(timelines).filter(turn => turn.sessionId === sessionId).sort((a, b) => b.startedAt - a.startedAt)[0]
+  const pendingPlan = sessionMode === 'plan' && latestTurn?.mode === 'plan' && latestTurn.status === 'completed' && latestTurn.items.some(item => item.type === 'model' && item.outputKind === 'final' && item.content) && !dismissedPlans.has(latestTurn.turnId) && !isStreaming
   const hasDraft = useComposerStore((s) => s.text.trim().length > 0)
   const setDraft = useComposerStore((s) => s.setText)
 
@@ -105,7 +122,29 @@ export default function ChatView({
     const el = scrollRef.current
     if (!el) return
     setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80)
+    followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
   }
+
+  useEffect(() => {
+    followRef.current = true
+    setAtBottom(true)
+  }, [sessionId])
+
+  useEffect(() => {
+    const content = contentRef.current
+    if (!content || !autoFollow) return
+    let frame = 0
+    const observer = new ResizeObserver(() => {
+      if (!followRef.current) return
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const scroller = scrollRef.current
+        if (scroller && followRef.current) scroller.scrollTop = scroller.scrollHeight
+      })
+    })
+    observer.observe(content)
+    return () => { observer.disconnect(); cancelAnimationFrame(frame) }
+  }, [empty, autoFollow, sessionId])
 
   useEffect(() => {
     // Autoscroll inteligente: solo sigue si el usuario ya estaba abajo
@@ -119,10 +158,14 @@ export default function ChatView({
     <Composer
       placement={empty ? 'centered' : 'bottom'}
       onSend={onSend}
+      onPrepareAttachments={onPrepareAttachments}
+      onCancelAttachmentPreparation={onCancelAttachmentPreparation}
+      sessionId={sessionId}
       isStreaming={isStreaming}
       onStop={onStop}
       models={models}
       activeAlias={activeAlias}
+      activeModel={activeModel}
       onUseModel={onUseModel}
       onDiscoverModels={onDiscoverModels}
       sessionMode={sessionMode}
@@ -170,6 +213,7 @@ export default function ChatView({
               transition={{ duration: 0.22, ease: 'easeOut' }}
               className="relative mt-6 w-full"
             >
+              <Questions key={sessionId} sessionId={sessionId} />
               {composer}
             </motion.div>
             {showSuggestions && (
@@ -198,12 +242,14 @@ export default function ChatView({
                 {t('history.hasMore', { n: historyNote.total })}
               </p>
             )}
+            <div ref={contentRef}>
             <Virtualizer ref={virtRef} scrollRef={scrollRef} data={stream} bufferSize={800}>
               {(row, index) => (
                 <div
                   key={row.id}
                   className={`mx-auto max-w-3xl px-4 ${index === 0 ? 'pt-6' : 'pt-3'} pb-3`}
                 >
+                  <FileTurnContext.Provider value={row.kind === 'timeline' ? row.timeline.turnId : row.message.turnId}>
                   {row.kind === 'timeline' ? (
                     <TurnTimelineView
                       timeline={row.timeline}
@@ -211,11 +257,14 @@ export default function ChatView({
                       now={now}
                       onResolveApproval={onResolveApproval}
                       onContinue={handleContinue}
+                      planActions={pendingPlan && row.timeline.turnId === latestTurn.turnId && onImplementPlan ? <div className="flex items-center gap-2 border-t border-[var(--border)] pt-3 text-sm"><span className="flex-1">¿Implementar este plan?</span><button type="button" disabled={planStarting} onClick={() => setDismissedPlans(current => new Set(current).add(latestTurn.turnId))} className="rounded-lg px-3 py-2 hover:bg-[var(--bg-hover)]">Ahora no</button><button type="button" disabled={planStarting} className="rounded-lg bg-[var(--accent)] px-3 py-2 text-white disabled:opacity-50" onClick={async () => { if (planStartingRef.current) return; planStartingRef.current = true; setPlanStarting(true); try { await onImplementPlan() } finally { planStartingRef.current = false; setPlanStarting(false) } }}>{planStarting ? 'Iniciando…' : 'Implementar plan'}</button></div> : undefined}
                     />
                   ) : <MessageBubble message={row.message} />}
+                  </FileTurnContext.Provider>
                 </div>
               )}
             </Virtualizer>
+            </div>
           </div>
           <div className="shrink-0 border-t border-[var(--border)] px-4 pt-3 pb-4">
             <motion.div
@@ -224,6 +273,7 @@ export default function ChatView({
               transition={{ duration: 0.22, ease: 'easeOut' }}
               className="mx-auto max-w-3xl"
             >
+              <Questions key={sessionId} sessionId={sessionId} />
               {composer}
             </motion.div>
           </div>

@@ -52,7 +52,7 @@ function tsType(node) {
   if (node.type === 'integer' || node.type === 'number') return 'number'
   if (node.type === 'boolean') return 'boolean'
   if (node.type === 'array') return `Array<${tsType(node.items ?? {})}>`
-  if (node.type === 'object') return 'Record<string, unknown>'
+  if (node.type === 'object') return `Record<string, ${typeof node.additionalProperties === 'object' ? tsType(node.additionalProperties) : 'unknown'}>`
   return 'unknown'
 }
 

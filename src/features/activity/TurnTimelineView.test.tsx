@@ -18,6 +18,11 @@ function view(timeline: TurnTimeline, now: number, resolve = vi.fn()) {
 }
 
 describe('TurnTimelineView', () => {
+  it('presents a completed plan in its own card', () => {
+    view({ ...base, mode: 'plan', status: 'completed', completedAt: 2_000, items: [{ id: 'model:p', type: 'model', activitySeq: 1, occurredAt: 2_000, modelCallId: 'p', status: 'completed', content: '1. Revisar requisitos\n2. Implementar', outputKind: 'final' }] }, 2_000)
+    expect(screen.getByRole('region', { name: 'Plan propuesto' })).toBeTruthy()
+    expect(screen.getByText('Revisar requisitos')).toBeTruthy()
+  })
   it('debounces thinking and keeps ordinary chat free of completion cards', () => {
     const rendered = view(base, 1_299)
     expect(screen.queryByText('Pensando…')).toBeNull()

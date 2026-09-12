@@ -142,3 +142,24 @@ describe('AppSidebar project and session lifecycle', () => {
     expect(props.onRenameSession).toHaveBeenCalledWith('project-session', 'Governor complete')
   })
 })
+
+it('creates a session for the exact project without invoking global new chat', async () => {
+  const user = userEvent.setup()
+  const props = renderSidebar({ onNewProjectChat: vi.fn() })
+  await user.click(screen.getByLabelText('Nueva sesión en Rinari CLI'))
+  expect(props.onNewProjectChat).toHaveBeenCalledWith('project')
+  expect(props.onNewChat).not.toHaveBeenCalled()
+  await user.click(screen.getByText('Nueva conversación'))
+  expect(props.onNewChat).toHaveBeenCalledOnce()
+})
+
+it('collapses project sessions without opening the project', async () => {
+  const props = renderSidebar()
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: /Rinari CLI/ }))
+  expect(screen.queryByText('Fix governor')).toBeNull()
+  expect(screen.getByText('Research')).toBeTruthy()
+  expect(props.onOpenProject).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: /Rinari CLI/ }))
+  expect(screen.getByText('Fix governor')).toBeTruthy()
+})

@@ -13,7 +13,7 @@ export type TimelineStatus =
 
 interface TimelineItemBase {
   id: string
-  type: 'model' | 'tool' | 'approval' | 'agent' | 'context' | 'verification' | 'changeset' | 'system'
+  type: 'model' | 'tool' | 'approval' | 'agent' | 'context' | 'verification' | 'changeset' | 'system' | 'question'
   activitySeq: number
   occurredAt: number
 }
@@ -34,10 +34,32 @@ export interface ToolTimelineItem extends TimelineItemBase {
   tool: string
   modelCallId?: string
   status: 'requested' | 'running' | 'completed' | 'failed' | 'cancelled'
+  filePath?: string
   arguments?: string
   result?: string
   error?: string
   durationMs?: number
+  presentation?: ToolPresentation
+}
+
+export interface ToolPresentation {
+  kind: 'command' | 'tool'
+  tool?: string
+  status?: 'success' | 'failed' | 'running'
+  stderr_warning?: boolean
+  command?: string | string[]
+  cwd?: string
+  exit_code?: number | null
+  stdout?: string
+  stderr?: string
+  running?: boolean
+  truncated?: boolean
+  /** The persisted full-capture artifact reached its hard byte limit. */
+  capture_truncated?: boolean
+  artifacts?: string[]
+  stream_sequences?: Record<string, number>
+  data?: unknown
+  error?: { code?: string; message?: string; retryable?: boolean }
 }
 
 export interface ApprovalTimelineItem extends TimelineItemBase {
@@ -96,7 +118,13 @@ export interface SystemTimelineItem extends TimelineItemBase {
   label?: string
 }
 
+export interface QuestionTimelineItem extends TimelineItemBase {
+  type: 'question'
+  request: import('../../services/desktop').QuestionRequest
+}
+
 export type TimelineItem =
+  | QuestionTimelineItem
   | ModelTimelineItem
   | ToolTimelineItem
   | ApprovalTimelineItem
@@ -107,6 +135,7 @@ export type TimelineItem =
   | SystemTimelineItem
 
 export interface TurnTimeline {
+  mode?: string | null
   turnId: string
   sessionId: string
   turnIndex?: number

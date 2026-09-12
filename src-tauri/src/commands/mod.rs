@@ -25,6 +25,7 @@ where
         .map_err(|error| CommandError::from(format!("engine worker failed: {error}")))?
 }
 
+pub mod desktop;
 pub mod agents;
 pub mod ecosystem;
 pub mod engine;

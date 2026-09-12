@@ -15,7 +15,6 @@ import {
   Pencil,
   Pin,
   Search,
-  Settings2,
 } from 'lucide-react'
 import type { ProjectSummary, SessionSummary } from '../../services/engine'
 import type { PendingApproval } from '../../types'
@@ -38,8 +37,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
 } from '../ui/dropdown-menu'
 import { Switch } from '../ui/switch'
+import ApplicationMenu from './ApplicationMenu'
 
 export interface AppSidebarProps {
   collapsed: boolean
@@ -50,6 +51,8 @@ export interface AppSidebarProps {
   /** Home del proyecto de la sesión activa; null si no hay. */
   onOpenProjectHome: (() => void) | null
   onNewChat: () => void
+  onNewProjectChat?: (projectId: string) => void
+  onMoveSession?: (id: string, projectId: string | null) => void
   /** Abrir carpeta con el diálogo nativo (registra proyecto en el engine). */
   onOpenFolder: () => void
   sessions: SessionSummary[]
@@ -102,10 +105,11 @@ export function AppSidebar({
   collapsed,
   onToggleCollapse,
   onSearch,
-  onOpenSettings,
   onOpenEngine,
   onOpenProjectHome,
   onNewChat,
+  onNewProjectChat,
+  onMoveSession,
   onOpenFolder,
   sessions,
   closedSessions,
@@ -134,6 +138,9 @@ export function AppSidebar({
   const [showArchivedProjects, setShowArchivedProjects] = useState(false)
   const [showArchivedSessions, setShowArchivedSessions] = useState(false)
   const [query, setQuery] = useState('')
+  const [sessionMenu, setSessionMenu] = useState<string | null>(null)
+  const [projectMenu, setProjectMenu] = useState<string | null>(null)
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => new Set())
   const [deleteTarget, setDeleteTarget] = useState<SessionSummary | null>(null)
   const [renameTarget, setRenameTarget] = useState<SessionSummary | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
@@ -164,7 +171,7 @@ export function AppSidebar({
   const row = (session: SessionSummary, opts?: { closed?: boolean }) => {
     const active = session.id === activeId
     return (
-      <li key={session.id} className="group relative">
+      <li key={session.id} className="group relative" onContextMenu={e => { e.preventDefault(); setSessionMenu(session.id) }}>
         <div
           className={cn(
             'flex w-full items-center gap-1 rounded-xl pr-1 pl-2.5 transition-colors',
@@ -196,7 +203,7 @@ export function AppSidebar({
               {sessionLabel(session, t('sidebar.newChat'))}
             </span>
           </button>
-          <DropdownMenu>
+          <DropdownMenu open={sessionMenu === session.id} onOpenChange={open => setSessionMenu(open ? session.id : null)}>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
@@ -220,6 +227,10 @@ export function AppSidebar({
                   }}>
                     <Pencil size={13} /> {t('sidebar.rename')}
                   </DropdownMenuItem>
+                  {onMoveSession && <DropdownMenuSub><DropdownMenuSubTrigger>Mover a proyecto…</DropdownMenuSubTrigger><DropdownMenuSubContent>
+                    <DropdownMenuItem disabled={session.kind === 'CHAT'} onSelect={() => onMoveSession(session.id, null)}>Espacio general</DropdownMenuItem>
+                    {projects.filter(project => !project.archived).map(project => <DropdownMenuItem key={project.id} disabled={project.id === session.project_id} onSelect={() => onMoveSession(session.id, project.id)}>{project.name || projectDisplayName(project.root)}</DropdownMenuItem>)}
+                  </DropdownMenuSubContent></DropdownMenuSub>}
                   <DropdownMenuItem onSelect={() => onForkSession(session.id)}>
                     <GitFork size={13} /> {t('sidebar.fork')}
                   </DropdownMenuItem>
@@ -265,9 +276,7 @@ export function AppSidebar({
           <Cpu size={17} />
         </RailButton>
         <div className="flex-1" />
-        <RailButton label={t('nav.settings')} onClick={onOpenSettings}>
-          <Settings2 size={17} />
-        </RailButton>
+        <ApplicationMenu collapsed />
         <RailButton label={t('shell.expand')} onClick={onToggleCollapse}>
           <PanelLeftOpen size={17} />
         </RailButton>
@@ -327,15 +336,16 @@ export function AppSidebar({
           )}
           <ul className="space-y-2.5">
             {model.sections.map(({ project, sessions: items }) => (
-              <li key={project.id} className="group/project">
+              <li key={project.id} className="group/project" onContextMenu={e => { if (!e.defaultPrevented) { e.preventDefault(); setProjectMenu(project.id) } }}>
                 <div className="flex items-center">
                 <button
                   type="button"
-                  onClick={() => onOpenProject(project.root)}
+                  aria-expanded={!collapsedProjects.has(project.id) || Boolean(query)}
+                  onClick={() => setCollapsedProjects(current => { const next = new Set(current); if (next.has(project.id)) next.delete(project.id); else next.add(project.id); return next })}
                   title={project.root}
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors hover:bg-[var(--bg-hover)]/60"
                 >
-                  <FolderGit2 size={13} aria-hidden="true" className="shrink-0 text-[var(--text-subtle)]" />
+                  <ChevronDown size={13} aria-hidden="true" className={`shrink-0 text-[var(--text-subtle)] transition-transform ${collapsedProjects.has(project.id) && !query ? '-rotate-90' : ''}`} />
                   <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text)]">
                     {project.name || projectDisplayName(project.root)}
                   </span>
@@ -345,7 +355,8 @@ export function AppSidebar({
                     </span>
                   )}
                 </button>
-                <DropdownMenu>
+                {onNewProjectChat && <button type="button" aria-label={`Nueva sesión en ${project.name || projectDisplayName(project.root)}`} title="Nueva sesión en este proyecto" onClick={() => onNewProjectChat(project.id)} className="rounded-md p-1 text-[var(--text-subtle)] hover:bg-[var(--bg-hover)]"><Plus size={14} /></button>}
+                <DropdownMenu open={projectMenu === project.id} onOpenChange={open => setProjectMenu(open ? project.id : null)}>
                   <DropdownMenuTrigger asChild>
                     <button type="button" aria-label={t('project.options')} className="rounded-md p-1 text-[var(--text-subtle)] opacity-0 group-hover/project:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100">
                       <MoreHorizontal size={13} />
@@ -364,7 +375,7 @@ export function AppSidebar({
                   </DropdownMenuContent>
                 </DropdownMenu>
                 </div>
-                {items.length > 0 && (
+                {items.length > 0 && (!collapsedProjects.has(project.id) || Boolean(query)) && (
                   <ul className="mt-0.5 ml-3.5 space-y-0.5 border-l border-[var(--border)] pl-1">
                     {items.map((session) => row(session))}
                   </ul>
@@ -465,6 +476,8 @@ export function AppSidebar({
           </div>
         )}
       </div>
+
+      <ApplicationMenu />
 
       <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>

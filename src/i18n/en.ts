@@ -691,7 +691,10 @@ export const en: Record<I18nKey, string> = {
   /* Tools & policy (Phase 9) */
   'tools.title': 'Tools & Permissions',
   'tools.policy': 'Effective policy (engine-owned)',
-  'tools.catalog': 'Native tools ({n})',
+  'tools.catalog': 'Engine tools ({n})',
+  'tools.search': 'Search tools',
+  'tools.noResults': 'No matching tools.',
+  'tools.catalogNote': 'Implemented tool catalog. Availability depends on the session, permissions and configured integrations.',
   'providers.credentialOk': 'Credential stored',
   'providers.alias': 'Alias',
   'providers.type': 'Type',

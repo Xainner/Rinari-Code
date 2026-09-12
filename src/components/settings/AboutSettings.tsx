@@ -74,7 +74,7 @@ export default function AboutSettings({ version }: { version: string }) {
         </div>
         <div className="space-y-1 font-mono text-xs text-[var(--text-muted)]">
           <div className="flex items-center justify-between">
-            <span>rinari-code</span>
+            <span>Rinari Code</span>
             <span>{version}</span>
           </div>
           <div className="flex items-center justify-between">
